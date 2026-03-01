@@ -1,0 +1,230 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - Inventory Manager{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12 mb-4 d-flex justify-content-between align-items-center">
+        <h2 class="text-light">Settings & Preferences</h2>
+        <span class="badge {{ 'bg-danger' if role == 'owner' else 'bg-info text-dark' }} p-2 fs-6">{{ role|upper }} ACCESS</span>
+    </div>
+
+    <div class="col-md-8">
+        <!-- Category Management (Visible to Both) -->
+        <div class="card shadow-lg p-4 mb-4">
+            <h5 class="card-title text-success mb-4"><i class="bi bi-tags-fill me-2"></i>Category Management</h5>
+            <form action="{{ url_for('add_category') }}" method="POST" class="mb-4">
+                <div class="input-group">
+                    <input type="text" name="name" class="form-control bg-dark border-secondary text-light" placeholder="New category name..." required>
+                    <button class="btn btn-success" type="submit">Add Category</button>
+                </div>
+            </form>
+            
+            <div class="table-responsive">
+                <table class="table table-dark table-sm align-middle">
+                    <thead>
+                        <tr class="text-muted">
+                            <th>Category Name</th>
+                            {% if role == 'owner' %}
+                            <th class="text-end">Action</th>
+                            {% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cat in categories %}
+                        <tr>
+                            <td>{{ cat.name }}</td>
+                            {% if role == 'owner' %}
+                            <td class="text-end">
+                                <button onclick="confirmAction('/settings/category/delete/{{ cat._id }}', 'Delete this category?')" class="btn btn-link text-danger btn-sm p-0">
+                                    <i class="bi bi-x-circle-fill"></i>
+                                </button>
+                            </td>
+                            {% endif %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        {% if role == 'owner' %}
+        <!-- Manage Accounts (Owner Only) -->
+        <div class="card shadow-lg p-4 mb-4">
+            <h5 class="card-title text-info mb-4"><i class="bi bi-people-fill me-2"></i>Manage Accounts</h5>
+            <div class="table-responsive">
+                <table class="table table-dark table-hover align-middle">
+                    <thead>
+                        <tr class="text-muted">
+                            <th>Email Address</th>
+                            <th>Role</th>
+                            <th class="text-end">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in users %}
+                        <tr>
+                            <td class="fw-bold">{{ user.email }}</td>
+                            <td>
+                                <span class="badge {{ 'bg-danger' if user.role == 'owner' else 'bg-info text-dark' }}">
+                                    {{ user.role|upper }}
+                                </span>
+                            </td>
+                            <td class="text-end">
+                                {% if user.email != 'admin@inventory.com' %}
+                                <button onclick="confirmAction('/settings/user/delete/{{ user._id }}', 'Delete this user?')" class="btn btn-outline-danger btn-sm">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                                {% else %}
+                                <span class="text-muted small">Protected</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Danger Zone (Owner Only) -->
+        <div class="card shadow-lg p-4 mb-4 border-danger border-opacity-50" style="background: rgba(220, 53, 69, 0.05);">
+            <h5 class="card-title text-danger mb-3"><i class="bi bi-exclamation-octagon-fill me-2"></i>Danger Zone</h5>
+            <p class="small text-muted mb-4">Wiping the database is permanent and cannot be undone. This will delete all items, sales, and logs.</p>
+            <form action="{{ url_for('clear_all_data') }}" method="POST" onsubmit="return confirm('CRITICAL WARNING: Are you absolutely sure you want to PERMANENTLY DELETE all items, sales history, and logs? This action cannot be reversed.')">
+                <button type="submit" class="btn btn-outline-danger">
+                    <i class="bi bi-trash3-fill me-2"></i>Wipe All Business Records
+                </button>
+            </form>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="col-md-4">
+        {% if role == 'owner' %}
+        <!-- Add New User (Owner Only) -->
+        <div class="card shadow-lg p-4">
+            <h5 class="card-title text-success mb-4">Add New Account</h5>
+            <form action="{{ url_for('add_user') }}" method="POST">
+                <div class="mb-3">
+                    <label class="form-label">Email Address</label>
+                    <input type="email" name="email" class="form-control bg-dark border-secondary text-light" placeholder="user@example.com" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Password</label>
+                    <div class="input-group">
+                        <input type="password" name="password" id="newUserPassword" class="form-control bg-dark border-secondary text-light" required>
+                        <button class="btn btn-outline-secondary border-secondary" type="button" id="toggleNewPassword">
+                            <i class="bi bi-eye-slash" id="newEyeIcon"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Access Level</label>
+                    <select name="role" class="form-select bg-dark border-secondary text-light">
+                        <option value="cashier">Cashier (Standard Access)</option>
+                        <option value="owner">Owner (Full Admin Access)</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-success w-100 mt-2">Create Account</button>
+            </form>
+        </div>
+        {% else %}
+        <!-- Cashier Info Card -->
+        <div class="card shadow-lg p-4 border-info">
+            <h6 class="text-info mb-2"><i class="bi bi-info-circle me-2"></i>Cashier Access</h6>
+            <p class="small text-muted mb-0">You have permission to add new items to the master list and create new categories to organize the inventory.</p>
+        </div>
+        {% endif %}
+
+        <!-- Theme Manager -->
+        <div class="card bg-card border-secondary shadow-lg mt-4" style="border-left: 4px solid #a855f7;">
+            <div class="card-body p-4">
+                <h6 class="text-purple mb-3" style="color: #a855f7;"><i class="bi bi-palette-fill me-2"></i>Personalize Theme</h6>
+                <div class="row g-2">
+                    <div class="col-6">
+                        <button class="btn btn-outline-secondary btn-sm w-100 theme-btn" data-theme="default" onclick="setTheme('default')">Original</button>
+                    </div>
+                    <div class="col-6">
+                        <button class="btn btn-outline-light btn-sm w-100 theme-btn" data-theme="light" onclick="setTheme('light')" style="color: #666; border-color: #dee2e6; background: #fff;">Classic Light</button>
+                    </div>
+                    <div class="col-6">
+                        <button class="btn btn-outline-dark btn-sm w-100 theme-btn" data-theme="oled" onclick="setTheme('oled')" style="color: #fff; border-color: #333; background: #000;">OLED Black</button>
+                    </div>
+                    <div class="col-6">
+                        <button class="btn btn-outline-info btn-sm w-100 theme-btn" data-theme="cyberpunk" onclick="setTheme('cyberpunk')">Cyberpunk</button>
+                    </div>
+                    <div class="col-6">
+                        <button class="btn btn-outline-success btn-sm w-100 theme-btn" data-theme="emerald" onclick="setTheme('emerald')">Emerald</button>
+                    </div>
+                    <div class="col-6">
+                        <button class="btn btn-outline-primary btn-sm w-100 theme-btn" data-theme="midnight" onclick="setTheme('midnight')">Midnight</button>
+                    </div>
+                    <div class="col-6">
+                        <button class="btn btn-outline-warning btn-sm w-100 theme-btn" data-theme="royal" onclick="setTheme('royal')">Royal</button>
+                    </div>
+                    <div class="col-6">
+                        <button class="btn btn-outline-secondary btn-sm w-100 theme-btn" data-theme="nord" onclick="setTheme('nord')" style="color: #88c0d0; border-color: #88c0d0;">Nord</button>
+                    </div>
+                </div>
+                <p class="x-small text-muted mt-3 mb-0"><i class="bi bi-info-circle me-1"></i> Themes are saved to your account profile.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function setTheme(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('xpider-theme', theme);
+        updateThemeButtons(theme);
+
+        // Notify server
+        fetch('/update-theme', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ theme: theme })
+        });
+    }
+
+    function updateThemeButtons(activeTheme) {
+        document.querySelectorAll('.theme-btn').forEach(btn => {
+            if (btn.getAttribute('data-theme') === activeTheme) {
+                btn.classList.add('active-theme');
+                btn.style.boxShadow = '0 0 10px var(--primary-soft)';
+            } else {
+                btn.classList.remove('active-theme');
+                btn.style.boxShadow = 'none';
+            }
+        });
+    }
+
+    // Initialize toggle listeners after DOM load
+    document.addEventListener('DOMContentLoaded', function() {
+        updateThemeButtons("{{ session.get('theme', 'default') }}");
+        const toggleNewPasswordBtn = document.querySelector('#toggleNewPassword');
+        const newUserPassword = document.querySelector('#newUserPassword');
+        const newEyeIcon = document.querySelector('#newEyeIcon');
+
+        if (toggleNewPasswordBtn && newUserPassword && newEyeIcon) {
+            toggleNewPasswordBtn.addEventListener('click', function (e) {
+                const type = newUserPassword.getAttribute('type') === 'password' ? 'text' : 'password';
+                newUserPassword.setAttribute('type', type);
+                newEyeIcon.classList.toggle('bi-eye');
+                newEyeIcon.classList.toggle('bi-eye-slash');
+            });
+        }
+    });
+
+    function confirmAction(url, message) {
+        if (confirm(message)) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = url;
+            document.body.appendChild(form);
+            form.submit();
+        }
+    }
+</script>
+{% endblock %}

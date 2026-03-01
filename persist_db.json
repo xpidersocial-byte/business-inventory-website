@@ -1,0 +1,20 @@
+{
+    "todos": [],
+    "users": [
+        {
+            "username": "admin",
+            "password": "password123",
+            "role": "owner"
+        },
+        {
+            "username": "cashier",
+            "password": "cashier123",
+            "role": "cashier"
+        }
+    ],
+    "items": [],
+    "purchase": [],
+    "sales": [],
+    "inventory_log": [],
+    "system_logs": []
+}

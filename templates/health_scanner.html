@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+
+{% block title %}Full Website Health Scanner{% endblock %}
+
+{% block extra_css %}
+<style>
+    .terminal-window {
+        background: #0d1117;
+        border: 1px solid #30363d;
+        border-radius: 12px;
+        font-family: 'Courier New', Courier, monospace;
+        color: #e6edf3;
+        padding: 20px;
+        height: 400px;
+        width: 100%;
+        overflow-y: auto;
+        overflow-x: auto;
+        font-size: 0.85rem;
+        line-height: 1.4;
+        box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
+        white-space: pre-wrap;
+        word-break: break-all;
+        box-sizing: border-box;
+    }
+    .res-card {
+        background: rgba(37, 42, 55, 0.5);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 12px;
+        padding: 1.5rem;
+        text-align: center;
+        transition: transform 0.3s ease;
+    }
+    .res-card:hover { transform: translateY(-5px); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="text-light mb-1"><i class="bi bi-shield-check me-3 text-info"></i>Health & Security Scanner</h2>
+        <p class="text-muted small mb-0">Deep system crawl to identify broken links and vulnerabilities.</p>
+    </div>
+    <button class="btn btn-info fw-bold px-4 shadow-lg" id="scanBtn" onclick="runSystemScan()">
+        <i class="bi bi-radar me-2"></i>LAUNCH FULL SYSTEM SCAN
+    </button>
+</div>
+
+<div class="row mb-4" id="scanResults" class="d-none">
+    <div class="col-md-4">
+        <div class="res-card">
+            <div class="h2 mb-0 text-white" id="res_visited">0</div>
+            <div class="x-small text-muted text-uppercase fw-bold">Pages Audited</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="res-card" style="border-bottom: 3px solid #f85149;">
+            <div class="h2 mb-0 text-danger" id="res_broken">0</div>
+            <div class="x-small text-muted text-uppercase fw-bold">Broken References</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="res-card" style="border-bottom: 3px solid #d29922;">
+            <div class="h2 mb-0 text-warning" id="res_vuln">0</div>
+            <div class="x-small text-muted text-uppercase fw-bold">Security Flags</div>
+        </div>
+    </div>
+</div>
+
+<div id="scanStatus" class="card bg-card border-info mb-4 d-none">
+    <div class="card-body p-4">
+        <div class="d-flex align-items-center mb-3">
+            <div class="spinner-border text-info me-3" role="status"></div>
+            <div>
+                <h6 class="text-info mb-1 fw-bold">Crawl in progress...</h6>
+                <p class="text-muted small mb-0">Mapping application routes and testing for exploits.</p>
+            </div>
+        </div>
+        <div class="progress bg-dark" style="height: 10px; border-radius: 5px;">
+            <div class="progress-bar bg-info progress-bar-striped progress-bar-animated" style="width: 100%"></div>
+        </div>
+    </div>
+</div>
+
+<div class="card bg-card border-secondary shadow-lg overflow-hidden">
+    <div class="card-header bg-dark bg-opacity-25 border-bottom border-secondary p-3 d-flex justify-content-between align-items-center">
+        <span class="small fw-bold text-uppercase text-muted"><i class="bi bi-list-check me-2"></i>Audit Log & Vulnerability Report</span>
+        <button class="btn btn-link btn-sm text-muted p-0" onclick="document.getElementById('scanLog').innerHTML = ''">Clear Log</button>
+    </div>
+    <div class="card-body p-0" style="overflow: hidden;">
+        <div id="scanLog" class="terminal-window border-0 rounded-0" style="height: 500px; max-width: 100%; display: block;">
+            <div id="scanPlaceholder" class="text-center py-5">
+                <i class="bi bi-shield-shaded text-secondary opacity-25 mb-3" style="font-size: 4rem;"></i>
+                <p class="text-muted">Click the button above to begin a system-wide audit.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function runSystemScan() {
+        const btn = document.getElementById('scanBtn');
+        const status = document.getElementById('scanStatus');
+        const results = document.getElementById('scanResults');
+        const log = document.getElementById('scanLog');
+
+        btn.disabled = true;
+        status.classList.remove('d-none');
+        results.classList.remove('d-none');
+        log.innerHTML = '<div class="text-info mb-2">[SYSTEM] Initializing Health Scanner v1.0...</div>';
+        log.innerHTML += '<div class="text-info mb-2">[SYSTEM] Bypassing firewall for internal crawl...</div>';
+
+        fetch('/developer/scan', { method: 'POST' })
+            .then(r => r.json())
+            .then(data => {
+                btn.disabled = false;
+                status.classList.add('d-none');
+                
+                document.getElementById('res_visited').innerText = data.visited_count;
+                document.getElementById('res_broken').innerText = data.broken_links.length;
+                document.getElementById('res_vuln').innerText = data.vulnerabilities.length;
+
+                let logHtml = '';
+                data.scan_log.forEach(msg => {
+                    let cls = 'text-light';
+                    if (msg.includes('Broken')) cls = 'text-danger fw-bold';
+                    if (msg.includes('Found')) cls = 'text-warning';
+                    if (msg.includes('Scanning:')) cls = 'text-info';
+                    logHtml += `<div class="${cls} mb-1 small">● ${msg}</div>`;
+                });
+
+                if (data.vulnerabilities.length > 0) {
+                    logHtml += '<div class="text-warning fw-bold mt-4 mb-2 border-top border-secondary border-opacity-25 pt-3">VULNERABILITY ASSESSMENT REPORT:</div>';
+                    data.vulnerabilities.forEach(v => {
+                        logHtml += `<div class="p-2 mb-2 rounded bg-danger bg-opacity-10 border border-danger border-opacity-25">
+                            <span class="text-danger fw-bold">[${v.type}]</span> 
+                            <div class="text-light small mt-1">Location: ${v.url}</div>
+                            <div class="text-muted x-small">${v.details}</div>
+                        </div>`;
+                    });
+                } else {
+                    logHtml += '<div class="text-success fw-bold mt-4">✔ NO CRITICAL VULNERABILITIES DETECTED</div>';
+                }
+
+                log.innerHTML = logHtml;
+                log.scrollTop = 0;
+            })
+            .catch(err => {
+                btn.disabled = false;
+                status.classList.add('d-none');
+                log.innerHTML = `<div class="text-danger p-3">Audit Failed: ${err}</div>`;
+            });
+    }
+</script>
+{% endblock %}

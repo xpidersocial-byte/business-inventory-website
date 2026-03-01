@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block title %}System Documentation{% endblock %}
+
+{% block extra_css %}
+<style>
+    .docs-nav { position: sticky; top: 100px; }
+    .docs-section { margin-bottom: 4rem; scroll-margin-top: 120px; }
+    .code-block { background: #0d1117; padding: 15px; border-radius: 8px; font-family: monospace; color: #e6edf3; font-size: 0.85rem; border: 1px solid #30363d; margin: 15px 0; }
+    .method-badge { font-size: 0.7rem; padding: 3px 8px; border-radius: 4px; font-weight: bold; margin-right: 10px; }
+    .badge-get { background: #2ea043; color: white; }
+    .badge-post { background: #a371f7; color: white; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12 mb-5">
+        <h2 class="text-light mb-1"><i class="bi bi-journal-text me-3 text-primary"></i>System Documentation</h2>
+        <p class="text-muted">Technical specifications and architectural overview of the XPIDER System v2.5</p>
+    </div>
+
+    <!-- Sidebar Navigation for Docs -->
+    <div class="col-lg-3 d-none d-lg-block">
+        <div class="docs-nav list-group list-group-flush bg-card border border-secondary border-opacity-25 rounded-3">
+            <a href="#overview" class="list-group-item list-group-item-action bg-transparent text-muted small">1. Overview</a>
+            <a href="#database" class="list-group-item list-group-item-action bg-transparent text-muted small">2. Database Schema</a>
+            <a href="#logic" class="list-group-item list-group-item-action bg-transparent text-muted small">3. Core Algorithms</a>
+            <a href="#notifications" class="list-group-item list-group-item-action bg-transparent text-muted small">4. PWA & Notifications</a>
+            <a href="#api" class="list-group-item list-group-item-action bg-transparent text-muted small">5. API Reference</a>
+        </div>
+    </div>
+
+    <!-- Content -->
+    <div class="col-lg-9">
+        
+        <!-- Overview -->
+        <div id="overview" class="docs-section">
+            <h4 class="text-primary mb-3">1. System Overview</h4>
+            <p>XPIDER is a full-stack inventory management system built with <b>Flask (Python)</b> and <b>MongoDB</b>. It features a modern PWA frontend with real-time notifications and AI-driven business intelligence.</p>
+            <div class="card bg-dark border-secondary p-3 mt-3">
+                <ul class="mb-0 small text-muted">
+                    <li><b>Backend:</b> Python 3.13, Flask 3.1</li>
+                    <li><b>Database:</b> MongoDB 7.0 (Community Edition)</li>
+                    <li><b>Frontend:</b> Bootstrap 5.3, Jinja2, Vanilla JS</li>
+                    <li><b>Intelligence:</b> OpenRouter API (Gemini 2.0 Flash)</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Database -->
+        <div id="database" class="docs-section">
+            <h4 class="text-primary mb-3">2. Database Schema</h4>
+            <p>The system uses 8 primary collections in the <code>flask_todo_db</code> database:</p>
+            <div class="table-responsive">
+                <table class="table table-dark table-sm border-secondary opacity-75 small">
+                    <thead>
+                        <tr><th>Collection</th><th>Purpose</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><code>users</code></td><td>Credentials and Roles (Owner, Cashier)</td></tr>
+                        <tr><td><code>items</code></td><td>Inventory Master List & Metrics</td></tr>
+                        <tr><td><code>purchase</code></td><td>Sales Ledger History</td></tr>
+                        <tr><td><code>categories</code></td><td>Dynamic grouping for items</td></tr>
+                        <tr><td><code>notes</code></td><td>System Bulletin Board data</td></tr>
+                        <tr><td><code>inventory_log</code></td><td>Raw In/Out transaction history</td></tr>
+                        <tr><td><code>system_logs</code></td><td>Audit trail for all user actions</td></tr>
+                        <tr><td><code>subscriptions</code></td><td>Web Push device tokens</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Algorithms -->
+        <div id="logic" class="docs-section">
+            <h4 class="text-primary mb-3">3. Core Algorithms</h4>
+            <div class="card bg-dark border-secondary p-4">
+                <h6 class="text-info small mb-2 text-uppercase">Sales Velocity (Inventory Health)</h6>
+                <p class="small text-muted">Identifies items as <b>Cold Stock</b> if last log date > 30 days. Categorizes as <b>Sporadic</b> if total volume < 5 units.</p>
+                
+                <h6 class="text-info small mt-4 mb-2 text-uppercase">Profit Calculation</h6>
+                <div class="code-block">Profit = |Retail Price - Cost Price| * Quantity Sold</div>
+                
+                <h6 class="text-info small mt-4 mb-2 text-uppercase">Inventory Value</h6>
+                <div class="code-block">Inv Value = (Current Stock + Total Sold) * Cost Price</div>
+            </div>
+        </div>
+
+        <!-- PWA -->
+        <div id="notifications" class="docs-section">
+            <h4 class="text-primary mb-3">4. PWA & Notifications</h4>
+            <p>The system uses <b>Web Push (VAPID)</b> protocol for system-level notifications on Android and iOS.</p>
+            <div class="card bg-dark border-secondary p-4">
+                <p class="small fw-bold text-warning mb-2"><i class="bi bi-shield-lock me-2"></i>Security Requirement</p>
+                <p class="small text-muted mb-0">Push notifications and Service Workers strictly require <b>HTTPS</b>. Plain IP addresses will block these features.</p>
+                <div class="code-block">Version: Service Worker v2.5<br>Filter: Auto-blocks SUBSCRIBE/UNSUBSCRIBE spam.</div>
+            </div>
+        </div>
+
+        <!-- API -->
+        <div id="api" class="docs-section">
+            <h4 class="text-primary mb-3">5. API Reference</h4>
+            <div class="mb-4">
+                <p class="small fw-bold mb-1"><span class="method-badge badge-get">GET</span> <code>/system-info</code></p>
+                <p class="small text-muted">Returns live CPU, RAM, and Disk metrics.</p>
+            </div>
+            <div class="mb-4">
+                <p class="small fw-bold mb-1"><span class="method-badge badge-get">GET</span> <code>/latest-log</code></p>
+                <p class="small text-muted">Returns the single most recent activity for the toast system.</p>
+            </div>
+            <div class="mb-4">
+                <p class="small fw-bold mb-1"><span class="method-badge badge-post">POST</span> <code>/subscribe</code></p>
+                <p class="small text-muted">Registers a device's push subscription token.</p>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

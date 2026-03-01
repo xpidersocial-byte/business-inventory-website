@@ -1,0 +1,257 @@
+{% extends "base.html" %}
+
+{% block title %}Debugging AI{% endblock %}
+
+{% block extra_css %}
+<style>
+    .ai-container {
+        background: #0d1117;
+        border: 1px solid #30363d;
+        border-radius: 12px;
+        min-height: 600px;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+    .ai-header {
+        background: rgba(168, 85, 247, 0.1);
+        border-bottom: 1px solid rgba(168, 85, 247, 0.2);
+        padding: 20px;
+    }
+    .ai-content {
+        flex: 1;
+        padding: 30px;
+        overflow-y: auto;
+        color: #c9d1d9;
+        font-family: 'Segoe UI', system-ui, sans-serif;
+        line-height: 1.6;
+    }
+    .ai-footer {
+        padding: 20px;
+        background: #161b22;
+        border-top: 1px solid #30363d;
+    }
+    .scan-line {
+        height: 2px;
+        background: linear-gradient(90deg, transparent, #a855f7, transparent);
+        position: absolute;
+        width: 100%;
+        top: 0;
+        z-index: 10;
+        display: none;
+    }
+    pre {
+        background: #000 !important;
+        padding: 15px !important;
+        border-radius: 8px;
+        border: 1px solid #333;
+    }
+    .pulsing {
+        animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+        0% { opacity: 0.5; }
+        50% { opacity: 1; }
+        100% { opacity: 0.5; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="mb-1 text-purple" style="color: #a855f7;"><i class="bi bi-robot me-2"></i>XPIDER Debugging AI <span class="badge bg-danger ms-2" style="font-size: 0.6rem; vertical-align: middle; animation: pulse 1.5s infinite;">BETA MODE</span></h4>
+        <p class="text-muted small mb-0">Automated system health audit and error root-cause analysis.</p>
+        <div class="text-danger x-small mt-1 fw-bold"><i class="bi bi-exclamation-triangle-fill me-1"></i> BETA MODE: Do not run, data might break. Use with extreme caution.</div>
+    </div>
+    <div class="d-flex gap-2">
+        <button class="btn btn-outline-warning btn-sm fw-bold px-4" onclick="startDeepCrawl()" id="crawlBtn">
+            <i class="bi bi-globe me-2"></i>START DEEP CRAWL
+        </button>
+        <button class="btn btn-purple btn-sm fw-bold px-4" onclick="runNeuralScan()" id="scanBtn" style="background: #a855f7; color: white;">
+            <i class="bi bi-cpu-fill me-2"></i>RUN SYSTEM AUDIT
+        </button>
+    </div>
+</div>
+
+<div class="ai-container position-relative">
+    <div id="scanLine" class="scan-line"></div>
+    <div class="ai-header">
+        <div class="d-flex align-items-center">
+            <div class="p-2 bg-purple rounded-circle me-3" style="background: #a855f7;">
+                <i class="bi bi-activity text-white"></i>
+            </div>
+            <div>
+                <div class="fw-bold text-light">Neural Diagnostic Core</div>
+                <div id="aiStatus" class="small text-muted">Ready for system telemetry input...</div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="aiResponse" class="ai-content">
+        <div class="text-center py-5">
+            <i class="bi bi-shield-shaded display-1 opacity-10 mb-4"></i>
+            <h5 class="opacity-50">Initiate a "System Audit" or "Deep Crawl" to analyze engine activity.</h5>
+            <p class="text-muted small">The AI will scan system logs, browser errors, and crawl internal routes.</p>
+        </div>
+    </div>
+
+    <div class="ai-footer">
+        <div class="row g-2">
+            <div class="col-md-4">
+                <div class="p-2 border border-secondary border-opacity-25 rounded bg-dark">
+                    <div class="x-small text-muted text-uppercase fw-bold mb-1">Knowledge Base</div>
+                    <div class="small text-info">XPIDER Core v2.5.4</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="p-2 border border-secondary border-opacity-25 rounded bg-dark">
+                    <div class="x-small text-muted text-uppercase fw-bold mb-1">Context Window</div>
+                    <div class="small text-success">Latest 15 System Events</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="p-2 border border-secondary border-opacity-25 rounded bg-dark">
+                    <div class="x-small text-muted text-uppercase fw-bold mb-1">Analysis Mode</div>
+                    <div class="small text-warning">Real-time Root Cause</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script>
+    function runNeuralScan() {
+        const btn = document.getElementById('scanBtn');
+        const status = document.getElementById('aiStatus');
+        const responseDiv = document.getElementById('aiResponse');
+        const scanLine = document.getElementById('scanLine');
+
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>AUDITING...';
+        status.innerHTML = '<span class="text-purple pulsing">Scanning system logs and telemetry...</span>';
+        responseDiv.innerHTML = '<div class="text-center mt-5"><div class="spinner-grow text-purple mb-3" style="width: 3rem; height: 3rem; background: #a855f7;"></div><p class="text-muted">Synthesizing log data...</p></div>';
+        scanLine.style.display = 'block';
+        
+        let pos = 0;
+        const anim = setInterval(() => {
+            pos += 2;
+            scanLine.style.top = pos + 'px';
+            if (pos > 600) pos = 0;
+        }, 10);
+
+        fetch('/debugging-ai/analyze', { method: 'POST' })
+            .then(r => r.json())
+            .then(data => {
+                clearInterval(anim);
+                scanLine.style.display = 'none';
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-cpu-fill me-2"></i>RUN SYSTEM AUDIT';
+                
+                if (data.success) {
+                    status.innerHTML = '<span class="text-success fw-bold">Audit Complete. Root causes identified.</span>';
+                    responseDiv.innerHTML = marked.parse(data.analysis);
+                } else {
+                    status.innerHTML = '<span class="text-danger">Audit failed. Connection interrupted.</span>';
+                    responseDiv.innerHTML = `<div class="alert alert-danger">${data.message}</div>`;
+                }
+            })
+            .catch(err => {
+                clearInterval(anim);
+                scanLine.style.display = 'none';
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-cpu-fill me-2"></i>RUN SYSTEM AUDIT';
+                status.innerHTML = '<span class="text-danger">Neural core error.</span>';
+                responseDiv.innerHTML = `<div class="alert alert-danger">Error: ${err}</div>`;
+            });
+    }
+
+    function startDeepCrawl() {
+        const btn = document.getElementById('crawlBtn');
+        const status = document.getElementById('aiStatus');
+        const responseDiv = document.getElementById('aiResponse');
+        
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>CRAWLING...';
+        status.innerHTML = '<span class="text-warning pulsing">Crawling internal routes for dead links...</span>';
+        responseDiv.innerHTML = '<div class="text-center mt-5"><div class="spinner-grow text-warning mb-3" style="width: 3rem; height: 3rem;"></div><p class="text-muted">Probing site structure...</p></div>';
+        
+        fetch('/debugging-ai/scan', { method: 'POST' })
+            .then(r => r.json())
+            .then(data => {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-globe me-2"></i>START DEEP CRAWL';
+                
+                if (data.success) {
+                    status.innerHTML = '<span class="text-success fw-bold">Crawl Complete.</span>';
+                    const results = data.data;
+                    let html = `<div class="mb-4 text-center">
+                        <span class="badge bg-secondary p-2 me-2">${results.total_pages} Pages Scanned</span>
+                        <span class="badge bg-${results.broken_links.length > 0 ? 'danger' : 'success'} p-2">${results.broken_links.length} Broken Links</span>
+                    </div>`;
+
+                    if (results.broken_links.length > 0) {
+                        html += `<h5 class="text-danger mb-3">Critical Errors Found</h5>`;
+                        results.broken_links.forEach(link => {
+                            html += `
+                            <div class="card bg-dark border-danger mb-2">
+                                <div class="card-body p-2 d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <span class="badge bg-danger me-2">${link.status}</span>
+                                        <span class="text-light font-monospace small">${link.url}</span>
+                                        <div class="text-muted x-small ms-1">${link.error}</div>
+                                    </div>
+                                    <button class="btn btn-sm btn-outline-info" onclick="fixError('${link.url}', '${link.error}')">
+                                        <i class="bi bi-magic me-1"></i>AI FIX
+                                    </button>
+                                </div>
+                            </div>`;
+                        });
+                    } else {
+                        html += '<div class="alert alert-success"><i class="bi bi-check-circle me-2"></i>No broken links found. Site is healthy.</div>';
+                    }
+
+                    html += `<h6 class="text-muted mt-4 mb-2">Crawl Log</h6>
+                    <div class="bg-dark p-2 rounded border border-secondary border-opacity-25" style="max-height: 300px; overflow-y: auto;">`;
+                    results.scan_log.forEach(log => {
+                        let color = log.status >= 400 ? 'text-danger' : (log.status >= 300 ? 'text-warning' : 'text-success');
+                        html += `<div class="d-flex justify-content-between small font-monospace border-bottom border-secondary border-opacity-10 py-1">
+                            <span class="${color} fw-bold w-25">[${log.status}]</span>
+                            <span class="text-light opacity-75 w-50 text-truncate">${log.url}</span>
+                            <span class="text-muted w-25 text-end">${log.latency}</span>
+                        </div>`;
+                    });
+                    html += '</div>';
+                    
+                    responseDiv.innerHTML = html;
+                }
+            });
+    }
+
+    function fixError(url, context) {
+        if(!confirm("Request AI solution for this error?")) return;
+        
+        console.log("[AI-FIX] Requesting fix for:", url, context);
+        
+        fetch('/debugging-ai/fix', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ context: `Error at ${url}: ${context}` })
+        })
+        .then(r => r.json())
+        .then(data => {
+            console.log("[AI-FIX] Response received:", data);
+            if(data.success) {
+                alert("AI Suggestion:\n\n" + data.fix);
+            } else {
+                alert("AI Fix Failed: " + (data.message || 'Unknown error'));
+            }
+        })
+        .catch(err => {
+            console.error("[AI-FIX] Network error:", err);
+            alert("Network Error: Could not reach AI engine.");
+        });
+    }
+</script>
+{% endblock %}

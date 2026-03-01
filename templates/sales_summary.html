@@ -1,0 +1,255 @@
+{% extends "base.html" %}
+
+{% block title %}Sales Summary - Inventory Manager{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --soft-blue: #7c9df2;
+        --soft-teal: #63e6be;
+        --border-color: #374151;
+    }
+    .chart-card { border: 1px solid var(--border-color); height: 100%; transition: all 0.3s ease; background-color: #252a37 !important; border-radius: 12px; }
+    .chart-card:hover { transform: translateY(-3px); border-color: var(--soft-blue); box-shadow: 0 8px 20px rgba(0,0,0,0.4); }
+    .chart-box { position: relative; height: 350px; width: 100%; }
+    .summary-icon { font-size: 2rem; opacity: 0.6; }
+    .bg-gradient-primary { background: linear-gradient(135deg, #7c9df2 0%, #4d6ab3 100%); }
+    .bg-gradient-success { background: linear-gradient(135deg, #82c91e 0%, #66a117 100%); }
+    .bg-gradient-info { background: linear-gradient(135deg, #63e6be 0%, #4ab596 100%); color: #000 !important; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-5">
+    <div class="col-md-12 d-flex justify-content-between align-items-center mb-4">
+        <h2 class="text-light">Sales Analysis Summary ({{ now.year if now else 2026 }})</h2>
+        <div class="btn-group shadow-sm">
+            <button onclick="window.location.href='{{ url_for('sales_summary', view='yearly') }}'" class="btn btn-outline-primary {{ 'active' if view_type == 'yearly' else '' }}">Yearly Overview</button>
+            <button onclick="window.location.href='{{ url_for('sales_summary', view='weekly') }}'" class="btn btn-outline-primary {{ 'active' if view_type == 'weekly' else '' }}">Weekly</button>
+            <button onclick="window.location.href='{{ url_for('sales_summary', view='daily') }}'" class="btn btn-outline-primary {{ 'active' if view_type == 'daily' else '' }}">Daily</button>
+        </div>
+    </div>
+
+    <!-- Financial Quick Summary Row -->
+    <div class="col-md-4 mb-4">
+        <div class="card bg-gradient-primary text-white border-0 shadow-sm rounded-4">
+            <div class="card-body d-flex align-items-center justify-content-between py-4">
+                <div>
+                    <h6 class="text-uppercase small mb-1 opacity-75">Avg. Monthly Revenue</h6>
+                    <h2 class="fw-bold mb-0">₱{{ "{:,.2f}".format(avg_monthly_revenue) }}</h2>
+                </div>
+                <i class="bi bi-graph-up-arrow summary-icon"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-4">
+        <div class="card bg-gradient-success text-white border-0 shadow-sm rounded-4">
+            <div class="card-body d-flex align-items-center justify-content-between py-4">
+                <div>
+                    <h6 class="text-uppercase small mb-1 opacity-75">Total Annual Profit</h6>
+                    <h2 class="fw-bold mb-0">₱{{ "{:,.2f}".format(total_annual_profit) }}</h2>
+                </div>
+                <i class="bi bi-piggy-bank summary-icon"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-4">
+        <div class="card bg-gradient-info text-dark border-0 shadow-sm rounded-4">
+            <div class="card-body d-flex align-items-center justify-content-between py-4">
+                <div>
+                    <h6 class="text-uppercase small mb-1 opacity-75">Profit Margin (Avg)</h6>
+                    <h2 class="fw-bold mb-0">{{ avg_profit_margin }}%</h2>
+                </div>
+                <i class="bi bi-percent summary-icon"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-5">
+    <!-- Monthly Sales Revenue & Profit Chart -->
+    <div class="col-md-8 mb-4">
+        <div class="card chart-card bg-dark shadow-lg">
+            <div class="card-body p-4">
+                <h5 class="card-title text-primary mb-4 d-flex align-items-center">
+                    <i class="bi bi-bar-chart-line me-2"></i>Monthly Revenue & Profit
+                </h5>
+                <div class="chart-box">
+                    <canvas id="monthlyChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Weekly Trend Line Chart -->
+    <div class="col-md-4 mb-4">
+        <div class="card chart-card bg-dark shadow-lg">
+            <div class="card-body p-4">
+                <h5 class="card-title text-info mb-4 d-flex align-items-center">
+                    <i class="bi bi-activity me-2"></i>Weekly Sales Trend
+                </h5>
+                <div class="chart-box">
+                    <canvas id="weeklyChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-5">
+    <!-- Breakdown Table (Monthly or Weekly) -->
+    <div class="col-md-12">
+        <div class="card bg-dark bg-opacity-50 border-secondary shadow-lg">
+            <div class="card-header bg-transparent border-bottom border-secondary p-4">
+                <h5 class="text-light mb-0">
+                    <i class="bi bi-calendar3 me-2 text-info"></i>
+                    {% if view_type == 'weekly' %}Weekly{% elif view_type == 'daily' %}Daily{% else %}Monthly{% endif %} Performance Breakdown
+                </h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover mb-0 align-middle">
+                        <thead class="text-info border-bottom border-primary bg-black">
+                            <tr>
+                                <th class="ps-4">DATE ({% if view_type == 'weekly' %}WEEK START{% elif view_type == 'daily' %}DAY{% else %}MONTH{% endif %})</th>
+                                <th>SALES (REVENUE)</th>
+                                <th>PROFIT</th>
+                                <th class="text-end pe-4">STATUS</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if view_type == 'weekly' %}
+                                {% for i in range(weeks_labels|length) %}
+                                {% if weekly_revenue[i] > 0 %}
+                                <tr>
+                                    <td class="ps-4 fw-bold text-light">{{ weeks_labels[i] }}</td>
+                                    <td class="text-info fw-bold">₱{{ "{:,.2f}".format(weekly_revenue[i]) }}</td>
+                                    <td class="text-success fw-bold">₱{{ "{:,.2f}".format(weekly_profit_values[i]) }}</td>
+                                    <td class="text-end pe-4">
+                                        <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25 px-3">WEEKLY</span>
+                                    </td>
+                                </tr>
+                                {% endif %}
+                                {% endfor %}
+                            {% elif view_type == 'daily' %}
+                                {% for i in range(daily_labels|length) %}
+                                {% if daily_revenue[i] > 0 %}
+                                <tr>
+                                    <td class="ps-4 fw-bold text-light">{{ daily_labels[i] }}</td>
+                                    <td class="text-info fw-bold">₱{{ "{:,.2f}".format(daily_revenue[i]) }}</td>
+                                    <td class="text-success fw-bold">₱{{ "{:,.2f}".format(daily_profit_values[i]) }}</td>
+                                    <td class="text-end pe-4">
+                                        <span class="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25 px-3">DAILY</span>
+                                    </td>
+                                </tr>
+                                {% endif %}
+                                {% endfor %}
+                            {% else %}
+                                {% for i in range(months_labels|length) %}
+                                {% if revenue_values[i] > 0 or profit_values[i] > 0 %}
+                                <tr>
+                                    <td class="ps-4 fw-bold text-light">{{ months_labels[i]|upper }}</td>
+                                    <td class="text-info fw-bold">₱{{ "{:,.2f}".format(revenue_values[i]) }}</td>
+                                    <td class="text-success fw-bold">₱{{ "{:,.2f}".format(profit_values[i]) }}</td>
+                                    <td class="text-end pe-4">
+                                        <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-3">RECORDED</span>
+                                    </td>
+                                </tr>
+                                {% endif %}
+                                {% endfor %}
+                            {% endif %}
+                            
+                            {% if (view_type == 'weekly' and weekly_revenue|sum == 0) or (view_type == 'daily' and daily_revenue|sum == 0) or (view_type == 'yearly' and revenue_values|sum == 0) %}
+                            <tr>
+                                <td colspan="4" class="text-center text-muted py-5">
+                                    <i class="bi bi-info-circle me-2"></i> No sales data recorded for this period.
+                                </td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Set common styles for charts
+    Chart.defaults.color = '#e0e0e0';
+    Chart.defaults.borderColor = '#333';
+
+    // 1. Monthly Revenue & Profit Chart (Combo Bar/Line)
+    const monthlyCtx = document.getElementById('monthlyChart').getContext('2d');
+    new Chart(monthlyCtx, {
+        type: 'bar',
+        data: {
+            labels: {{ months_labels|tojson }},
+            datasets: [
+                {
+                    label: 'Revenue',
+                    data: {{ revenue_values|tojson }},
+                    backgroundColor: 'rgba(13, 110, 253, 0.6)',
+                    borderColor: '#0d6efd',
+                    borderWidth: 1,
+                    order: 2
+                },
+                {
+                    label: 'Profit',
+                    data: {{ profit_values|tojson }},
+                    type: 'line',
+                    borderColor: '#198754',
+                    borderWidth: 3,
+                    pointBackgroundColor: '#198754',
+                    fill: false,
+                    tension: 0.4,
+                    order: 1
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: { beginAtZero: true, grid: { color: '#333' } },
+                x: { grid: { display: false } }
+            },
+            plugins: {
+                legend: { position: 'top' }
+            }
+        }
+    });
+
+    // 2. Weekly Trend Line Chart
+    const weeklyCtx = document.getElementById('weeklyChart').getContext('2d');
+    new Chart(weeklyCtx, {
+        type: 'line',
+        data: {
+            labels: {{ weeks_labels|tojson }},
+            datasets: [{
+                label: 'Revenue',
+                data: {{ weekly_revenue|tojson }},
+                borderColor: '#0dcaf0',
+                backgroundColor: 'rgba(13, 202, 240, 0.1)',
+                fill: true,
+                tension: 0.3,
+                borderWidth: 2,
+                pointRadius: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: { display: false },
+                x: { display: true, ticks: { maxRotation: 45, minRotation: 45 } }
+            },
+            plugins: {
+                legend: { display: false }
+            }
+        }
+    });
+</script>
+{% endblock %}
