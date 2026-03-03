@@ -50,6 +50,16 @@ jobs:
           # The app.py is already configured for HOST='0.0.0.0' and PORT=5000
           nohup venv/bin/python3 app.py > app.log 2>&1 &
           
+          # Wait a few seconds and check if it's still running
+          sleep 5
+          if pgrep -f "venv/bin/python3 app.py" > /dev/null; then
+            echo "✅ Flask app is running."
+          else
+            echo "❌ Flask app failed to start. Last 20 lines of app.log:"
+            tail -n 20 app.log
+            exit 1
+          fi
+          
           # Ensure Tailscale is funneling port 5000
           echo "Exposing port 5000 via Tailscale Funnel..."
           # Running funnel in the background to avoid blocking the workflow
