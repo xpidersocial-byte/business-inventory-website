@@ -15,11 +15,20 @@ jobs:
 
       - name: Deploy to Local Directory
         run: |
-          # Sync the checked-out code to the app directory
-          # We use rsync to update only changed files, excluding venv and logs
-          rsync -av --delete --exclude 'venv/' --exclude '*.log' --exclude 'data/' ./ /home/eujyrn/Desktop/flask_mongo_app/
+          # Use $HOME to identify the correct home directory
+          TARGET_DIR="$HOME/Desktop/flask_mongo_app"
           
-          cd /home/eujyrn/Desktop/flask_mongo_app
+          echo "Deploying to: $TARGET_DIR"
+          echo "Current user: $(whoami)"
+          echo "Home directory: $HOME"
+          
+          # Create target directory if it doesn't exist
+          mkdir -p "$TARGET_DIR"
+          
+          # Sync the checked-out code to the app directory
+          rsync -av --delete --exclude 'venv/' --exclude '*.log' --exclude 'data/' ./ "$TARGET_DIR/"
+          
+          cd "$TARGET_DIR"
           
           # Ensure venv exists
           if [ ! -d "venv" ]; then
