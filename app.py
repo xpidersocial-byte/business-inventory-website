@@ -1,3 +1,4 @@
+# --- DEPLOYMENT TRIGGER: v2.5.0-stable ---
 import eventlet
 eventlet.monkey_patch()
 
