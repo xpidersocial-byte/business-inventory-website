@@ -13,15 +13,18 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Verify Secret Availability (Debug)
+        run: |
+          if [ -z "${{ secrets.TS_OAUTH_CLIENT_ID }}" ]; then echo "❌ TS_OAUTH_CLIENT_ID is MISSING"; else echo "✅ TS_OAUTH_CLIENT_ID is found"; fi
+          if [ -z "${{ secrets.TS_OAUTH_SECRET }}" ]; then echo "❌ TS_OAUTH_SECRET is MISSING"; else echo "✅ TS_OAUTH_SECRET is found"; fi
+          if [ -z "${{ secrets.SSH_PRIVATE_KEY }}" ]; then echo "❌ SSH_PRIVATE_KEY is MISSING"; else echo "✅ SSH_PRIVATE_KEY is found"; fi
+
       - name: Connect to Tailscale
         uses: tailscale/github-action@v2
         with:
           oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
           oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
           tags: tag:server
-
-      - name: Verify Tailscale Connection
-        run: tailscale status
 
       - name: SSH and Deploy to VPS
         uses: appleboy/ssh-action@v1.0.3
@@ -35,8 +38,6 @@ jobs:
             git pull origin main
             source venv/bin/activate
             pip install -r requirements.txt
-            
             echo "Restarting application..."
-            # Kill the Flask app; the watchdog.sh will auto-restart it within 10s
             pkill -f "venv/bin/python3 app.py" || echo "App was not running"
             echo "Deployment successful!"
