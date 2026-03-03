@@ -27,15 +27,27 @@ The goal was to create a "Hacker-Aesthetic" inventory system that combined heavy
 - **Permission Matrix:** Developed a toggle-based access system where Owners can control exactly which menus and setup tabs are visible to Cashiers.
 - **Security:** Implemented a **Security Authorization Code (67)** required for modifying high-level Owner accounts.
 
-## 🧬 Technical Stack
+### Phase 5: The Next.js & Cloudflare Migration (Current)
+- **Architecture Shift:** Migrating from a monolithic Flask app to a modern **Next.js** frontend with a serverless backend.
+- **Database Evolution:** Transitioning from MongoDB (NoSQL) to **Cloudflare D1 (SQL)** for improved edge-performance and reliability.
+- **Edge Deployment:** Leveraging **Cloudflare Pages** and Workers to provide sub-millisecond latency worldwide.
+- **API Modernization:** Refactoring the Python logic into TypeScript-based Edge Functions.
+
+## 🧬 Technical Stack (Legacy/Stable)
 - **Languages:** Python (Flask), JavaScript (Vanilla), HTML5/CSS3 (Jinja2).
 - **Database:** MongoDB (NoSQL).
 - **Communication:** WebSockets (Socket.io), HTTP REST.
 - **Security:** Proxy-aware IP tracking, Session Guarding, Role-based Access Control (RBAC).
-- **Aesthetics:** 15+ Custom CSS Themes (Cyberpunk, Dracula, OLED, etc.).
+- **Aesthetics:** 16+ Custom CSS Themes (Cyberpunk, Dracula, OLED, etc.).
+
+## 🧬 Technical Stack (Next Generation)
+- **Framework:** Next.js (App Router), React, TailwindCSS.
+- **Database:** Cloudflare D1 (SQLite at the Edge).
+- **Deployment:** Cloudflare Pages & Workers.
+- **State Management:** TanStack Query & Server Actions.
 
 ## 👨‍💻 Gemini's Role
-I acted as your **Lead Systems Engineer**, building each module surgically, implementing self-healing protocols, and ensuring the UI felt modern and responsive. Together, we built a system that is not just a tool, but a complete business engine.
+I acted as your **Lead Systems Engineer**, building each module surgically, implementing self-healing protocols, and ensuring the UI felt modern and responsive. Now, I am guiding the transition to the Edge, ensuring the XPIDER legacy continues with even greater performance and scalability.
 
 ---
-*Created with Gemini CLI & XPIDER Core v2.4.0*
+*Created with Gemini CLI & XPIDER Core v2.5.0*

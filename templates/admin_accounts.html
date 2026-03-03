@@ -98,6 +98,14 @@
                                 <label class="form-check-label x-small text-muted" for="ps_log">System Logic (Maintenance/Threshold)</label>
                             </div>
                             <div class="form-check form-switch mb-2">
+                                <input class="form-check-input" type="checkbox" name="setup_notifications" id="ps_notif" {{ 'checked' if perms.setup_notifications }}>
+                                <label class="form-check-label x-small text-muted" for="ps_notif">Notification Alerts (Email Toggles)</label>
+                            </div>
+                            <div class="form-check form-switch mb-2">
+                                <input class="form-check-input" type="checkbox" name="setup_smtp" id="ps_smtp" {{ 'checked' if perms.setup_smtp }}>
+                                <label class="form-check-label x-small text-muted" for="ps_smtp">SMTP Settings (Server Config)</label>
+                            </div>
+                            <div class="form-check form-switch mb-2">
                                 <input class="form-check-input" type="checkbox" name="setup_categories" id="ps_cat" {{ 'checked' if perms.setup_categories }}>
                                 <label class="form-check-label x-small text-muted" for="ps_cat">Categories Management</label>
                             </div>
@@ -268,8 +276,16 @@
                         <hr class="border-secondary border-opacity-25 my-4">
                         <div class="p-3 rounded bg-danger bg-opacity-10 border border-danger border-opacity-25">
                             <label class="form-label small text-danger text-uppercase fw-bold"><i class="bi bi-shield-lock-fill me-2"></i>Security Authorization Code</label>
-                            <input type="text" name="verification_code" class="form-control border-danger bg-dark text-light" placeholder="Enter code to authorize Owner access">
-                            <div class="x-small text-muted mt-2">Required when modifying an Owner account or granting Owner permissions.</div>
+                            
+                            <div class="input-group mb-2">
+                                <input type="text" name="verification_code" id="verificationCodeInput" class="form-control border-danger bg-dark text-light" placeholder="Enter 6-digit code">
+                                <button class="btn btn-danger fw-bold" type="button" id="sendCodeBtn" onclick="sendAuthCode()">
+                                    <i class="bi bi-envelope-check me-1"></i> SEND CODE
+                                </button>
+                            </div>
+                            
+                            <div id="codeStatus" class="x-small text-muted mb-2"></div>
+                            <div class="x-small text-muted mt-2">Required when modifying an Owner account or granting Owner permissions. Code will be sent to the master administrator email (bejasadhev@gmail.com).</div>
                         </div>
                     </div>
                 </div>
@@ -286,6 +302,49 @@
 
 {% block scripts %}
 <script>
+    function sendAuthCode() {
+        const btn = document.getElementById('sendCodeBtn');
+        const status = document.getElementById('codeStatus');
+        const originalText = btn.innerHTML;
+        
+        btn.disabled = true;
+        btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Sending...';
+        status.innerHTML = '<span class="text-info">Initiating secure request...</span>';
+
+        fetch('/admin/send-auth-code', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                status.innerHTML = `<span class="text-success fw-bold"><i class="bi bi-check-circle-fill me-1"></i> ${data.message}</span>`;
+                btn.innerHTML = '<i class="bi bi-arrow-repeat me-1"></i> RESEND';
+                // Countdown to re-enable
+                let timer = 30;
+                const interval = setInterval(() => {
+                    timer--;
+                    if (timer <= 0) {
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="bi bi-envelope-check me-1"></i> SEND CODE';
+                        clearInterval(interval);
+                    } else {
+                        btn.innerHTML = `<i class="bi bi-hourglass-split me-1"></i> WAIT ${timer}s`;
+                    }
+                }, 1000);
+            } else {
+                status.innerHTML = `<span class="text-danger fw-bold"><i class="bi bi-exclamation-triangle-fill me-1"></i> ${data.message}</span>`;
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        })
+        .catch(error => {
+            status.innerHTML = `<span class="text-danger fw-bold"><i class="bi bi-exclamation-octagon-fill me-1"></i> Network error. Check console.</span>`;
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        });
+    }
+
     function togglePass(id) {
         const input = document.getElementById(id);
         input.type = input.type === 'password' ? 'text' : 'password';

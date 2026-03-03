@@ -45,6 +45,12 @@
                         </li>
                         {% endif %}
 
+                        {% if session.get('role') == 'owner' or cashier_perms.setup_smtp %}
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link border-0 py-3 px-4 text-light small fw-bold text-uppercase" id="smtp-tab" data-bs-toggle="tab" data-bs-target="#smtp" type="button" role="tab"><i class="bi bi-envelope-at me-2 text-primary"></i>SMTP Settings</button>
+                        </li>
+                        {% endif %}
+
                         {% if session.get('role') == 'owner' or cashier_perms.setup_users %}
                         <li class="nav-item" role="presentation">
                             <button class="nav-link border-0 py-3 px-4 text-light small fw-bold text-uppercase" id="users-tab" data-bs-toggle="tab" data-bs-target="#users_pane" type="button" role="tab"><i class="bi bi-people-fill me-2 text-info"></i>User Accounts</button>
@@ -187,25 +193,125 @@
                         <div class="tab-pane fade" id="logic" role="tabpanel">
                             <div class="row g-4">
                                 <div class="col-md-6">
-                                    <div class="p-3 bg-dark bg-opacity-25 rounded border border-secondary border-opacity-10">
+                                    <div class="p-3 bg-dark bg-opacity-25 rounded border border-secondary border-opacity-10 mb-3">
                                         <div class="form-check form-switch">
                                             <input class="form-check-input" type="checkbox" name="maintenance_mode" id="maintenanceMode" {% if site_config.maintenance_mode %}checked{% endif %}>
                                             <label class="form-check-label fw-bold text-warning ms-2" for="maintenanceMode">
                                                 <i class="bi bi-exclamation-triangle-fill me-2"></i>MAINTENANCE MODE
                                             </label>
                                         </div>
-                                        <p class="x-small text-muted mb-0 mt-2 ms-5">When enabled, only developers can access the system. All other users will see a maintenance message.</p>
+                                        <p class="x-small text-muted mb-0 mt-2 ms-5">When enabled, only developers can access the system.</p>
+                                    </div>
+                                    
+                                    {% if session.get('role') == 'owner' or cashier_perms.setup_notifications %}
+                                    <div class="p-3 bg-dark bg-opacity-50 rounded border border-primary border-opacity-25">
+                                        <h6 class="text-primary small fw-bold text-uppercase mb-3"><i class="bi bi-bell-fill me-2"></i>Notification Alerts</h6>
+                                        <div class="row g-3">
+                                            <div class="col-6">
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" type="checkbox" name="email_notif_stock_in" id="notifStockIn" {% if site_config.email_notif_stock_in %}checked{% endif %}>
+                                                    <label class="form-check-label small text-light ms-2" for="notifStockIn">Stock In Alerts</label>
+                                                </div>
+                                            </div>
+                                            <div class="col-6">
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" type="checkbox" name="email_notif_stock_out" id="notifStockOut" {% if site_config.email_notif_stock_out %}checked{% endif %}>
+                                                    <label class="form-check-label small text-light ms-2" for="notifStockOut">Stock Out Alerts</label>
+                                                </div>
+                                            </div>
+                                            <div class="col-6">
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" type="checkbox" name="email_notif_low_stock" id="notifLowStock" {% if site_config.email_notif_low_stock %}checked{% endif %}>
+                                                    <label class="form-check-label small text-warning ms-2" for="notifLowStock">Low Stock Alerts</label>
+                                                </div>
+                                            </div>
+                                            <div class="col-6">
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" type="checkbox" name="email_notif_sales" id="notifSales" {% if site_config.email_notif_sales %}checked{% endif %}>
+                                                    <label class="form-check-label small text-success ms-2" for="notifSales">Sales Reports</label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label small text-muted">Low Stock Threshold</label>
+                                            <input type="number" name="low_stock_threshold" class="form-control bg-dark border-secondary text-light" value="{{ site_config.low_stock_threshold }}">
+                                            <div class="x-small text-muted mt-1">Alert when stock falls below this.</div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label small text-muted">Global Tax Rate (%)</label>
+                                            <input type="number" step="0.01" name="tax_rate" class="form-control bg-dark border-secondary text-light" value="{{ site_config.tax_rate }}">
+                                        </div>
+                                        <div class="col-12">
+                                            <label class="form-label small text-muted">Additional Email Recipients</label>
+                                            <textarea name="email_recipient_list" class="form-control bg-dark border-secondary text-light small" rows="3" placeholder="manager@example.com, owner@example.com">{{ site_config.email_recipient_list }}</textarea>
+                                            <div class="x-small text-muted mt-1">Comma-separated list of emails to receive alerts besides the primary business email.</div>
+                                        </div>
                                     </div>
                                 </div>
-                                <div class="col-md-3">
-                                    <label class="form-label small text-muted">Low Stock Threshold</label>
-                                    <input type="number" name="low_stock_threshold" class="form-control bg-dark border-secondary text-light" value="{{ site_config.low_stock_threshold }}">
-                                    <div class="x-small text-muted mt-1">Alert when stock falls below this.</div>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- SMTP Settings -->
+                        {% if session.get('role') == 'owner' or cashier_perms.setup_smtp %}
+                        <div class="tab-pane fade" id="smtp" role="tabpanel">
+                            <div class="row g-4">
+                                <div class="col-md-8">
+                                    <label class="form-label small text-muted">SMTP Host</label>
+                                    <input type="text" name="smtp_host" class="form-control bg-dark border-secondary text-light" value="{{ site_config.smtp_host }}" placeholder="smtp.gmail.com">
                                 </div>
-                                <div class="col-md-3">
-                                    <label class="form-label small text-muted">Global Tax Rate (%)</label>
-                                    <input type="number" step="0.01" name="tax_rate" class="form-control bg-dark border-secondary text-light" value="{{ site_config.tax_rate }}">
-                                    <div class="x-small text-muted mt-1">Applied to sales calculations.</div>
+                                <div class="col-md-4">
+                                    <label class="form-label small text-muted">SMTP Port</label>
+                                    <input type="number" name="smtp_port" class="form-control bg-dark border-secondary text-light" value="{{ site_config.smtp_port }}" placeholder="587">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small text-muted">SMTP Username</label>
+                                    <input type="text" name="smtp_user" class="form-control bg-dark border-secondary text-light" value="{{ site_config.smtp_user }}" placeholder="user@example.com">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small text-muted">SMTP Password</label>
+                                    <input type="password" name="smtp_password" class="form-control bg-dark border-secondary text-light" value="{{ site_config.smtp_password }}">
+                                </div>
+                                <div class="col-md-8">
+                                    <label class="form-label small text-muted">Sender Email Address</label>
+                                    <input type="email" name="smtp_sender" class="form-control bg-dark border-secondary text-light" value="{{ site_config.smtp_sender }}" placeholder="noreply@business.com">
+                                </div>
+                                <div class="col-md-2 mt-auto">
+                                    <div class="form-check form-switch mb-2">
+                                        <input class="form-check-input" type="checkbox" name="smtp_use_tls" id="smtpTLS" {% if site_config.smtp_use_tls %}checked{% endif %}>
+                                        <label class="form-check-label small text-muted ms-2" for="smtpTLS">Use TLS</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-2 mt-auto">
+                                    <div class="form-check form-switch mb-2">
+                                        <input class="form-check-input" type="checkbox" name="smtp_use_ssl" id="smtpSSL" {% if site_config.smtp_use_ssl %}checked{% endif %}>
+                                        <label class="form-check-label small text-muted ms-2" for="smtpSSL">Use SSL</label>
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <div class="alert alert-info bg-dark bg-opacity-25 border-secondary x-small mb-4">
+                                        <i class="bi bi-info-circle-fill me-2"></i> These settings are used for sending automated notifications, reports, and alerts via email.
+                                    </div>
+                                </div>
+                                <div class="col-md-12">
+                                    <h6 class="text-light small fw-bold text-uppercase border-bottom border-secondary pb-2 mb-3">SMTP Connectivity Test</h6>
+                                    <div class="row g-2 align-items-end">
+                                        <div class="col-md-8">
+                                            <label class="form-label small text-muted">Recipient Email for Test</label>
+                                            <input type="email" id="smtpTestEmail" class="form-control form-control-sm bg-dark border-secondary text-light" placeholder="someone@example.com">
+                                        </div>
+                                        <div class="col-md-4">
+                                            <button type="button" class="btn btn-outline-info btn-sm w-100 fw-bold" onclick="testSMTPSettings()">
+                                                <i class="bi bi-send me-1"></i> SEND TEST EMAIL
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div id="smtpTestStatus" class="mt-3 x-small"></div>
                                 </div>
                             </div>
                         </div>
@@ -455,12 +561,21 @@
             </div>
             <div class="card-body p-4">
                 <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
-                    <div>
+                    <div class="col-md-8">
                         <h6 class="text-light mb-1 fw-bold">Wipe All Business Records</h6>
-                        <p class="text-muted x-small mb-0">Permanently delete all inventory items, sales history, movement logs, and system alerts. This action is irreversible.</p>
+                        <p class="text-muted x-small mb-3">Permanently delete all inventory items, sales history, movement logs, and system alerts. This action is irreversible.</p>
+                        
+                        <div class="input-group input-group-sm w-100" style="max-width: 400px;">
+                            <input type="text" name="verification_code" id="dangerZoneCode" class="form-control bg-black border-danger text-light" placeholder="Enter 6-digit Security Code">
+                            <button class="btn btn-danger fw-bold" type="button" id="dangerCodeBtn" onclick="sendDangerZoneCode()">
+                                <i class="bi bi-envelope-check me-1"></i> SEND CODE
+                            </button>
+                        </div>
+                        <div id="dangerCodeStatus" class="x-small text-muted mt-2">Required to authorize a full system wipe. Code sent to bejasadhev@gmail.com.</div>
                     </div>
-                    <form action="{{ url_for('clear_all_data') }}" method="POST" onsubmit="return confirm('CRITICAL WARNING: Are you absolutely sure you want to PERMANENTLY DELETE all business records? This action cannot be reversed.')">
-                        <button type="submit" class="btn btn-outline-danger fw-bold px-4">
+                    <form action="{{ url_for('clear_all_data') }}" method="POST" onsubmit="return confirm('CRITICAL WARNING: Are you absolutely sure? This will WIPE EVERYTHING.')">
+                        <input type="hidden" name="verification_code" id="hiddenDangerCode">
+                        <button type="submit" class="btn btn-outline-danger fw-bold px-4" onclick="document.getElementById('hiddenDangerCode').value = document.getElementById('dangerZoneCode').value">
                             <i class="bi bi-trash3-fill me-2"></i>PURGE ALL DATA
                         </button>
                     </form>
@@ -676,6 +791,44 @@
         });
     }
 
+    function testSMTPSettings() {
+        const testEmail = document.getElementById('smtpTestEmail').value;
+        const statusDiv = document.getElementById('smtpTestStatus');
+        
+        if (!testEmail) {
+            alert("Please enter a recipient email for the test.");
+            return;
+        }
+
+        statusDiv.innerHTML = '<span class="text-info"><i class="bi bi-hourglass-split me-2 animate-spin"></i>Testing connection... please wait...</span>';
+        
+        const formData = new FormData();
+        formData.append('smtp_host', document.querySelector('input[name="smtp_host"]').value);
+        formData.append('smtp_port', document.querySelector('input[name="smtp_port"]').value);
+        formData.append('smtp_user', document.querySelector('input[name="smtp_user"]').value);
+        formData.append('smtp_password', document.querySelector('input[name="smtp_password"]').value);
+        formData.append('smtp_sender', document.querySelector('input[name="smtp_sender"]').value);
+        formData.append('smtp_use_tls', document.querySelector('input[name="smtp_use_tls"]').checked ? 'on' : 'off');
+        formData.append('smtp_use_ssl', document.querySelector('input[name="smtp_use_ssl"]').checked ? 'on' : 'off');
+        formData.append('test_email', testEmail);
+
+        fetch('/settings/smtp/test', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                statusDiv.innerHTML = `<span class="text-success"><i class="bi bi-check-circle-fill me-2"></i>${data.message}</span>`;
+            } else {
+                statusDiv.innerHTML = `<span class="text-danger"><i class="bi bi-x-circle-fill me-2"></i>${data.message}</span>`;
+            }
+        })
+        .catch(error => {
+            statusDiv.innerHTML = `<span class="text-danger"><i class="bi bi-exclamation-triangle-fill me-2"></i>Connection Error: ${error}</span>`;
+        });
+    }
+
     // --- SEO LOGIC ---
     function saveTechFile(filename, sourceId) {
         const content = document.getElementById(sourceId).value;
@@ -778,6 +931,47 @@
             document.getElementById('sitemap_content_raw').value = content;
         }
         saveTechFile(type, type.replace('.', '_') + '_content_raw');
+    }
+
+    function sendDangerZoneCode() {
+        const btn = document.getElementById('dangerCodeBtn');
+        const status = document.getElementById('dangerCodeStatus');
+        const originalText = btn.innerHTML;
+        
+        btn.disabled = true;
+        btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> SENDING...';
+        status.innerHTML = '<span class="text-info">Requesting master authorization...</span>';
+
+        fetch('/admin/send-auth-code', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                status.innerHTML = `<span class="text-success fw-bold"><i class="bi bi-check-circle-fill me-1"></i> ${data.message}</span>`;
+                btn.innerHTML = 'SENT';
+                // Countdown to re-enable
+                let timer = 30;
+                const interval = setInterval(() => {
+                    timer--;
+                    if (timer <= 0) {
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="bi bi-envelope-check me-1"></i> SEND CODE';
+                        clearInterval(interval);
+                    }
+                }, 1000);
+            } else {
+                status.innerHTML = `<span class="text-danger fw-bold"><i class="bi bi-exclamation-triangle-fill me-1"></i> ${data.message}</span>`;
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        })
+        .catch(error => {
+            status.innerHTML = `<span class="text-danger">Network error.</span>`;
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        });
     }
 
     window.onload = () => {

@@ -7,6 +7,7 @@ import os
 import json
 import psutil
 import smtplib
+import random
 from email.mime.text import MIMEText
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
@@ -95,6 +96,21 @@ def get_site_config():
             
             "login_background": "images/login_hero.webp",
             
+            "smtp_host": "",
+            "smtp_port": 587,
+            "smtp_user": "",
+            "smtp_password": "",
+            "smtp_sender": "",
+            "smtp_use_tls": True,
+            "smtp_use_ssl": False,
+            
+            # --- EMAIL NOTIFICATION LOGIC ---
+            "email_notif_stock_in": True,
+            "email_notif_stock_out": True,
+            "email_notif_low_stock": True,
+            "email_notif_sales": True,
+            "email_recipient_list": "", # Comma-separated extra recipients
+            
             "updated_at": datetime.now()
         }
         settings_collection.insert_one(config)
@@ -129,6 +145,63 @@ def send_push_notification(title, body):
                 subscriptions_collection.delete_one({"_id": sub['_id']})
         except Exception as e:
             pass # Ignore all other errors to prevent spam
+
+# --- SMTP Email Notification Helper ---
+def send_email_notification(subject, body, notif_type=None, override_recipient=None):
+    config = get_site_config()
+    
+    # Check if this notification type is enabled (unless overridden)
+    if notif_type and not override_recipient:
+        config_key = f"email_notif_{notif_type}"
+        if not config.get(config_key, True):
+            print(f"DEBUG: Notification '{notif_type}' is disabled in settings.")
+            return False
+
+    host = config.get('smtp_host')
+    port = config.get('smtp_port', 587)
+    user = config.get('smtp_user')
+    passw = config.get('smtp_password')
+    sender = config.get('smtp_sender') or user
+    use_tls = config.get('smtp_use_tls', True)
+    use_ssl = config.get('smtp_use_ssl', False)
+    
+    # Recipient List
+    if override_recipient:
+        recipients = [override_recipient]
+    else:
+        primary_recipient = config.get('contact_email')
+        extra_recipients = config.get('email_recipient_list', '').split(',')
+        recipients = [r.strip() for r in [primary_recipient] + extra_recipients if r.strip()]
+
+    if not all([host, user, passw]) or not recipients:
+        print("DEBUG: SMTP or Recipients not configured properly. Skipping email notification.")
+        return False
+
+    try:
+        msg = MIMEText(body)
+        msg['Subject'] = f"XPIDER Alert: {subject}"
+        msg['From'] = sender
+        msg['To'] = ", ".join(recipients)
+
+        if use_ssl:
+            server = smtplib.SMTP_SSL(host, port, timeout=10)
+            server.ehlo()
+        else:
+            server = smtplib.SMTP(host, port, timeout=10)
+            server.ehlo()
+            # Auto-enable TLS for port 587 or if explicitly requested
+            if use_tls or port == 587:
+                server.starttls()
+                server.ehlo()
+        
+        server.login(user, passw)
+        server.send_message(msg)
+        server.quit()
+        print(f"DEBUG: Email notification sent to {recipients}")
+        return True
+    except Exception as e:
+        print(f"DEBUG: Failed to send email notification: {str(e)}")
+        return False
 
 # --- RBAC Decorators ---
 def login_required(f):
@@ -331,13 +404,14 @@ def load_user_theme():
 @app.after_request
 def add_security_headers(response):
     """Inject standard security headers into every response."""
-    # Updated CSP to allow socket.io and external connections for maps
+    # Updated CSP to allow socket.io and Google Drive Embedding
     csp = (
         "default-src 'self'; "
         "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.socket.io; "
         "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
         "font-src 'self' https://cdn.jsdelivr.net; "
-        "img-src 'self' data: https://placehold.co; "
+        "img-src 'self' data: https://placehold.co https://*.googleusercontent.com https://*.google.com; "
+        "frame-src 'self' https://drive.google.com https://*.google.com; "
         "connect-src 'self' https://cdn.jsdelivr.net https://cdn.socket.io ws: wss:;"
     )
     response.headers['Content-Security-Policy'] = csp
@@ -413,6 +487,42 @@ def dashboard():
     cold_stock = sorted(cold_stock, key=lambda x: x['stock'] * x['cost_price'], reverse=True)[:5] # High value stuck items first
     sporadic_stock = sorted(sporadic_stock, key=lambda x: x['sold'], reverse=True)[:5]
 
+    # --- 2. Monthly Performance Analysis (Current Month) ---
+    month_str = now.strftime('%Y-%m') # e.g. "2026-03"
+    current_month_display = now.strftime('%B %Y')
+    
+    # Filter logs for current month and type OUT
+    monthly_sales_logs = list(inventory_log_collection.find({
+        "type": "OUT",
+        "timestamp": {"$regex": f"^{month_str}"}
+    }))
+    
+    # Aggregate monthly sales by item
+    monthly_item_sales = {} # {item_name: {"qty": 0, "revenue": 0, "profit": 0}}
+    
+    # Create a quick map of item details for performance
+    item_details_map = {item['name']: item for item in processed_items}
+    
+    for log in monthly_sales_logs:
+        name = log.get('item_name')
+        qty = log.get('qty', 0)
+        if name in item_details_map:
+            details = item_details_map[name]
+            if name not in monthly_item_sales:
+                monthly_item_sales[name] = {"qty": 0, "revenue": 0, "profit": 0, "name": name}
+            
+            monthly_item_sales[name]["qty"] += qty
+            monthly_item_sales[name]["revenue"] += qty * details.get('retail_price', 0)
+            monthly_item_sales[name]["profit"] += qty * (details.get('retail_price', 0) - details.get('cost_price', 0))
+
+    # Calculate Star Performers (Top 5 by quantity sold this month)
+    star_performers = sorted(monthly_item_sales.values(), key=lambda x: x['qty'], reverse=True)[:5]
+    
+    # Monthly aggregate metrics
+    monthly_revenue = sum(x['revenue'] for x in monthly_item_sales.values())
+    monthly_profit = sum(x['profit'] for x in monthly_item_sales.values())
+    monthly_qty = sum(x['qty'] for x in monthly_item_sales.values())
+
     # --- Standard Metrics ---
     site_config = get_site_config()
     threshold = site_config.get('low_stock_threshold', 5)
@@ -425,11 +535,26 @@ def dashboard():
     total_revenue = sum(item['retail_price'] * item['sold'] for item in processed_items)
     total_profit = sum(item['total_profit'] for item in processed_items)
     total_quantity_sold = sum(item['sold'] for item in processed_items)
-    top_items = sorted(processed_items, key=lambda x: x['sold'], reverse=True)[:5]
-    top_item_name = top_items[0]['name'] if top_items else "N/A"
-    current_month = datetime.now().strftime('%B')
-    chart_labels = [item['name'] for item in top_items]
-    chart_values = [item['sold'] for item in top_items]
+    
+    top_item_name = star_performers[0]['name'] if star_performers else "N/A"
+    
+    # Prepare chart data (Top 5 for focused distribution chart)
+    chart_data = sorted(monthly_item_sales.values(), key=lambda x: x['qty'], reverse=True)
+    
+    # Enrich chart labels with revenue information for "more useful info"
+    chart_labels = []
+    chart_values = []
+    
+    for x in chart_data[:5]:
+        chart_labels.append(f"{x['name']} (₱{x['revenue']:,.0f})")
+        chart_values.append(x['qty'])
+    
+    # Add "Others" to chart if applicable
+    if len(chart_data) > 5:
+        others_qty = sum(x['qty'] for x in chart_data[5:])
+        others_rev = sum(x['revenue'] for x in chart_data[5:])
+        chart_labels.append(f"Others (₱{others_rev:,.0f})")
+        chart_values.append(others_qty)
     
     return render_template('dashboard.html', 
                            email=session['email'], 
@@ -439,9 +564,13 @@ def dashboard():
                            total_value=total_inventory_value, 
                            total_revenue=total_revenue, 
                            total_profit=total_profit, 
-                           total_qty=total_quantity_sold, 
+                           total_qty=total_quantity_sold,
+                           monthly_revenue=monthly_revenue,
+                           monthly_profit=monthly_profit,
+                           monthly_qty=monthly_qty,
+                           star_performers=star_performers,
                            top_item=top_item_name, 
-                           current_month=current_month, 
+                           current_month=current_month_display, 
                            chart_labels=chart_labels, 
                            chart_values=chart_values, 
                            out_of_stock_items=out_of_stock_items,
@@ -546,6 +675,14 @@ def stock_in():
             items_collection.update_one({"_id": ObjectId(item_id)}, {"$inc": {"stock": qty, "inventory_in": qty}})
             inventory_log_collection.insert_one({"item_name": item['name'], "type": "IN", "qty": qty, "user": session['email'], "timestamp": datetime.now().strftime('%Y-%m-%d %I:%M:%S %p')})
             log_action("STOCK_IN", f"In: {qty} x {item['name']}")
+            
+            # Send Email Alert
+            send_email_notification(
+                "Stock In Recorded",
+                f"New stock added: {qty} units of '{item['name']}' by {session.get('email')}.",
+                notif_type="stock_in"
+            )
+            
             flash(f"Stock IN recorded!", "success")
     return redirect(url_for('inventory_io'))
 
@@ -557,9 +694,34 @@ def stock_out():
         item = items_collection.find_one({"_id": ObjectId(item_id)})
         if item:
             if item.get('stock', 0) >= qty:
+                new_stock = item['stock'] - qty
                 items_collection.update_one({"_id": ObjectId(item_id)}, {"$inc": {"stock": -qty, "sold": qty, "inventory_out": qty}})
                 inventory_log_collection.insert_one({"item_name": item['name'], "type": "OUT", "qty": qty, "user": session['email'], "timestamp": datetime.now().strftime('%Y-%m-%d %I:%M:%S %p')})
                 log_action("STOCK_OUT", f"Out: {qty} x {item['name']}")
+                
+                # Send Email Alert
+                send_email_notification(
+                    "Stock Out Recorded",
+                    f"Stock reduction: {qty} units of '{item['name']}' removed by {session.get('email')}. Remaining stock: {new_stock}",
+                    notif_type="stock_out"
+                )
+                
+                # Check for Low Stock
+                site_config = get_site_config()
+                threshold = site_config.get('low_stock_threshold', 5)
+                if 0 < new_stock <= threshold:
+                    send_email_notification(
+                        "Low Stock Alert!",
+                        f"CRITICAL: Item '{item['name']}' is now in low stock. Only {new_stock} units left! (Threshold: {threshold})",
+                        notif_type="low_stock"
+                    )
+                elif new_stock == 0:
+                    send_email_notification(
+                        "Out of Stock Alert!",
+                        f"URGENT: Item '{item['name']}' is now OUT OF STOCK!",
+                        notif_type="low_stock"
+                    )
+
                 flash(f"Stock OUT recorded!", "warning")
             else:
                 flash("Insufficient stock!", "danger")
@@ -579,7 +741,7 @@ def purchase():
 def add_purchase():
     item_id = request.form.get('item_id')
     qty = int(request.form.get('qty', 0))
-    
+
     if item_id and qty > 0:
         item = items_collection.find_one({"_id": ObjectId(item_id)})
         if item:
@@ -588,7 +750,7 @@ def add_purchase():
                 total_stock = previous_stock - qty
                 unit_price = item.get('retail_price', 0)
                 total = qty * unit_price
-                
+
                 purchase_doc = {
                     "date": datetime.now().strftime('%Y-%m-%d %I:%M:%S %p'),
                     "item_name": item['name'],
@@ -601,7 +763,7 @@ def add_purchase():
                     "user": session.get('email')
                 }
                 purchase_collection.insert_one(purchase_doc)
-                
+
                 # Update Item Stock and Sales metrics
                 items_collection.update_one({"_id": ObjectId(item_id)}, {"$inc": {"stock": -qty, "sold": qty, "inventory_out": qty}})
                 inventory_log_collection.insert_one({
@@ -611,13 +773,35 @@ def add_purchase():
                     "user": session['email'],
                     "timestamp": datetime.now().strftime('%Y-%m-%d %I:%M:%S %p')
                 })
-                
+
                 log_action("SALE", f"Sold: {qty} x {item['name']} for ₱{total}")
+
+                # Send Email Alert for Sale
+                send_email_notification(
+                    "New Sale Recorded",
+                    f"A new sale was recorded: {qty} x '{item['name']}' for {total}. Sold by {session.get('email')}. Remaining stock: {total_stock}",
+                    notif_type="sales"
+                )
+
+                # Check for Low Stock after sale
+                site_config = get_site_config()
+                threshold = site_config.get('low_stock_threshold', 5)
+                if 0 < total_stock <= threshold:
+                    send_email_notification(
+                        "Low Stock Alert!",
+                        f"CRITICAL: Item '{item['name']}' is now in low stock after a sale. Only {total_stock} units left! (Threshold: {threshold})",
+                        notif_type="low_stock"
+                    )
+                elif total_stock == 0:
+                    send_email_notification(
+                        "Out of Stock Alert!",
+                        f"URGENT: Item '{item['name']}' is now OUT OF STOCK following a sale!",
+                        notif_type="low_stock"
+                    )
                 flash(f"Sale recorded! Stock deducted for {item['name']}.", "success")
             else:
                 flash(f"Insufficient stock for {item['name']}!", "danger")
     return redirect(url_for('purchase'))
-
 @app.route('/sales-summary')
 @login_required
 def sales_summary():
@@ -706,20 +890,30 @@ def sales_summary():
         daily_revenue.append(day_rev)
         daily_profit.append(day_prof)
 
-    # Calculate aggregate stats
-    total_annual_profit = sum(monthly_profit)
-    total_annual_revenue = sum(monthly_revenue)
-    
-    # Calculate average only for months that have passed or have data
-    months_with_data = [r for r in monthly_revenue if r > 0]
-    if months_with_data:
-        avg_monthly_revenue = total_annual_revenue / len(months_with_data)
-    else:
-        # Fallback to dividing by current month number if in current year
-        current_month_num = now.month
-        avg_monthly_revenue = total_annual_revenue / current_month_num if current_month_num > 0 else 0
+    # Calculate aggregate stats based on view_type
+    if view_type == 'weekly':
+        total_revenue = sum(weekly_revenue)
+        total_profit = sum(weekly_profit)
+        avg_label = "Avg. Weekly Revenue"
+        total_label = "Total Weekly Profit"
+        data_points = [r for r in weekly_revenue if r > 0]
+        avg_revenue = total_revenue / len(data_points) if data_points else 0
+    elif view_type == 'daily':
+        total_revenue = sum(daily_revenue)
+        total_profit = sum(daily_profit)
+        avg_label = "Avg. Daily Revenue"
+        total_label = "Total Daily Profit"
+        data_points = [r for r in daily_revenue if r > 0]
+        avg_revenue = total_revenue / len(data_points) if data_points else 0
+    else: # yearly/monthly
+        total_revenue = sum(monthly_revenue)
+        total_profit = sum(monthly_profit)
+        avg_label = "Avg. Monthly Revenue"
+        total_label = "Total Annual Profit"
+        data_points = [r for r in monthly_revenue if r > 0]
+        avg_revenue = total_revenue / len(data_points) if data_points else 0
 
-    avg_profit_margin = (total_annual_profit / total_annual_revenue * 100) if total_annual_revenue > 0 else 0
+    avg_profit_margin = (total_profit / total_revenue * 100) if total_revenue > 0 else 0
 
     return render_template('sales_summary.html', 
                            email=session['email'],
@@ -733,8 +927,10 @@ def sales_summary():
                            daily_labels=daily_labels,
                            daily_revenue=daily_revenue,
                            daily_profit_values=daily_profit,
-                           avg_monthly_revenue=avg_monthly_revenue,
-                           total_annual_profit=total_annual_profit,
+                           avg_revenue=avg_revenue,
+                           total_profit=total_profit,
+                           avg_label=avg_label,
+                           total_label=total_label,
                            avg_profit_margin=round(avg_profit_margin, 1),
                            view_type=view_type,
                            now=now)
@@ -793,7 +989,9 @@ def get_cashier_permissions():
             "setup_advanced": False,
             "setup_assets": False,
             "setup_backup": False,
-            "setup_danger_zone": False
+            "setup_danger_zone": False,
+            "setup_smtp": False,
+            "setup_notifications": False
         }
         settings_collection.insert_one(perms)
     return perms
@@ -826,7 +1024,7 @@ def update_permissions():
         "health_scanner", "admin_accounts", "general_setup", "system_logs",
         "setup_identity", "setup_localization", "setup_logic", "setup_users",
         "setup_categories", "setup_themes", "setup_advanced", "setup_assets", 
-        "setup_backup", "setup_danger_zone"
+        "setup_backup", "setup_danger_zone", "setup_smtp", "setup_notifications"
     ]
     
     new_perms = {field: (request.form.get(field) == 'on') for field in fields}
@@ -840,14 +1038,7 @@ def update_permissions():
 @login_required
 @role_required('owner')
 def general_setup():
-    # 1. SMTP Config
-    smtp_config = {
-        'SMTP_HOST': os.getenv('SMTP_HOST', ''),
-        'SMTP_PORT': os.getenv('SMTP_PORT', '587'),
-        'SMTP_USER': os.getenv('SMTP_USER', '')
-    }
-
-    # 2. Tech Files for SEO Manager
+    # 1. Tech Files for SEO Manager
     tech_files = {}
     for filename in ['robots.txt', 'sitemap.xml', 'manifest.json']:
         path = os.path.join(os.getcwd(), 'static', filename)
@@ -863,7 +1054,6 @@ def general_setup():
 
     return render_template('general_setup.html',
                            role=session.get('role'),
-                           config=smtp_config,
                            tech_files=tech_files,
                            users=all_users,
                            categories=categories)
@@ -910,6 +1100,22 @@ def update_profile():
         "custom_head_scripts": request.form.get('custom_head_scripts', ''),
         "custom_body_scripts": request.form.get('custom_body_scripts', ''),
         
+        # --- SMTP SETTINGS ---
+        "smtp_host": request.form.get('smtp_host', ''),
+        "smtp_port": clean_num(request.form.get('smtp_port'), 587, True),
+        "smtp_user": request.form.get('smtp_user', ''),
+        "smtp_password": request.form.get('smtp_password', ''),
+        "smtp_sender": request.form.get('smtp_sender', ''),
+        "smtp_use_tls": request.form.get('smtp_use_tls') == 'on',
+        "smtp_use_ssl": request.form.get('smtp_use_ssl') == 'on',
+        
+        # --- EMAIL NOTIFICATION LOGIC ---
+        "email_notif_stock_in": request.form.get('email_notif_stock_in') == 'on',
+        "email_notif_stock_out": request.form.get('email_notif_stock_out') == 'on',
+        "email_notif_low_stock": request.form.get('email_notif_low_stock') == 'on',
+        "email_notif_sales": request.form.get('email_notif_sales') == 'on',
+        "email_recipient_list": request.form.get('email_recipient_list', ''),
+        
         "updated_at": datetime.now()
     }
     
@@ -921,7 +1127,7 @@ def update_profile():
     
     log_action("UPDATE_PROFILE", f"Updated comprehensive site configuration.")
     flash("Business Profile updated successfully!", "success")
-    return redirect(url_for('admin_accounts'))
+    return redirect(url_for('general_setup'))
 
 @app.route('/settings/login-bg/update', methods=['POST'])
 @login_required
@@ -1203,6 +1409,35 @@ def delete_user(id):
             flash("User deleted.", "info")
     return redirect(url_for('admin_accounts'))
 
+@app.route('/admin/send-auth-code', methods=['POST'])
+@login_required
+@role_required('owner')
+def send_auth_code():
+    code = str(random.randint(100000, 999999))
+    session['auth_code'] = code
+    session['auth_code_expiry'] = (datetime.now() + timedelta(minutes=10)).isoformat()
+    
+    # Master Email for Security Authorization
+    recipient = "bejasadhev@gmail.com"
+    
+    subject = "Owner Security Authorization Code"
+    body = f"""
+    SECURITY ALERT:
+    
+    A request has been made to modify a protected Owner account on your XPIDER Inventory Engine.
+    
+    Your Authorization Code is: {code}
+    
+    This code will expire in 10 minutes. 
+    If you did not initiate this request, please review your security logs immediately.
+    """
+    
+    success = send_email_notification(subject, body, override_recipient=recipient)
+    if success:
+        return jsonify({"success": True, "message": f"Verification code sent to {recipient}"})
+    else:
+        return jsonify({"success": False, "message": "Failed to send email. Check SMTP settings."})
+
 @app.route('/settings/user/edit/<id>', methods=['POST'])
 @login_required
 @role_required('owner')
@@ -1220,9 +1455,25 @@ def edit_user(id):
     # Security Check: If editing a protected account or changing to owner
     is_protected = user.get('role') == 'owner' or user.get('email') == 'admin@inventory.com'
     if is_protected or role == 'owner':
-        if verification_code != "67":
+        stored_code = session.get('auth_code')
+        expiry_str = session.get('auth_code_expiry')
+        
+        if not stored_code or not expiry_str:
+            flash("Authorization required. Please send a code to your email first.", "danger")
+            return redirect(url_for('admin_accounts'))
+            
+        expiry = datetime.fromisoformat(expiry_str)
+        if datetime.now() > expiry:
+            flash("Security code has expired. Please request a new one.", "danger")
+            return redirect(url_for('admin_accounts'))
+            
+        if verification_code != stored_code:
             flash("Invalid Security Code! Authorization denied.", "danger")
             return redirect(url_for('admin_accounts'))
+        
+        # Clear code after successful use
+        session.pop('auth_code', None)
+        session.pop('auth_code_expiry', None)
 
     update_data = {}
     if email: update_data['email'] = email
@@ -1695,6 +1946,7 @@ def handle_disconnect():
         del online_users[request.sid]
 
     emit_online_users()
+
 @app.route('/bulletin')
 @login_required
 def bulletin():
@@ -1855,7 +2107,10 @@ def test_smtp():
     port_str = request.form.get('smtp_port', '587')
     port = int(port_str) if port_str.isdigit() else 587
     user = request.form.get('smtp_user')
-    passw = request.form.get('smtp_pass')
+    passw = request.form.get('smtp_password')
+    sender = request.form.get('smtp_sender') or user
+    use_tls = request.form.get('smtp_use_tls') == 'on'
+    use_ssl = request.form.get('smtp_use_ssl') == 'on'
     test_email = request.form.get('test_email')
 
     if not all([host, user, passw, test_email]):
@@ -1864,11 +2119,20 @@ def test_smtp():
     try:
         msg = MIMEText("This is a test email from your XPIDER Inventory System. If you are reading this, your SMTP configuration is working correctly!")
         msg['Subject'] = "XPIDER SMTP Test Connection"
-        msg['From'] = user
+        msg['From'] = sender
         msg['To'] = test_email
 
-        server = smtplib.SMTP(host, port, timeout=15)
-        server.starttls()
+        if use_ssl:
+            server = smtplib.SMTP_SSL(host, port, timeout=15)
+            server.ehlo()
+        else:
+            server = smtplib.SMTP(host, port, timeout=15)
+            server.ehlo()
+            # Auto-enable TLS for port 587 or if explicitly requested
+            if use_tls or port == 587:
+                server.starttls()
+                server.ehlo()
+        
         server.login(user, passw)
         server.send_message(msg)
         server.quit()
@@ -1881,6 +2145,27 @@ def test_smtp():
 @login_required
 @role_required('owner')
 def clear_all_data():
+    verification_code = request.form.get('verification_code')
+    stored_code = session.get('auth_code')
+    expiry_str = session.get('auth_code_expiry')
+    
+    if not stored_code or not expiry_str:
+        flash("Authorization required. Please send a code to your email first.", "danger")
+        return redirect(url_for('general_setup'))
+        
+    expiry = datetime.fromisoformat(expiry_str)
+    if datetime.now() > expiry:
+        flash("Security code has expired. Please request a new one.", "danger")
+        return redirect(url_for('general_setup'))
+        
+    if verification_code != stored_code:
+        flash("Invalid Security Code! Data wipe denied.", "danger")
+        return redirect(url_for('general_setup'))
+
+    # Clear code after use
+    session.pop('auth_code', None)
+    session.pop('auth_code_expiry', None)
+
     # Collections to wipe
     collections = [items_collection, purchase_collection, inventory_log_collection, system_log_collection]
     for col in collections:
@@ -1888,7 +2173,53 @@ def clear_all_data():
     
     log_action("CLEAR_DATABASE", "Owner wiped all business records.")
     flash("All business data has been cleared successfully!", "warning")
-    return redirect(url_for('admin_accounts'))
+    return redirect(url_for('general_setup'))
+
+@app.route('/import/csv', methods=['POST'])
+@login_required
+def import_csv():
+    if 'csv_file' not in request.files:
+        flash("No file uploaded", "danger")
+        return redirect(url_for('items'))
+    
+    file = request.files['csv_file']
+    if file.filename == '':
+        flash("No selected file", "danger")
+        return redirect(url_for('items'))
+
+    try:
+        import csv
+        from io import StringIO
+        stream = StringIO(file.stream.read().decode("UTF8"), newline=None)
+        csv_input = csv.DictReader(stream)
+        
+        count = 0
+        for row in csv_input:
+            # Match CSV headers to DB fields
+            item_data = {
+                "name": row.get('Item Name'),
+                "category": row.get('Category', 'Uncategorized'),
+                "cost_price": float(row.get('Cost Price', 0).replace('₱', '').replace(',', '')),
+                "retail_price": float(row.get('Retail Price', 0).replace('₱', '').replace(',', '')),
+                "stock": int(row.get('Stock', 0)),
+                "sold": int(row.get('Sold', 0))
+            }
+            
+            if item_data['name']:
+                # Update if exists, otherwise insert
+                items_collection.update_one(
+                    {"name": item_data['name']},
+                    {"$set": item_data},
+                    upsert=True
+                )
+                count += 1
+        
+        log_action("IMPORT_CSV", f"Imported {count} items from CSV.")
+        flash(f"Successfully imported {count} items!", "success")
+    except Exception as e:
+        flash(f"Import failed: {str(e)}", "danger")
+        
+    return redirect(url_for('items'))
 
 @app.route('/export/csv')
 @login_required

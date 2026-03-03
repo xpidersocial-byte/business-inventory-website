@@ -11,12 +11,13 @@ Welcome to the official documentation for the **XPIDER Inventory Engine**, a hig
 - **Asynchronous Layer:** Eventlet (Monkey-patched for high concurrency)
 - **Real-time Sync:** Flask-SocketIO for live user telemetry and notifications.
 - **Database:** MongoDB (via PyMongo) for flexible, schema-less data storage.
+- **Security:** Content Security Policy (CSP) headers and role-based guarding.
 
 ### 1.2 Frontend Layer
 - **Layout:** Bootstrap 5.3 (Customized for dark-mode dominance)
 - **Icons:** Bootstrap Icons (v1.11+)
 - **Charts:** Chart.js for data visualization on the dashboard.
-- **Theming:** Dynamic CSS engine supporting 15+ high-contrast presets.
+- **Theming:** Dynamic CSS engine supporting 16+ high-contrast presets with real-time sync.
 
 ---
 
@@ -36,19 +37,19 @@ The system uses a **Role-Based Access Control (RBAC)** model, further enhanced b
 ### 3.1 Operations Dashboard
 Provides a 360-degree view of business health:
 - **Financials:** Real-time Revenue, Profit, and Inventory Value.
-- **Inventory Health:** Automatic "Cold Stock" (slow movers) and "Sporadic Sellers" detection.
+- **Sales Velocity Algorithm:** Automatic detection of "Cold Stock" (items not sold in 30+ days) and "Sporadic Sellers".
 - **Alerts:** Dynamic "Out of Stock" and "Low Stock" grids at the bottom of the page.
 
 ### 3.2 Items Master & Categories
 The central repository for products:
-- **Metrics:** Automatically calculates Profit Margin % and Total Revenue per item.
+- **Metrics:** Automatically calculates Profit Margin % and Total Revenue per item based on actual sales.
 - **Low Stock Badges:** Visual indicators when items fall below the threshold (configurable in Setup).
 - **Categories:** Dynamic categories that can be created/deleted instantly.
 
 ### 3.3 Customer Sales Ledger
 A secure record of every transaction:
 - **Accountability:** Tracks exactly which user (Owner/Cashier) performed each sale.
-- **Stock Tracking:** Records previous vs. new stock levels for audit integrity.
+- **Audit Logs:** Records previous vs. new stock levels for audit integrity.
 
 ### 3.4 Bulletin Board (Official)
 Collaborative task tracking:
@@ -63,8 +64,8 @@ Collaborative task tracking:
 ### 4.1 General Setup (Unified Hub)
 - **Identity:** Manage Business Name, Logo Icon, and Social Links.
 - **Localization:** Configure Timezone, Date, and Time formats.
-- **System Logic:** Set the Maintenance Mode and Low Stock Threshold.
-- **Backup:** One-click JSON export/restore for the entire database.
+- **System Logic:** Set Maintenance Mode and Low Stock Threshold.
+- **Notifications:** Configure SMTP settings and toggle email alerts for Sales and Stock movements.
 
 ### 4.2 User Accounts & Permissions
 - **Account Creation:** Secure modal for adding new staff.
@@ -73,12 +74,28 @@ Collaborative task tracking:
 
 ### 4.3 Developer Portal (Kernel Control)
 - **Hardware Telemetry:** Real-time CPU, RAM, and Storage load tracking.
-- **Live Debug:** Filtered stream of server logs for troubleshooting.
+- **Live Debug:** Filtered stream of server logs for troubleshooting via SocketIO.
 - **Self-Healing:** Management of the background Watchdog protocol.
 
 ---
 
-## 5. Deployment Process: Zero to Live Guide
+## 5. Proactive Notifications
+
+### 5.1 Web Push Notifications (VAPID)
+Users can subscribe to desktop/mobile push notifications via the browser. The system uses the VAPID protocol to send real-time alerts for:
+- System Logins
+- Sales Transactions
+- Low Stock Alerts
+
+### 5.2 SMTP Email Alerts
+Configurable in **General Setup**, the system can send automated emails to the owner and a custom recipient list for:
+- Stock In / Stock Out events
+- Reaching Low Stock thresholds
+- Daily/Instant Sales summaries
+
+---
+
+## 6. Deployment Process: Zero to Live Guide
 
 Follow this exact sequence to deploy the **XPIDER Inventory Engine** on a fresh Linux Cloud Server (VPS).
 
@@ -120,6 +137,8 @@ sudo systemctl enable mongodb
     ```env
     MONGO_URI=mongodb://localhost:27017/xpider_db
     SECRET_KEY=y0ur_v3ry_secr3t_k3y_h3r3
+    VAPID_PRIVATE_KEY=your_vapid_key
+    VAPID_CLAIM_EMAIL=admin@example.com
     FLASK_DEBUG=false
     ```
 
@@ -147,17 +166,17 @@ To access your website from anywhere in the world:
 
 ---
 
-## 6. Maintenance & Security
+## 7. Maintenance & Security
 
-### 6.1 Self-Healing Watchdog
+### 7.1 Self-Healing Watchdog
 The system includes a `watchdog.sh` script. If the Flask app crashes, the watchdog will automatically detect the failure and restart the engine within 10 seconds. This is critical for production environments.
 
-### 6.2 Audit Trail
+### 7.2 Audit Trail
 - **IP Logging:** Every administrative and operational action is logged with the user's IP address (X-Forwarded-For compliant for proxy support).
 - **Action Logs:** Found in **Admin Settings > System Logs**, providing a permanent record of system changes.
 
-### 6.3 Maintenance Mode
+### 7.3 Maintenance Mode
 Found in **Admin Settings > General Setup**, this redirects all non-admin traffic to a secure "Under Maintenance" screen while you perform updates or data restoration.
 
 ---
-*Document Version: 2.4.0 (Stabilized)*
+*Document Version: 2.5.0 (Stabilized)*

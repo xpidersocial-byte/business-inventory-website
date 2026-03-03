@@ -30,7 +30,7 @@
             <h2 class="text-light mb-1">Dashboard Summary</h2>
             <p class="text-muted small mb-0">Real-time business performance and inventory health</p>
         </div>
-        <span class="badge bg-primary fs-6 px-3 py-2 opacity-75">{{ current_month }} 2026</span>
+        <span class="badge bg-primary fs-6 px-3 py-2 opacity-75">{{ current_month }}</span>
     </div>
     
     <!-- Row 1: Primary Metrics -->
@@ -39,7 +39,8 @@
             <div class="card-body text-center py-3">
                 <i class="bi bi-currency-dollar text-success fs-3 mb-2"></i>
                 <h6 class="card-title text-muted text-uppercase x-small fw-bold mb-1" style="font-size: 0.7rem;">Total Revenue</h6>
-                <h4 class="card-text fw-bold mb-0 text-light">₱{{ "{:,.0f}".format(total_revenue) }}</h4>
+                <h4 class="card-text fw-bold mb-1 text-light">₱{{ "{:,.0f}".format(total_revenue) }}</h4>
+                <div class="badge bg-success bg-opacity-10 text-success x-small">₱{{ "{:,.0f}".format(monthly_revenue) }} in {{ current_month }}</div>
             </div>
         </div>
     </div>
@@ -48,7 +49,8 @@
             <div class="card-body text-center py-3">
                 <i class="bi bi-graph-up-arrow text-primary fs-3 mb-2"></i>
                 <h6 class="card-title text-muted text-uppercase x-small fw-bold mb-1" style="font-size: 0.7rem;">Total Profit</h6>
-                <h4 class="card-text fw-bold mb-0 text-light">₱{{ "{:,.0f}".format(total_profit) }}</h4>
+                <h4 class="card-text fw-bold mb-1 text-light">₱{{ "{:,.0f}".format(total_profit) }}</h4>
+                <div class="badge bg-primary bg-opacity-10 text-primary x-small">₱{{ "{:,.0f}".format(monthly_profit) }} in {{ current_month }}</div>
             </div>
         </div>
     </div>
@@ -57,7 +59,8 @@
             <div class="card-body text-center py-3">
                 <i class="bi bi-cart-check text-info fs-3 mb-2"></i>
                 <h6 class="card-title text-muted text-uppercase x-small fw-bold mb-1" style="font-size: 0.7rem;">Quantity Sales</h6>
-                <h4 class="card-text fw-bold mb-0 text-light">{{ total_qty }}</h4>
+                <h4 class="card-text fw-bold mb-1 text-light">{{ total_qty }}</h4>
+                <div class="badge bg-info bg-opacity-10 text-info x-small">{{ monthly_qty }} sold in {{ current_month }}</div>
             </div>
         </div>
     </div>
@@ -67,6 +70,7 @@
                 <i class="bi bi-safe text-warning fs-3 mb-2"></i>
                 <h6 class="card-title text-muted text-uppercase x-small fw-bold mb-1" style="font-size: 0.7rem;">Inventory Value</h6>
                 <h4 class="card-text fw-bold mb-0 text-light">₱{{ "{:,.0f}".format(total_value) }}</h4>
+                <div class="badge bg-warning bg-opacity-10 text-warning x-small mt-1">{{ items_count }} Products Active</div>
             </div>
         </div>
     </div>
@@ -74,10 +78,10 @@
 
 <div class="row mb-5 g-4">
     <!-- 1. Top Sales Chart -->
-    <div class="col-lg-6">
+    <div class="col-lg-5">
         <div class="card bg-card border-secondary shadow-lg h-100 rounded-4">
             <div class="card-body p-4">
-                <h6 class="text-muted text-uppercase fw-bold small mb-4"><i class="bi bi-pie-chart me-2"></i>Top Sales Distribution ({{ current_month }})</h6>
+                <h6 class="text-muted text-uppercase fw-bold small mb-4"><i class="bi bi-pie-chart me-2"></i>Sales Distribution ({{ current_month }})</h6>
                 <div class="chart-container">
                     <canvas id="topSalesChart"></canvas>
                 </div>
@@ -85,16 +89,49 @@
         </div>
     </div>
 
-    <!-- 2. Top Performer Trophy -->
-    <div class="col-lg-6">
-        <div class="card bg-card border-secondary shadow-lg trophy-card h-100 rounded-4">
-            <div class="card-body p-4 text-center d-flex flex-column justify-content-center">
-                <h6 class="text-muted text-uppercase fw-bold small mb-2">Star Performer ({{ current_month }})</h6>
-                <div class="my-4">
-                    <i class="bi bi-trophy text-warning" style="font-size: 5rem; filter: drop-shadow(0 0 20px rgba(255,193,7,0.4));"></i>
+    <!-- 2. Top 5 Star Performers -->
+    <div class="col-lg-7">
+        <div class="card bg-card border-secondary shadow-lg h-100 rounded-4">
+            <div class="card-header bg-transparent border-bottom border-secondary border-opacity-25 p-3 px-4">
+                <h6 class="text-light mb-0 small fw-bold text-uppercase"><i class="bi bi-star-fill me-2 text-warning"></i>Top 5 Star Performers ({{ current_month }})</h6>
+            </div>
+            <div class="card-body p-0 scrollable-list">
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover mb-0 align-middle bg-transparent">
+                        <thead class="text-muted x-small text-uppercase">
+                            <tr>
+                                <th class="ps-4">Rank</th>
+                                <th>Item Name</th>
+                                <th>Sold</th>
+                                <th>Revenue</th>
+                                <th class="text-end pe-4">Profit</th>
+                            </tr>
+                        </thead>
+                        <tbody class="small">
+                            {% for item in star_performers %}
+                            <tr class="border-secondary border-opacity-10">
+                                <td class="ps-4">
+                                    {% if loop.index == 1 %}
+                                        <span class="badge bg-warning text-dark rounded-circle" style="width: 24px; height: 24px;">1</span>
+                                    {% elif loop.index == 2 %}
+                                        <span class="badge bg-secondary text-white rounded-circle" style="width: 24px; height: 24px;">2</span>
+                                    {% elif loop.index == 3 %}
+                                        <span class="badge bg-bronze text-white rounded-circle" style="width: 24px; height: 24px; background: #cd7f32;">3</span>
+                                    {% else %}
+                                        <span class="text-muted ms-1">{{ loop.index }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="fw-bold text-light">{{ item.name }}</td>
+                                <td><span class="badge bg-info bg-opacity-10 text-info">{{ item.qty }}</span></td>
+                                <td class="text-muted">₱{{ "{:,.0f}".format(item.revenue) }}</td>
+                                <td class="text-end pe-4 text-success fw-bold">+₱{{ "{:,.0f}".format(item.profit) }}</td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="5" class="text-center text-muted py-5">No sales recorded this month.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
-                <h2 class="text-primary fw-bold mb-1">{{ top_item }}</h2>
-                <p class="text-muted mb-0">The most sought-after item this month</p>
             </div>
         </div>
     </div>
@@ -241,7 +278,7 @@
                 label: 'Units Sold',
                 data: {{ chart_values|tojson }},
                 backgroundColor: [
-                    '#0d6efd', '#198754', '#ffc107', '#0dcaf0', '#6610f2'
+                    '#0d6efd', '#198754', '#ffc107', '#0dcaf0', '#6610f2', '#fd7e14', '#20c997', '#adb5bd'
                 ],
                 borderColor: '#252a37',
                 borderWidth: 2
@@ -255,13 +292,25 @@
                     position: 'bottom',
                     labels: { 
                         color: '#94a3b8', 
-                        padding: 15,
-                        font: { size: 11 },
+                        padding: 12,
+                        font: { size: 10 },
                         usePointStyle: true
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.label || '';
+                            if (label) {
+                                label = label.split(' (')[0]; // Get name only
+                            }
+                            let value = context.raw;
+                            return `${label}: ${value} units`;
+                        }
                     }
                 }
             },
-            cutout: '75%'
+            cutout: '70%'
         }
     });
 </script>

@@ -23,6 +23,10 @@
                 <a href="{{ url_for('export_csv') }}" class="btn btn-outline-success d-flex align-items-center gap-2">
                     <i class="bi bi-file-earmark-spreadsheet"></i> Export
                 </a>
+
+                <button class="btn btn-outline-info d-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#importCsvModal">
+                    <i class="bi bi-file-earmark-arrow-up"></i> Import
+                </button>
                 
                 <button class="btn btn-primary shadow-sm d-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#addItemModal">
                     <i class="bi bi-plus-circle"></i> New Item
@@ -208,6 +212,36 @@
                 <div class="modal-footer border-secondary">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-info px-4">Update Item</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Import CSV -->
+<div class="modal fade" id="importCsvModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark border-secondary">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-info"><i class="bi bi-file-earmark-arrow-up me-2"></i>Import Items from CSV</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ url_for('import_csv') }}" method="POST" enctype="multipart/form-data">
+                <div class="modal-body p-4">
+                    <p class="small text-muted mb-4">Select a CSV file previously exported from this system or one matching the required format. Existing items will be updated based on their name.</p>
+                    
+                    <div class="mb-3">
+                        <label class="form-label small text-muted">Choose CSV File</label>
+                        <input type="file" name="csv_file" class="form-control bg-black text-light border-secondary" accept=".csv" required>
+                    </div>
+
+                    <div class="alert alert-info py-2 small mb-0">
+                        <i class="bi bi-info-circle me-2"></i> Required Columns: <strong>Item Name, Category, Cost Price, Retail Price, Stock, Sold</strong>
+                    </div>
+                </div>
+                <div class="modal-footer border-secondary">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-info px-4 fw-bold">START IMPORT</button>
                 </div>
             </form>
         </div>
