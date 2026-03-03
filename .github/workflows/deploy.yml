@@ -50,8 +50,9 @@ jobs:
           # The app.py is already configured for HOST='0.0.0.0' and PORT=5000
           nohup venv/bin/python3 app.py > app.log 2>&1 &
           
-          # Ensure Tailscale is serving port 5000 (TCP)
-          echo "Exposing port 5000 via Tailscale Serve..."
-          sudo tailscale serve --bg --tcp 5000 localhost:5000 || echo "Tailscale Serve failed or already active"
+          # Ensure Tailscale is funneling port 5000
+          echo "Exposing port 5000 via Tailscale Funnel..."
+          # Running funnel in the background to avoid blocking the workflow
+          sudo tailscale funnel --bg 5000 || echo "Tailscale Funnel failed or already active"
           
-          echo "Deployment successful! App is running on 0.0.0.0:5000 and exposed via Tailscale."
+          echo "Deployment successful! App is running on 0.0.0.0:5000 and exposed via Tailscale Funnel."
