@@ -1,0 +1,32 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: SSH and Deploy to VPS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_IP }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
+          script: |
+            cd /home/eujyrn/Desktop/flask_mongo_app
+            git pull origin main
+            source venv/bin/activate
+            pip install -r requirements.txt
+            
+            # Kill the Flask app; the watchdog.sh will auto-restart it within 10s
+            echo "Restarting application..."
+            pkill -f "venv/bin/python3 app.py" || echo "App was not running"
+            echo "Deployment successful!"
