@@ -1,4 +1,4 @@
-name: Deploy to VPS (via Tailscale)
+name: Deploy to Local Server (Self-Hosted Runner)
 
 on:
   push:
@@ -7,37 +7,33 @@ on:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64]
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Verify Secret Availability (Debug)
+      - name: Deploy to Local Directory
         run: |
-          if [ -z "${{ secrets.TS_OAUTH_CLIENT_ID }}" ]; then echo "❌ TS_OAUTH_CLIENT_ID is MISSING"; else echo "✅ TS_OAUTH_CLIENT_ID is found"; fi
-          if [ -z "${{ secrets.TS_OAUTH_SECRET }}" ]; then echo "❌ TS_OAUTH_SECRET is MISSING"; else echo "✅ TS_OAUTH_SECRET is found"; fi
-          if [ -z "${{ secrets.SSH_PRIVATE_KEY }}" ]; then echo "❌ SSH_PRIVATE_KEY is MISSING"; else echo "✅ SSH_PRIVATE_KEY is found"; fi
-
-      - name: Connect to Tailscale
-        uses: tailscale/github-action@v2
-        with:
-          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
-          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
-          tags: tag:server
-
-      - name: SSH and Deploy to VPS
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: 100.83.98.81
-          username: xpider
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: 22
-          script: |
-            cd /home/eujyrn/Desktop/flask_mongo_app
-            git pull origin main
-            source venv/bin/activate
-            pip install -r requirements.txt
-            echo "Restarting application..."
-            pkill -f "venv/bin/python3 app.py" || echo "App was not running"
-            echo "Deployment successful!"
+          # Sync the checked-out code to the app directory
+          # We use rsync to update only changed files, excluding venv and logs
+          rsync -av --delete --exclude 'venv/' --exclude '*.log' --exclude 'data/' ./ /home/eujyrn/Desktop/flask_mongo_app/
+          
+          cd /home/eujyrn/Desktop/flask_mongo_app
+          
+          # Ensure venv exists
+          if [ ! -d "venv" ]; then
+            python3 -m venv venv
+          fi
+          
+          source venv/bin/activate
+          pip install -r requirements.txt
+          
+          echo "Restarting application..."
+          # Kill existing process if running
+          pkill -f "venv/bin/python3 app.py" || echo "App was not running"
+          
+          # Start the app in the background (using nohup or similar)
+          nohup venv/bin/python3 app.py > app.log 2>&1 &
+          
+          echo "Deployment successful!"
