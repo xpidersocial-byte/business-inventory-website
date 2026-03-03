@@ -38,11 +38,16 @@ jobs:
           source venv/bin/activate
           pip install -r requirements.txt
           
+          # Ensure MongoDB is running (adjust command if you use a different service name)
+          echo "Checking MongoDB status..."
+          sudo systemctl start mongod || echo "MongoDB already running or manual start required"
+          
           echo "Restarting application..."
           # Kill existing process if running
           pkill -f "venv/bin/python3 app.py" || echo "App was not running"
           
-          # Start the app in the background (using nohup or similar)
+          # Start the app in the background on 0.0.0.0:5000
+          # The app.py is already configured for HOST='0.0.0.0' and PORT=5000
           nohup venv/bin/python3 app.py > app.log 2>&1 &
           
-          echo "Deployment successful!"
+          echo "Deployment successful! App is running on 0.0.0.0:5000"
