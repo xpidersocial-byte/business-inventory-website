@@ -18,8 +18,10 @@ jobs:
         with:
           oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
           oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
-          # Alternatively, use an Auth Key if you prefer:
-          # authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
+          tags: tag:server
+
+      - name: Verify Tailscale Connection
+        run: tailscale status
 
       - name: SSH and Deploy to VPS
         uses: appleboy/ssh-action@v1.0.3
@@ -35,5 +37,6 @@ jobs:
             pip install -r requirements.txt
             
             echo "Restarting application..."
+            # Kill the Flask app; the watchdog.sh will auto-restart it within 10s
             pkill -f "venv/bin/python3 app.py" || echo "App was not running"
             echo "Deployment successful!"
