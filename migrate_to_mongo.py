@@ -1,3 +1,10 @@
+"""
+XPIDER Migration Utility: NoSQL Transition (v2.0)
+-----------------------------------------------
+This script migrates data from 'persist_db.json' to MongoDB.
+Updated to handle missing _id fields and map 'username' to 'email'.
+"""
+
 import json
 import os
 from pymongo import MongoClient
@@ -12,7 +19,7 @@ DB_PATH = 'persist_db.json'
 
 def migrate():
     if not os.path.exists(DB_PATH):
-        print(f"Error: {DB_PATH} not found. Nothing to migrate.")
+        print(f"Error: {DB_PATH} not found.")
         return
 
     print(f"Connecting to MongoDB at {MONGO_URI}...")
@@ -28,15 +35,33 @@ def migrate():
         
         print(f"Migrating {len(documents)} documents to '{collection_name}'...")
         
-        # Convert string IDs back to ObjectIds
         for doc in documents:
-            if '_id' in doc:
-                doc['_id'] = ObjectId(doc['_id'])
-        
-        # Insert into MongoDB (using update_one with upsert to avoid duplicates)
-        for doc in documents:
+            # Handle user field mapping (username -> email)
+            if collection_name == 'users':
+                if 'username' in doc and 'email' not in doc:
+                    # If it's the admin or cashier from persist_db, give them full emails
+                    if doc['username'] == 'admin':
+                        doc['email'] = 'admin@inventory.com'
+                    elif doc['username'] == 'cashier':
+                        doc['email'] = 'cashier@inventory.com'
+                    else:
+                        doc['email'] = f"{doc['username']}@inventory.com"
+                
+                # Filter for upsert based on email
+                filter_query = {'email': doc.get('email')}
+            else:
+                # Filter for upsert based on _id if present, else name
+                if '_id' in doc:
+                    doc['_id'] = ObjectId(doc['_id'])
+                    filter_query = {'_id': doc['_id']}
+                elif 'name' in doc:
+                    filter_query = {'name': doc['name']}
+                else:
+                    # Fallback
+                    filter_query = doc
+
             db[collection_name].update_one(
-                {'_id': doc['_id']},
+                filter_query,
                 {'$set': doc},
                 upsert=True
             )

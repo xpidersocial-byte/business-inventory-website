@@ -1,3 +1,11 @@
+"""
+XPIDER Master Inventory: Initial Seed Data
+------------------------------------------
+A comprehensive list of starting inventory items across various categories 
+(Assorted Items, Books, Necklaces). This data serves as the baseline for 
+system testing and initial database population.
+"""
+
 ITEMS = [
     {"name": "Paypay (50)", "category": "Assorted Item", "cost_price": 25.0, "retail_price": 50.0, "stock": 6, "sold": 8},
     {"name": "Paypay (80)", "category": "Assorted Item", "cost_price": 40.0, "retail_price": 80.0, "stock": 2, "sold": 4},

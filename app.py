@@ -1,4 +1,11 @@
-# --- DEPLOYMENT TRIGGER: v2.5.0-stable ---
+# --- XPIDER INVENTORY ENGINE: CORE APPLICATION (v2.5.1) ---
+# This is the main server file for the XPIDER Inventory System. 
+# It handles routing, database connections, real-time synchronization, 
+# and comprehensive business logic.
+
+# SECTION 1: INITIALIZATION & CONFIGURATION
+# Imports, environment loading, database setup, and real-time socket initialization.
+
 import eventlet
 eventlet.monkey_patch()
 
@@ -63,7 +70,9 @@ subscriptions_collection = mongo.db.subscriptions
 dev_updates_collection = mongo.db.dev_updates
 settings_collection = mongo.db.settings
 
-# --- SITE CONFIG HELPER ---
+# SECTION 2: HELPER FUNCTIONS & NOTIFICATIONS
+# Utility logic for site configuration, web push, and SMTP email alerts.
+
 def get_site_config():
     config = settings_collection.find_one({"type": "general"})
     if not config:
@@ -204,7 +213,9 @@ def send_email_notification(subject, body, notif_type=None, override_recipient=N
         print(f"DEBUG: Failed to send email notification: {str(e)}")
         return False
 
-# --- RBAC Decorators ---
+# SECTION 3: SECURITY & RBAC
+# Middlewares, permission guards, and audit trail logging.
+
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -375,6 +386,9 @@ def calculate_item_metrics(item):
         "inventory_out": inv_out,
         "status": status
     }
+
+# SECTION 4: CORE BUSINESS LOGIC (CRUD)
+# Main operational routes: Dashboard, Items Master, Sales, and Inventory IO.
 
 @app.route('/')
 def index():
@@ -1523,7 +1537,8 @@ def update_api_key():
     
     return redirect(url_for('admin_accounts'))
 
-# --- DEVELOPER PORTAL ROUTES ---
+# SECTION 5: DEVELOPER & AI PORTALS
+# System health, live diagnostics, self-healing controls, and AI insights.
 
 @app.route('/log-client-error', methods=['POST'])
 def log_client_error():

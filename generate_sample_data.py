@@ -1,3 +1,11 @@
+"""
+XPIDER Sample Data Generator
+----------------------------
+This utility generates a large set of mock inventory items, categories, 
+sales records, and restocks. It is primarily used for testing dashboard 
+analytics and chart visualizations.
+"""
+
 import os
 import random
 import json
@@ -19,6 +27,7 @@ inventory_log_collection = db.inventory_log
 system_log_collection = db.system_logs
 
 def clear_data():
+    """Wipes existing operational data before generation."""
     print("Clearing existing data...")
     items_collection.delete_many({})
     categories_collection.delete_many({})
@@ -27,6 +36,7 @@ def clear_data():
     print("Cleared.")
 
 def generate():
+    """Creates 50+ items and 150+ random operational events."""
     categories = [
         "Assorted Item", "Book Prayer", "Religious Book", 
         "Statue", "Necklace", "Rosary", "Crucifix", "Novena"
@@ -53,7 +63,6 @@ def generate():
         for name in names:
             cost = round(random.uniform(10, 500), 2)
             retail = round(cost * random.uniform(1.5, 3.0), 2)
-            # Starting point: generate stock and sold
             initial_stock = random.randint(5, 100)
             initial_sold = random.randint(0, 50)
             
@@ -75,53 +84,30 @@ def generate():
     users = ["admin@inventory.com", "cashier@inventory.com", "dev@inventory.com"]
     
     print("Generating random sales and restocks...")
-    
-    # Generate data for the last 60 days
     now = datetime.now()
-    for _ in range(150): # 150 random events
+    for _ in range(150):
         item = random.choice(inserted_items)
         event_date = now - timedelta(days=random.randint(0, 60), hours=random.randint(0, 23), minutes=random.randint(0, 59))
         event_date_str = event_date.strftime('%Y-%m-%d %I:%M:%S %p')
         user = random.choice(users)
-        
-        event_type = random.choice(["SALE", "RESTOCK", "SALE"]) # More sales than restocks
-        
+        event_type = random.choice(["SALE", "RESTOCK", "SALE"])
         qty = random.randint(1, 10)
         
         if event_type == "SALE":
-            # Record in Purchase Collection
             unit_price = item['retail_price']
             total = round(qty * unit_price, 2)
-            
             purchase_doc = {
-                "date": event_date_str,
-                "item_name": item['name'],
-                "qty": qty,
-                "previous_stock": item['stock'] + qty, # Simulated
-                "total_stock": item['stock'],
-                "unit_cost": unit_price,
-                "total": total,
-                "status": "Sold",
-                "user": user
+                "date": event_date_str, "item_name": item['name'], "qty": qty,
+                "previous_stock": item['stock'] + qty, "total_stock": item['stock'],
+                "unit_cost": unit_price, "total": total, "status": "Sold", "user": user
             }
             purchase_collection.insert_one(purchase_doc)
-            
-            # Record in Inventory Log
             inventory_log_collection.insert_one({
-                "item_name": item['name'],
-                "type": "OUT",
-                "qty": qty,
-                "user": user,
-                "timestamp": event_date_str
+                "item_name": item['name'], "type": "OUT", "qty": qty, "user": user, "timestamp": event_date_str
             })
         else:
-            # Record in Inventory Log (Restock)
             inventory_log_collection.insert_one({
-                "item_name": item['name'],
-                "type": "IN",
-                "qty": qty,
-                "user": user,
-                "timestamp": event_date_str
+                "item_name": item['name'], "type": "IN", "qty": qty, "user": user, "timestamp": event_date_str
             })
 
     print("Sample data generation complete.")
