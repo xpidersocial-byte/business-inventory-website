@@ -8,9 +8,7 @@ The **XPIDER Inventory Engine** is designed for modern businesses that require m
 ## 💎 Project Valuation
 Based on technical complexity, feature set, and market demand, this software asset is valued as follows:
 
-### **Market Value (Source Code & IP)**
-*   **USD:** $4,500 — $6,500
-*   **PHP:** ₱250,000 — ₱365,000
+
 
 ### **Why is it worth this much?**
 1.  **Dynamic Permission Matrix:** Owners can toggle visibility for every single menu and setup tab for Cashiers. This level of granular control is a "Premium" feature in commercial SaaS.
