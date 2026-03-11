@@ -1,6 +1,6 @@
-# 📖 XPIDER Inventory Engine: Full Documentation
+# 📖 fbihm team Inventory Engine: Full Documentation
 
-Welcome to the official documentation for the **XPIDER Inventory Engine**, a high-performance management system designed for businesses that require real-time tracking, granular control, and a modern technical interface.
+Welcome to the official documentation for the **fbihm team Inventory Engine**, a high-performance management system designed for businesses that require real-time tracking, granular control, and a modern technical interface.
 
 ---
 
@@ -37,6 +37,7 @@ The system uses a **Role-Based Access Control (RBAC)** model, further enhanced b
 ### 3.1 Operations Dashboard
 Provides a 360-degree view of business health:
 - **Financials:** Real-time Revenue, Profit, and Inventory Value.
+- **Monthly Analytics:** Star Performers (Top 5 items by monthly volume) and Monthly Revenue/Profit aggregates.
 - **Sales Velocity Algorithm:** Automatic detection of "Cold Stock" (items not sold in 30+ days) and "Sporadic Sellers".
 - **Alerts:** Dynamic "Out of Stock" and "Low Stock" grids at the bottom of the page.
 
@@ -97,7 +98,7 @@ Configurable in **General Setup**, the system can send automated emails to the o
 
 ## 6. Deployment Process: Zero to Live Guide
 
-Follow this exact sequence to deploy the **XPIDER Inventory Engine** on a fresh Linux Cloud Server (VPS).
+Follow this exact sequence to deploy the **fbihm team Inventory Engine** on a fresh Linux Cloud Server (VPS).
 
 ### 🚀 Step 1: Get a Server
 1.  **Provider:** Choose DigitalOcean, AWS, or Linode.
@@ -119,7 +120,7 @@ sudo systemctl enable mongodb
 ### 📦 Step 3: Clone and Setup Environment
 1.  **Clone the Repo:**
     ```bash
-    git clone https://github.com/xpidersocial-byte/business-inventory-website.git
+    git clone https://github.com/fbihmteam/business-inventory-website.git
     cd business-inventory-website
     ```
 2.  **Create Virtual Environment:**
@@ -135,34 +136,20 @@ sudo systemctl enable mongodb
     ```
     Paste the following:
     ```env
-    MONGO_URI=mongodb://localhost:27017/xpider_db
+    MONGO_URI=mongodb://localhost:27017/fbihm_team_db
     SECRET_KEY=y0ur_v3ry_secr3t_k3y_h3r3
     VAPID_PRIVATE_KEY=your_vapid_key
     VAPID_CLAIM_EMAIL=admin@example.com
     FLASK_DEBUG=false
     ```
 
-### ⚡ Step 4: Production Launch (The XPIDER Way)
+### ⚡ Step 4: Production Launch (The fbihm team Way)
 Instead of running manually, use the **Self-Healing Watchdog** to ensure the app stays online 24/7.
 ```bash
 chmod +x watchdog.sh
 nohup ./watchdog.sh > watchdog.log 2>&1 &
 ```
 *Your website is now running in the background.*
-
-### 🌍 Step 5: Make it Accessible (The Funnel)
-To access your website from anywhere in the world:
-
-**Option A: Using Tailscale (Recommended for Private Business)**
-1.  Install Tailscale: `curl -fsSL https://tailscale.com/install.sh | sh`
-2.  Login: `sudo tailscale up`
-3.  Enable Funnel: `tailscale funnel 5000`
-    *This gives you a public HTTPS link immediately.*
-
-**Option B: Using Nginx (For Public Domain)**
-1.  Install Nginx: `sudo apt install nginx`
-2.  Configure a reverse proxy to point to `127.0.0.1:5000`.
-3.  Use **Certbot** to install a free SSL certificate for your domain.
 
 ---
 
@@ -179,4 +166,4 @@ The system includes a `watchdog.sh` script. If the Flask app crashes, the watchd
 Found in **Admin Settings > General Setup**, this redirects all non-admin traffic to a secure "Under Maintenance" screen while you perform updates or data restoration.
 
 ---
-*Document Version: 2.5.0 (Stabilized)*
+*Document Version: 2.5.1 (Stabilized)*

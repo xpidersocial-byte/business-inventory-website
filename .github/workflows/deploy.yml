@@ -38,7 +38,7 @@ jobs:
           source venv/bin/activate
           pip install -r requirements.txt
           
-          # Ensure MongoDB is running (adjust command if you use a different service name)
+          # Ensure MongoDB is running
           echo "Checking MongoDB status..."
           sudo systemctl start mongod || echo "MongoDB already running or manual start required"
           
@@ -47,7 +47,6 @@ jobs:
           pkill -f "venv/bin/python3 app.py" || echo "App was not running"
           
           # Start the app in the background on 0.0.0.0:5000
-          # The app.py is already configured for HOST='0.0.0.0' and PORT=5000
           nohup venv/bin/python3 app.py > app.log 2>&1 &
           
           # Wait a few seconds and check if it's still running
@@ -60,9 +59,4 @@ jobs:
             exit 1
           fi
           
-          # Ensure Tailscale is funneling port 5000
-          echo "Exposing port 5000 via Tailscale Funnel..."
-          # Running funnel in the background to avoid blocking the workflow
-          sudo tailscale funnel --bg 5000 || echo "Tailscale Funnel failed or already active"
-          
-          echo "Deployment successful! App is running on 0.0.0.0:5000 and exposed via Tailscale Funnel."
+          echo "Deployment successful! App is running on 0.0.0.0:5000."

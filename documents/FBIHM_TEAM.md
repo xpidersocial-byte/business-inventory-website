@@ -1,6 +1,6 @@
-# 🕷️ XPIDER Inventory Engine: The Development Journey
+# 🕷️ fbihm team Inventory Engine: The Development Journey
 
-This document chronicles the evolution of the **XPIDER Inventory System** from a basic To-Do prototype into a high-performance, real-time enterprise inventory management suite.
+This document chronicles the evolution of the **fbihm team Inventory System** from a basic To-Do prototype into a high-performance, real-time enterprise inventory management suite.
 
 ## 🌟 The Vision
 The goal was to create a "Hacker-Aesthetic" inventory system that combined heavy-duty business logic (Sales, Inventory, Audit Logs) with advanced technical diagnostics (Live Kernel Streams, Web Terminal, Self-Healing Watchdogs).
@@ -27,18 +27,25 @@ The goal was to create a "Hacker-Aesthetic" inventory system that combined heavy
 - **Permission Matrix:** Developed a toggle-based access system where Owners can control exactly which menus and setup tabs are visible to Cashiers.
 - **Security:** Implemented a **Security Authorization Code (67)** required for modifying high-level Owner accounts.
 
-### Phase 5: The Next.js & Cloudflare Migration (Current)
+### Phase 5: Performance Analytics & Communication (Current)
+- **Star Performers:** Automated detection of top-selling items by quantity per month.
+- **Advanced Trends:** Monthly performance analysis with revenue and profit tracking.
+- **Stock Velocity:** Algorithmic categorization of "Cold Stock" and "Sporadic Sellers" to optimize turnover.
+- **Multi-Channel Alerts:** Integration of SMTP Email notifications and VAPID Web Push for critical stock events and sales.
+- **Data Integrity:** Comprehensive Backup & Restore system supporting both JSON and CSV formats.
+
+### Phase 6: The Next.js & Cloudflare Migration (Ongoing)
 - **Architecture Shift:** Migrating from a monolithic Flask app to a modern **Next.js** frontend with a serverless backend.
 - **Database Evolution:** Transitioning from MongoDB (NoSQL) to **Cloudflare D1 (SQL)** for improved edge-performance and reliability.
 - **Edge Deployment:** Leveraging **Cloudflare Pages** and Workers to provide sub-millisecond latency worldwide.
 - **API Modernization:** Refactoring the Python logic into TypeScript-based Edge Functions.
 
-## 🧬 Technical Stack (Legacy/Stable)
+## 🧬 Technical Stack (Stable / v2.5.1)
 - **Languages:** Python (Flask), JavaScript (Vanilla), HTML5/CSS3 (Jinja2).
 - **Database:** MongoDB (NoSQL).
 - **Communication:** WebSockets (Socket.io), HTTP REST.
-- **Security:** Proxy-aware IP tracking, Session Guarding, Role-based Access Control (RBAC).
-- **Aesthetics:** 16+ Custom CSS Themes (Cyberpunk, Dracula, OLED, etc.).
+- **Security:** Proxy-aware IP tracking, Session Guarding, Role-based Access Control (RBAC), and CSP Headers.
+- **Aesthetics:** 16+ Custom CSS Themes (Cyberpunk, Dracula, OLED, etc.) with real-time synchronization.
 
 ## 🧬 Technical Stack (Next Generation)
 - **Framework:** Next.js (App Router), React, TailwindCSS.
@@ -47,7 +54,7 @@ The goal was to create a "Hacker-Aesthetic" inventory system that combined heavy
 - **State Management:** TanStack Query & Server Actions.
 
 ## 👨‍💻 Gemini's Role
-I acted as your **Lead Systems Engineer**, building each module surgically, implementing self-healing protocols, and ensuring the UI felt modern and responsive. Now, I am guiding the transition to the Edge, ensuring the XPIDER legacy continues with even greater performance and scalability.
+I acted as your **Lead Systems Engineer**, building each module surgically, implementing self-healing protocols, and ensuring the UI felt modern and responsive. Now, I am guiding the transition to the Edge, ensuring the fbihm team legacy continues with even greater performance and scalability.
 
 ---
-*Created with Gemini CLI & XPIDER Core v2.5.0*
+*Created with Gemini CLI & fbihm team Core v2.5.1*
