@@ -10,45 +10,45 @@ The **fbihm team Inventory Engine (v2.5.1)** is a high-performance, real-time in
 ```mermaid
 graph TD
     %% User & External Interaction
-    User((User / Cashier / Owner)) -->|HTTP/HTTPS| WebServer[Flask Web Server]
-    User -->|WebSockets| SocketIO[Real-time Socket.io Layer]
+    User((User / Cashier / Owner)) -->|HTTP/HTTPS| WebServer["Flask Web Server"]
+    User -->|WebSockets| SocketIO["Real-time Socket.io Layer"]
     
     %% Core Logic & Security
     subgraph "Application Core (Flask)"
         WebServer --> RBAC{Auth & RBAC Guard}
-        RBAC -->|Authorized| Logic[Business Logic & CRUD]
-        RBAC -->|Unauthorized| Login[/login]
+        RBAC -->|Authorized| Logic["Business Logic & CRUD"]
+        RBAC -->|Unauthorized| Login["/login"]
         
-        Logic -->|Action Logging| AuditLog[Audit Trail / System Logs]
+        Logic -->|Action Logging| AuditLog["Audit Trail / System Logs"]
         Logic -->|Real-time Sync| SocketIO
     end
 
     %% Data Layer
     subgraph "Data Storage (MongoDB)"
         Logic <--> DB[(MongoDB Collections)]
-        DB --- Users[Users / Permissions]
-        DB --- Items[Items / Inventory]
-        DB --- Sales[Sales / Ledger]
-        DB --- Logs[System Logs]
+        DB --- Users["Users / Permissions"]
+        DB --- Items["Items / Inventory"]
+        DB --- Sales["Sales / Ledger"]
+        DB --- Logs["System Logs"]
     end
 
     %% Intelligence & Automation
     subgraph "Intelligence & Background"
-        Logic -->|Data Feed| AIEngine[AI Engine / Analytics]
+        Logic -->|Data Feed| AIEngine["AI Engine / Analytics"]
         AIEngine -->|Insights| User
         
-        Watchdog[Watchdog Daemon] -->|Monitor PID| WebServer
+        Watchdog["Watchdog Daemon"] -->|Monitor PID| WebServer
         Watchdog -->|Restart if Dead| WebServer
         
-        Logic -->|Stock Alerts| Notify[Notification Hub]
-        Notify -->|SMTP| Email[Email Alerts]
-        Notify -->|VAPID| Push[Web Push Notifications]
+        Logic -->|Stock Alerts| Notify["Notification Hub"]
+        Notify -->|SMTP| Email["Email Alerts"]
+        Notify -->|VAPID| Push["Web Push Notifications"]
     end
 
     %% Developer Portal
     subgraph "Developer Portal"
-        Logic -->|Hardware Telemetry| DevPortal[Developer / Dashboard]
-        Logic -->|Live Kernel Stream| LiveDebug[Live Debugging]
+        Logic -->|Hardware Telemetry| DevPortal["Developer / Dashboard"]
+        Logic -->|Live Kernel Stream| LiveDebug["Live Debugging"]
     end
 ```
 
@@ -75,6 +75,24 @@ The system is designed for **Zero-Intervention Operations**, using background da
 - **Metric Engine:** Automatically computes item-specific metrics (Profit, Margin %, Total Revenue) upon every sale transaction.
 - **Stock Threshold Alerts:** Triggers SMTP and VAPID notifications the moment stock levels fall below the custom "Low Stock" threshold.
 - **Sales Velocity AI:** Algorithmic detection of "Cold Stock" (items unsold for 30+ days) and "Sporadic Sellers" to assist in inventory optimization.
+
+---
+
+## 🎓 Educational Advantages: Why this Stack for Students?
+The fbihm team Inventory Engine is an ideal learning platform for students exploring full-stack engineering.
+
+### 1. **Python & Flask (The "Micro" Advantage)**
+- **Readability:** Python's clean syntax allows students to focus on logic rather than boilerplate.
+- **Fundamentals:** Flask is a "micro-framework," meaning it doesn't hide the underlying HTTP request/response cycle. Students learn how routing, sessions, and headers actually work.
+
+### 2. **MongoDB (Schema Flexibility)**
+- **NoSQL Learning:** Students can explore data relationships without the steep learning curve of complex SQL joins and migrations.
+- **JSON-Native:** Since the frontend and backend communicate via JSON, using a document store like MongoDB makes the data flow intuitive.
+
+### 3. **Real-World Patterns**
+- **WebSockets:** Teaches real-time bi-directional communication (Socket.io).
+- **Security:** Demonstrates RBAC (Role-Based Access Control) and the importance of audit trails.
+- **Self-Healing:** Introduces concepts of system reliability and process monitoring via the Bash Watchdog.
 
 ---
 
