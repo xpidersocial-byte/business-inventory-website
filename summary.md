@@ -54,6 +54,33 @@ graph TD
 
 ---
 
+## 🌐 How the System Works: A 6-Step Breakdown
+The fbihm team Inventory Engine operates through a layered architecture designed for high speed and reliability.
+
+### 1. **The Entry Point (User Access)**
+- **Authentication:** The Flask Web Server (`app.py`) uses decorators to ensure only authorized users access the system.
+- **Dynamic RBAC:** Once logged in, the **Role-Based Access Control** checks if you are an Owner or Cashier. Owners can dynamically toggle menu visibility for Cashiers through a custom permission matrix.
+
+### 2. **The "Heartbeat" (Real-time Sync)**
+- **WebSockets:** The system uses **Socket.io** for bi-directional communication.
+- **Instant Telemetry:** When a sale is made on one device, the server emits a signal that updates the dashboards and stock levels of all other connected users instantly—no page refresh required.
+
+### 3. **The Data Engine (MongoDB)**
+- **Flexible Documents:** Every product and sale is stored as a JSON-like document in **MongoDB**. 
+- **Automated Logic:** The engine automatically calculates profit, margins, and revenue for every item during a sale, updating the database in real-time.
+
+### 4. **The Security Guard (Code 67)**
+- **Critical Override:** Sensitive modifications (like changing Owner account details) require a specialized **Security Authorization Code (67)**. This provides an additional layer of protection against unauthorized local access.
+
+### 5. **The Self-Healing Brain (Watchdog)**
+- **24/7 Supervision:** A background **Bash Watchdog Daemon** monitors the Flask and MongoDB processes every 10 seconds.
+- **Auto-Recovery:** If any core service crashes, the watchdog identifies the failure and restarts the engine automatically within seconds.
+
+### 6. **Proactive Alerts**
+- **Notification Hub:** The system monitors inventory thresholds and instantly "pushes" alerts to the Owner via **SMTP (Email)** and **VAPID (Web Push)** when stock reaches critical levels.
+
+---
+
 ## 🤖 Automation & Self-Healing
 The system is designed for **Zero-Intervention Operations**, using background daemons and automated logic to maintain 24/7 uptime and data integrity.
 
@@ -62,19 +89,11 @@ The system is designed for **Zero-Intervention Operations**, using background da
 - **Auto-Recovery:** 
     - **MongoDB:** If the database service crashes, the watchdog auto-forks a new `mongod` instance.
     - **Flask Engine:** If the web server dies, the watchdog triggers a `nohup` restart immediately.
-- **Dependency Handling:** If MongoDB fails, the watchdog automatically kills and restarts the Flask app to ensure a fresh, stable connection upon DB recovery.
 
 ### 2. **Automated Health Scanner (`scanner.py`)**
 - **Crawler Logic:** Systematically traverses the internal site structure (up to 50 pages).
 - **Broken Link Detection:** Automatically identifies 404 errors and 500 server errors across all routes.
-- **Security Audit:** 
-    - Proactively checks for missing headers (CSP, X-Frame-Options).
-    - Probes for exposed sensitive files like `.env`, `.git`, and `config.py`.
-
-### 3. **Business Logic Automation**
-- **Metric Engine:** Automatically computes item-specific metrics (Profit, Margin %, Total Revenue) upon every sale transaction.
-- **Stock Threshold Alerts:** Triggers SMTP and VAPID notifications the moment stock levels fall below the custom "Low Stock" threshold.
-- **Sales Velocity AI:** Algorithmic detection of "Cold Stock" (items unsold for 30+ days) and "Sporadic Sellers" to assist in inventory optimization.
+- **Security Audit:** Proactively checks for missing headers and probes for exposed sensitive files.
 
 ---
 
@@ -83,16 +102,15 @@ The fbihm team Inventory Engine is an ideal learning platform for students explo
 
 ### 1. **Python & Flask (The "Micro" Advantage)**
 - **Readability:** Python's clean syntax allows students to focus on logic rather than boilerplate.
-- **Fundamentals:** Flask is a "micro-framework," meaning it doesn't hide the underlying HTTP request/response cycle. Students learn how routing, sessions, and headers actually work.
+- **Fundamentals:** Flask is a "micro-framework" that teaches the core principles of HTTP, routing, and middleware.
 
 ### 2. **MongoDB (Schema Flexibility)**
-- **NoSQL Learning:** Students can explore data relationships without the steep learning curve of complex SQL joins and migrations.
-- **JSON-Native:** Since the frontend and backend communicate via JSON, using a document store like MongoDB makes the data flow intuitive.
+- **NoSQL Learning:** Students can explore data relationships without the steep learning curve of complex SQL joins.
+- **JSON-Native:** Seamless data flow between the frontend (JS) and backend (Python).
 
 ### 3. **Real-World Patterns**
-- **WebSockets:** Teaches real-time bi-directional communication (Socket.io).
-- **Security:** Demonstrates RBAC (Role-Based Access Control) and the importance of audit trails.
-- **Self-Healing:** Introduces concepts of system reliability and process monitoring via the Bash Watchdog.
+- **WebSockets:** Teaches real-time bi-directional communication.
+- **Reliability:** Introduces concepts of system monitoring and process auto-recovery.
 
 ---
 
@@ -100,22 +118,17 @@ The fbihm team Inventory Engine is an ideal learning platform for students explo
 
 ### 1. **Backend Layer (Flask 3.x)**
 - **Eventlet:** Monkey-patched for high concurrency and async execution.
-- **Socket.io:** Powers real-time telemetry, user tracking, and instant theme synchronization.
-- **RBAC:** Dynamic Permission Matrix allows Owners to toggle visibility for Cashiers per module.
+- **Socket.io:** Powers real-time telemetry and instant synchronization.
 
 ### 2. **Storage Layer (MongoDB)**
-- **Flexible Schema:** Handles complex inventory data and nested sales objects.
 - **Collections:** `users`, `items`, `sales`, `system_logs`, `categories`, `notes`, `subscriptions`, `settings`.
-
-### 3. **AI & Diagnostics**
-- **AI Engine (`ai_engine.py`):** Designed for strategic insights (currently in "Disabled" mode to save costs).
 
 ---
 
 ## 🔑 Security & Guardrails
-- **Code 67:** A specialized security authorization code required for modifying Owner account details.
+- **Code 67:** A specialized security authorization code for critical account changes.
 - **Audit Integrity:** Proxy-aware IP address tracking for every system modification.
-- **Maintenance Mode:** Owner-controlled lock on the system for data restoration or updates.
+- **Maintenance Mode:** Owner-controlled lock for updates and data restoration.
 
 ---
 *Created on 2026-03-12 | fbihm team Technical Documentation*
