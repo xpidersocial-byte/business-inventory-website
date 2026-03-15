@@ -1105,9 +1105,11 @@ def update_profile():
     return redirect(url_for('general_setup'))
 
 @app.route('/settings/login-bg/update', methods=['POST'])
+@app.route('/settings/login-bg/update', methods=['POST'])
 @login_required
 @role_required('owner')
 def update_login_bg():
+    if 'login_bg' not in request.files:
         flash("No file part", "danger")
         return redirect(url_for('admin_accounts'))
     
@@ -1133,11 +1135,6 @@ def update_login_bg():
         flash("Login background updated!", "success")
     
     return redirect(url_for('admin_accounts'))
-
-@app.route('/settings/favicon/update', methods=['POST'])
-@login_required
-@role_required('owner')
-def update_favicon():
     if 'favicon' not in request.files:
         flash("No file part", "danger")
         return redirect(url_for('admin_accounts'))

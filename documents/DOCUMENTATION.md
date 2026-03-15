@@ -90,7 +90,7 @@ Users can subscribe to desktop/mobile push notifications via the browser. The sy
 
 ### 5.2 SMTP Email Alerts
 Configurable in **General Setup**, the system can send automated emails to the owner and a custom recipient list for:
-- Stock In / Stock Out events
+- Stock Replenishment events
 - Reaching Low Stock thresholds
 - Daily/Instant Sales summaries
 

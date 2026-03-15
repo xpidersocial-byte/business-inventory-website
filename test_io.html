@@ -1,0 +1,2834 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark" data-theme="default">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventory In/Out - Inventory Manager</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <link rel="shortcut icon" href="/static/favicon.ico?v=2697">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#252a37">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <script>
+        // Global Client Error Reporting
+        (function() {
+            // 1. Catch unhandled exceptions
+            window.onerror = function(message, source, lineno, colno, error) {
+                reportError(message, source, lineno, colno, error ? error.stack : '');
+                return false;
+            };
+
+            // 2. Intercept console.error calls
+            const originalConsoleError = console.error;
+            console.error = function() {
+                const args = Array.from(arguments);
+                reportError(args.join(' '), 'console.error', 'N/A', 'N/A', 'N/A');
+                originalConsoleError.apply(console, arguments);
+            };
+
+            function reportError(msg, src, line, col, stack) {
+                fetch('/log-client-error', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ error: msg, url: src, line: line, col: col, stack: stack })
+                }).catch(() => {});
+            }
+        })();
+
+        // Synchronize server-side theme with local storage for consistency
+        (function() {
+            const serverTheme = "default";
+            if (serverTheme !== 'default') {
+                document.documentElement.setAttribute('data-theme', serverTheme);
+                localStorage.setItem('xpider-theme', serverTheme);
+            } else {
+                const savedTheme = localStorage.getItem('xpider-theme');
+                if (savedTheme) {
+                    document.documentElement.setAttribute('data-theme', savedTheme);
+                }
+            }
+        })();
+    </script>
+    <style>
+        :root {
+            --bg-body: #1e222d;
+            --bg-card: #252a37;
+            --sidebar-width: 260px;
+            --text-main: #d1d5db;
+            --text-muted: #9ca3af;
+            --primary-soft: #7c9df2;
+            --border-soft: #374151;
+            --accent-color: #7c9df2;
+        }
+
+        /* Prebuilt Themes */
+        [data-theme="cyberpunk"] {
+            --bg-body: #0a0a12;
+            --bg-card: #121225;
+            --text-main: #00ff9f;
+            --text-muted: #7000ff;
+            --primary-soft: #ff0055;
+            --border-soft: #303060;
+            --accent-color: #ff0055;
+        }
+        [data-theme="emerald"] {
+            --bg-body: #062016;
+            --bg-card: #0b3d2a;
+            --text-main: #ecfdf5;
+            --text-muted: #6ee7b7;
+            --primary-soft: #10b981;
+            --border-soft: #065f46;
+            --accent-color: #10b981;
+        }
+        [data-theme="midnight"] {
+            --bg-body: #020617;
+            --bg-card: #0f172a;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --primary-soft: #38bdf8;
+            --border-soft: #1e293b;
+            --accent-color: #38bdf8;
+        }
+        [data-theme="royal"] {
+            --bg-body: #1a0f1a;
+            --bg-card: #2d1b2d;
+            --text-main: #fdf4ff;
+            --text-muted: #d8b4fe;
+            --primary-soft: #f472b6;
+            --border-soft: #4c1d95;
+            --accent-color: #fbbf24;
+        }
+        [data-theme="nord"] {
+            --bg-body: #2e3440;
+            --bg-card: #3b4252;
+            --text-main: #eceff4;
+            --text-muted: #d8dee9;
+            --primary-soft: #88c0d0;
+            --border-soft: #4c566a;
+            --accent-color: #a3be8c;
+        }
+        [data-theme="dracula"] {
+            --bg-body: #282a36;
+            --bg-card: #44475a;
+            --text-main: #f8f8f2;
+            --text-muted: #6272a4;
+            --primary-soft: #ff79c6;
+            --border-soft: #6272a4;
+            --accent-color: #50fa7b;
+        }
+        [data-theme="solarized"] {
+            --bg-body: #002b36;
+            --bg-card: #073642;
+            --text-main: #839496;
+            --text-muted: #586e75;
+            --primary-soft: #268bd2;
+            --border-soft: #586e75;
+            --accent-color: #859900;
+        }
+        [data-theme="gruvbox"] {
+            --bg-body: #1d2021;
+            --bg-card: #3c3836;
+            --text-main: #ebdbb2;
+            --text-muted: #928374;
+            --primary-soft: #d79921;
+            --border-soft: #504945;
+            --accent-color: #b8bb26;
+        }
+        [data-theme="rosepine"] {
+            --bg-body: #191724;
+            --bg-card: #1f1d2e;
+            --text-main: #e0def4;
+            --text-muted: #908caa;
+            --primary-soft: #eb6f92;
+            --border-soft: #403d52;
+            --accent-color: #f6c177;
+        }
+        [data-theme="catppuccin"] {
+            --bg-body: #1e1e2e;
+            --bg-card: #181825;
+            --text-main: #cdd6f4;
+            --text-muted: #bac2de;
+            --primary-soft: #cba6f7;
+            --border-soft: #313244;
+            --accent-color: #f5e0dc;
+        }
+        [data-theme="light"] {
+            --bg-body: #f8f9fa;
+            --bg-card: #ffffff;
+            --text-main: #212529;
+            --text-muted: #6c757d;
+            --primary-soft: #0d6efd;
+            --border-soft: #dee2e6;
+            --accent-color: #0d6efd;
+        }
+        [data-theme="oled"] {
+            --bg-body: #000000;
+            --bg-card: #000000;
+            --text-main: #ffffff;
+            --text-muted: #888888;
+            --primary-soft: #ffffff;
+            --border-soft: #333333;
+            --accent-color: #ffffff;
+        }
+            --bg-card: #181825;
+            --text-main: #cdd6f4;
+            --text-muted: #bac2de;
+            --primary-soft: #cba6f7;
+            --border-soft: #313244;
+            --accent-color: #a6e3a1;
+        }
+        [data-theme="oceanic"] {
+            --bg-body: #1b2b34;
+            --bg-card: #343d46;
+            --text-main: #d8dee9;
+            --text-muted: #65737e;
+            --primary-soft: #6699cc;
+            --border-soft: #4f5b66;
+            --accent-color: #99c794;
+        }
+        [data-theme="coffee"] {
+            --bg-body: #1c1917;
+            --bg-card: #292524;
+            --text-main: #fafaf9;
+            --text-muted: #a8a29e;
+            --primary-soft: #d97706;
+            --border-soft: #44403c;
+            --accent-color: #fbbf24;
+        }
+        [data-theme="synthwave"] {
+            --bg-body: #2b213a;
+            --bg-card: #241b2f;
+            --text-main: #f92aad;
+            --text-muted: #72f1b8;
+            --primary-soft: #ff8b39;
+            --border-soft: #44355b;
+            --accent-color: #2de2e6;
+        }
+        [data-theme="forest-neon"] {
+            --bg-body: #0a1a0a;
+            --bg-card: #122212;
+            --text-main: #00ff41;
+            --text-muted: #4e9a06;
+            --primary-soft: #adff2f;
+            --border-soft: #1a3a1a;
+            --accent-color: #7cfc00;
+        }
+        [data-theme="matrix"] {
+            --bg-body: #000000;
+            --bg-card: #000000;
+            --text-main: #00ff41;
+            --text-muted: #008f11;
+            --primary-soft: #00ff41;
+            --border-soft: #003b00;
+            --accent-color: #00ff41;
+        }
+        [data-theme="volcano"] {
+            --bg-body: #1a0a0a;
+            --bg-card: #2a1212;
+            --text-main: #ff4d00;
+            --text-muted: #ff9e00;
+            --primary-soft: #ff0000;
+            --border-soft: #4a1a1a;
+            --accent-color: #ffff00;
+        }
+        [data-theme="ice"] {
+            --bg-body: #f0f9ff;
+            --bg-card: #ffffff;
+            --text-main: #0c4a6e;
+            --text-muted: #0ea5e9;
+            --primary-soft: #38bdf8;
+            --border-soft: #bae6fd;
+            --accent-color: #0284c7;
+        }
+        [data-theme="deep-sea"] {
+            --bg-body: #001219;
+            --bg-card: #001e29;
+            --text-main: #94d2bd;
+            --text-muted: #0a9396;
+            --primary-soft: #ee9b00;
+            --border-soft: #005f73;
+            --accent-color: #ca6702;
+        }
+
+        body { 
+            background-color: var(--bg-body); 
+            color: var(--text-main); 
+            font-family: 'Segoe UI', Tahoma, sans-serif; 
+            overflow-x: hidden;
+            display: flex;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        /* --- Sidebar Styles --- */
+        #sidebar {
+            width: var(--sidebar-width);
+            min-height: 100vh;
+            background-color: var(--bg-card);
+            border-right: 1px solid var(--border-soft);
+            transition: all 0.3s;
+            position: fixed;
+            z-index: 1000;
+        }
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border-soft);
+        }
+        .sidebar-link {
+            padding: 12px 25px;
+            display: flex;
+            align-items: center;
+            color: var(--text-muted);
+            text-decoration: none;
+            transition: all 0.2s;
+            border-left: 4px solid transparent;
+        }
+        .sidebar-link i { font-size: 1.2rem; margin-right: 15px; }
+        .sidebar-link:hover {
+            background: rgba(124, 157, 242, 0.05);
+            color: var(--primary-soft);
+        }
+        .sidebar-link.active {
+            background: rgba(124, 157, 242, 0.1);
+            color: var(--primary-soft);
+            border-left-color: var(--primary-soft);
+            font-weight: 600;
+        }
+
+        /* --- Main Content --- */
+        #content {
+            width: calc(100% - var(--sidebar-width));
+            margin-left: var(--sidebar-width);
+            transition: all 0.3s;
+            min-height: 100vh;
+        }
+
+        /* --- Top Navbar --- */
+        .top-navbar {
+            background-color: var(--bg-card);
+            border-bottom: 1px solid var(--border-soft);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 999;
+        }
+
+        .main-container { padding: 30px; }
+
+        @media (max-width: 992px) {
+            #sidebar { margin-left: calc(-1 * var(--sidebar-width)); }
+            #sidebar.active { margin-left: 0; }
+            #content { width: 100%; margin-left: 0; }
+            #content.active { margin-left: var(--sidebar-width); }
+            
+            .main-container { padding: 15px; }
+            .top-navbar { padding: 10px 15px; }
+            
+            /* Table responsiveness */
+            .table th, .table td { font-size: 0.75rem !important; padding: 8px 4px !important; }
+            h2 { font-size: 1.25rem !important; }
+        }
+
+        @media (max-width: 576px) {
+            .navbar-brand span { display: none; }
+            .btn { width: 100%; margin-bottom: 5px; }
+            .btn-group .btn, .dropdown-menu .btn { width: auto; margin-bottom: 0; }
+            .d-flex.justify-content-between { flex-direction: column; align-items: flex-start !important; gap: 10px; }
+            .d-flex.gap-3 { width: 100%; }
+        }
+
+        /* Responsive Fixes */
+        .card { background-color: var(--bg-card); border: 1px solid var(--border-soft); border-radius: 12px; margin-bottom: 1.5rem; }
+        .table-responsive { border-radius: 12px; border: 1px solid var(--border-soft); overflow-x: auto; }
+        input, select, textarea { background-color: #1a1e26 !important; border: 1px solid var(--border-soft) !important; color: white !important; }
+    </style>
+    <style>
+        
+    </style>
+    
+</head>
+<body>
+    
+
+    <nav id="sidebar">
+        <div class="sidebar-header">
+            <a class="navbar-brand text-primary fw-bold fs-4 d-flex align-items-center" href="/dashboard">
+                <i class="bi bi-box-seam me-2"></i>
+                <span>CUBE Inventory</span>
+            </a>
+        </div>
+        <div class="py-4">
+            
+            <a href="/dashboard" class="sidebar-link ">
+                <i class="bi bi-speedometer2"></i> Dashboard
+            </a>
+            
+
+            
+            <a href="/items" class="sidebar-link ">
+                <i class="bi bi-list-ul"></i> Items Master
+            </a>
+            
+
+            
+            <a href="/purchase" class="sidebar-link ">
+                <i class="bi bi-cart-check"></i> Sales Ledger
+            </a>
+            
+
+            
+            <a href="/sales-summary" class="sidebar-link ">
+                <i class="bi bi-graph-up-arrow"></i> Sales Summary
+            </a>
+            
+
+            
+            <a href="/inventory-io" class="sidebar-link active">
+                <i class="bi bi-arrow-left-right"></i> Inventory IO
+            </a>
+            
+
+            
+            <a href="/bulletin" class="sidebar-link ">
+                <i class="bi bi-clipboard-data"></i> Bulletin Board
+            </a>
+            
+            
+            <div class="mt-4 pt-4 border-top border-secondary border-opacity-25">
+                
+                <div class="sidebar-heading text-uppercase small fw-bold mb-2 ps-3 opacity-50" style="letter-spacing: 1px;">Owner Settings</div>
+                
+                
+                <a href="/developer" class="sidebar-link " style="color: #ffc107 !important;">
+                    <i class="bi bi-code-square"></i> Developer Portal
+                </a>
+                
+
+                
+                <a href="/developer/live-debug" class="sidebar-link " style="color: #3fb950 !important;">
+                    <i class="bi bi-activity"></i> LIVE SYSTEM DEBUG
+                </a>
+                
+
+                
+                <a href="/developer/health-scanner" class="sidebar-link " style="color: #0dcaf0 !important;">
+                    <i class="bi bi-shield-check"></i> HEALTH SCANNER
+                </a>
+                
+                
+
+                
+                <div class="sidebar-heading text-uppercase small fw-bold mb-2 mt-4 ps-3 opacity-50" style="letter-spacing: 1px;">Admin Settings</div>
+                
+                
+                <a href="/admin/accounts" class="sidebar-link ">
+                    <i class="bi bi-people-fill"></i> User Accounts
+                </a>
+                
+
+                
+                <a href="/general-setup" class="sidebar-link ">
+                    <i class="bi bi-sliders"></i> General Setup
+                </a>
+                
+
+                
+                <a href="/system-logs" class="sidebar-link ">
+                    <i class="bi bi-shield-lock"></i> System Logs
+                </a>
+                
+                
+            </div>
+
+            
+            <div class="mt-auto p-4 border-top border-secondary border-opacity-10">
+                
+                <div class="small text-muted mb-2 d-flex align-items-center">
+                    <i class="bi bi-telephone me-2"></i> 09123123123
+                </div>
+                
+                <div class="d-flex gap-3">
+                    
+                    <a href="https://xpider.tailc3e8ac.ts.net/general-setup" target="_blank" class="text-muted opacity-50 hover-opacity-100"><i class="bi bi-facebook"></i></a>
+                    
+                    
+                    <a href="https://xpider.tailc3e8ac.ts.net/general-setup" target="_blank" class="text-muted opacity-50 hover-opacity-100"><i class="bi bi-twitter-x"></i></a>
+                    
+                    
+                    <a href="https://xpider.tailc3e8ac.ts.net/general-setup" target="_blank" class="text-muted opacity-50 hover-opacity-100"><i class="bi bi-instagram"></i></a>
+                    
+                </div>
+            </div>
+            
+        </div>
+    </nav>
+
+    <!-- Page Content -->
+    <div id="content">
+        <!-- Top Navbar -->
+        <div class="top-navbar">
+            <button type="button" id="sidebarCollapse" class="btn btn-outline-secondary d-lg-none">
+                <i class="bi bi-list"></i>
+            </button>
+
+            <!-- Live Clock -->
+            <div class="text-light d-none d-md-block" style="line-height: 1.2;">
+                <div id="liveTime" class="fw-bold fs-5">00:00:00</div>
+                <div id="liveDate" class="small text-muted" style="font-size: 0.75rem;">Loading...</div>
+            </div>
+
+            <!-- User Profile -->
+            <div class="d-flex align-items-center">
+                <div class="text-end me-3 d-none d-sm-block">
+                    <div class="small fw-bold">admin@inventory.com</div>
+                    <span class="badge bg-danger x-small" style="font-size: 0.65rem;">
+                        OWNER
+                    </span>
+                </div>
+                <a href="/logout" class="btn btn-sm btn-outline-danger px-3">Logout</a>
+            </div>
+        </div>
+
+        <div class="main-container">
+            
+              
+            
+
+            
+<div class="row">
+    <div class="col-md-12 d-flex justify-content-between align-items-center mb-4">
+        <h2 class="text-light">Inventory Movement Log</h2>
+        <div class="d-flex gap-3">
+            <button class="btn btn-success shadow-sm" data-bs-toggle="modal" data-bs-target="#stockInModal">
+                <i class="bi bi-box-arrow-in-down me-2"></i>Record Stock IN
+            </button>
+        </div>
+    </div>
+
+    <div class="col-md-12">
+        <div class="card shadow-lg p-0">
+            <div class="table-responsive">
+                <table class="table table-dark table-hover align-middle border-secondary mb-0">
+                    <thead class="text-info border-bottom border-info bg-black">
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>Item Name</th>
+                            <th>Movement</th>
+                            <th>Quantity</th>
+                            <th>Operator</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-03-03 02:54:16 AM</td>
+                            <td class="fw-bold">Assorted Necklace</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">10</td>
+                            <td>xpider.server@gmail.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-03-03 02:53:31 AM</td>
+                            <td class="fw-bold">Assorted Necklace</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">10</td>
+                            <td>xpider.server@gmail.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-03-03 02:18:28 AM</td>
+                            <td class="fw-bold">Ang Pagrosaryo</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">5</td>
+                            <td>dev@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-03-03 02:05:50 AM</td>
+                            <td class="fw-bold">Agimat ni Apo</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">1</td>
+                            <td>dev@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-28 11:12:25 AM</td>
+                            <td class="fw-bold">Wood Crucifix (M)</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">4</td>
+                            <td>dev@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-28 05:44:25 AM</td>
+                            <td class="fw-bold">Crystal Rosary</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">5</td>
+                            <td>admin@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-28 05:10:25 AM</td>
+                            <td class="fw-bold">Way of the Cross</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">2</td>
+                            <td>dev@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-28 04:19:25 AM</td>
+                            <td class="fw-bold">Cloth Scapular (L)</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">2</td>
+                            <td>dev@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-27 11:56:25 AM</td>
+                            <td class="fw-bold">Assorted Necklace</td>
+                            <td>
+                                <span class="badge bg-success px-3 rounded-pill">
+                                    IN
+                                </span>
+                            </td>
+                            <td class="fw-bold">7</td>
+                            <td>dev@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-27 02:21:25 PM</td>
+                            <td class="fw-bold">Gospel Today</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">4</td>
+                            <td>admin@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-27 01:23:25 PM</td>
+                            <td class="fw-bold">Word of Fun</td>
+                            <td>
+                                <span class="badge bg-success px-3 rounded-pill">
+                                    IN
+                                </span>
+                            </td>
+                            <td class="fw-bold">9</td>
+                            <td>cashier@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-26 09:24:25 AM</td>
+                            <td class="fw-bold">Plastic Crucifix (L)</td>
+                            <td>
+                                <span class="badge bg-success px-3 rounded-pill">
+                                    IN
+                                </span>
+                            </td>
+                            <td class="fw-bold">1</td>
+                            <td>dev@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-26 02:42:25 AM</td>
+                            <td class="fw-bold">Ang Rosaryo ug Mensahe</td>
+                            <td>
+                                <span class="badge bg-success px-3 rounded-pill">
+                                    IN
+                                </span>
+                            </td>
+                            <td class="fw-bold">5</td>
+                            <td>cashier@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-26 01:59:25 AM</td>
+                            <td class="fw-bold">Bible Stories</td>
+                            <td>
+                                <span class="badge bg-success px-3 rounded-pill">
+                                    IN
+                                </span>
+                            </td>
+                            <td class="fw-bold">9</td>
+                            <td>admin@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-26 01:37:25 PM</td>
+                            <td class="fw-bold">Ang Pagrosaryo</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">7</td>
+                            <td>admin@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-24 08:51:25 PM</td>
+                            <td class="fw-bold">Plastic Crucifix (M)</td>
+                            <td>
+                                <span class="badge bg-success px-3 rounded-pill">
+                                    IN
+                                </span>
+                            </td>
+                            <td class="fw-bold">6</td>
+                            <td>dev@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-24 06:43:25 PM</td>
+                            <td class="fw-bold">Lourdes (850)</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">9</td>
+                            <td>admin@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-24 01:34:25 PM</td>
+                            <td class="fw-bold">Bracelet Gold</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">2</td>
+                            <td>admin@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-23 11:43:25 AM</td>
+                            <td class="fw-bold">Lives of Saints</td>
+                            <td>
+                                <span class="badge bg-success px-3 rounded-pill">
+                                    IN
+                                </span>
+                            </td>
+                            <td class="fw-bold">9</td>
+                            <td>admin@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-23 05:07:25 AM</td>
+                            <td class="fw-bold">Guadalupe (700)</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">1</td>
+                            <td>cashier@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-22 06:35:25 PM</td>
+                            <td class="fw-bold">Ferrer Novena</td>
+                            <td>
+                                <span class="badge bg-success px-3 rounded-pill">
+                                    IN
+                                </span>
+                            </td>
+                            <td class="fw-bold">9</td>
+                            <td>dev@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-22 06:04:25 AM</td>
+                            <td class="fw-bold">Plastic Crucifix (S)</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">2</td>
+                            <td>cashier@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-22 05:45:25 PM</td>
+                            <td class="fw-bold">Hanging Amulet</td>
+                            <td>
+                                <span class="badge bg-success px-3 rounded-pill">
+                                    IN
+                                </span>
+                            </td>
+                            <td class="fw-bold">8</td>
+                            <td>admin@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-21 10:40:25 PM</td>
+                            <td class="fw-bold">Daily Devotion</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">2</td>
+                            <td>dev@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-21 10:19:25 AM</td>
+                            <td class="fw-bold">Prayer Card</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">10</td>
+                            <td>dev@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-21 08:32:25 PM</td>
+                            <td class="fw-bold">Bible Stories</td>
+                            <td>
+                                <span class="badge bg-success px-3 rounded-pill">
+                                    IN
+                                </span>
+                            </td>
+                            <td class="fw-bold">10</td>
+                            <td>cashier@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-21 08:03:25 PM</td>
+                            <td class="fw-bold">Holy Water Bottle (L)</td>
+                            <td>
+                                <span class="badge bg-success px-3 rounded-pill">
+                                    IN
+                                </span>
+                            </td>
+                            <td class="fw-bold">6</td>
+                            <td>admin@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-20 06:52:25 PM</td>
+                            <td class="fw-bold">Gold Necklace (120)</td>
+                            <td>
+                                <span class="badge bg-success px-3 rounded-pill">
+                                    IN
+                                </span>
+                            </td>
+                            <td class="fw-bold">9</td>
+                            <td>dev@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-20 03:40:25 PM</td>
+                            <td class="fw-bold">Holy Family (740)</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">6</td>
+                            <td>admin@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-20 03:19:25 PM</td>
+                            <td class="fw-bold">Way of the Cross</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">4</td>
+                            <td>dev@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-19 09:54:25 AM</td>
+                            <td class="fw-bold">Assorted Necklace</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">8</td>
+                            <td>admin@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-18 07:51:25 PM</td>
+                            <td class="fw-bold">Birthstone Large</td>
+                            <td>
+                                <span class="badge bg-success px-3 rounded-pill">
+                                    IN
+                                </span>
+                            </td>
+                            <td class="fw-bold">7</td>
+                            <td>admin@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-17 12:00:25 PM</td>
+                            <td class="fw-bold">Lourdes (850)</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">8</td>
+                            <td>cashier@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-17 01:08:25 AM</td>
+                            <td class="fw-bold">Lourdes (850)</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">5</td>
+                            <td>dev@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-16 11:00:25 AM</td>
+                            <td class="fw-bold">Colored Rosary</td>
+                            <td>
+                                <span class="badge bg-success px-3 rounded-pill">
+                                    IN
+                                </span>
+                            </td>
+                            <td class="fw-bold">5</td>
+                            <td>cashier@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-16 08:38:25 AM</td>
+                            <td class="fw-bold">Way of the Cross</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">5</td>
+                            <td>dev@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-16 05:44:25 PM</td>
+                            <td class="fw-bold">Plastic Crucifix (M)</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">1</td>
+                            <td>cashier@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-15 09:48:25 PM</td>
+                            <td class="fw-bold">Small Rosary</td>
+                            <td>
+                                <span class="badge bg-success px-3 rounded-pill">
+                                    IN
+                                </span>
+                            </td>
+                            <td class="fw-bold">6</td>
+                            <td>cashier@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-15 06:06:25 PM</td>
+                            <td class="fw-bold">Big Rosary</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">1</td>
+                            <td>admin@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-15 05:32:25 AM</td>
+                            <td class="fw-bold">St. Jude Novena</td>
+                            <td>
+                                <span class="badge bg-success px-3 rounded-pill">
+                                    IN
+                                </span>
+                            </td>
+                            <td class="fw-bold">4</td>
+                            <td>admin@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-15 04:10:25 PM</td>
+                            <td class="fw-bold">Word of Fun</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">2</td>
+                            <td>admin@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-15 02:06:25 PM</td>
+                            <td class="fw-bold">Gold Necklace (200)</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">3</td>
+                            <td>admin@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-15 01:03:25 AM</td>
+                            <td class="fw-bold">Agimat ni Apo</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">3</td>
+                            <td>dev@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-14 11:42:25 PM</td>
+                            <td class="fw-bold">Holy Oil</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">5</td>
+                            <td>dev@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-14 04:52:25 PM</td>
+                            <td class="fw-bold">Rosary Plastic</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">3</td>
+                            <td>dev@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-13 11:42:25 AM</td>
+                            <td class="fw-bold">Divine Mercy</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">4</td>
+                            <td>cashier@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-13 07:27:25 AM</td>
+                            <td class="fw-bold">All Types Novena</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">10</td>
+                            <td>admin@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-13 06:14:25 AM</td>
+                            <td class="fw-bold">Holy Oil</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">7</td>
+                            <td>cashier@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-13 03:11:25 PM</td>
+                            <td class="fw-bold">Gold Necklace (120)</td>
+                            <td>
+                                <span class="badge bg-success px-3 rounded-pill">
+                                    IN
+                                </span>
+                            </td>
+                            <td class="fw-bold">4</td>
+                            <td>dev@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-12 08:32:25 PM</td>
+                            <td class="fw-bold">St. Joseph Novena</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">3</td>
+                            <td>admin@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-10 02:10:25 AM</td>
+                            <td class="fw-bold">Metal Cross</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">3</td>
+                            <td>cashier@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-09 06:09:25 AM</td>
+                            <td class="fw-bold">Bible Stories</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">3</td>
+                            <td>dev@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-09 05:51:25 AM</td>
+                            <td class="fw-bold">Birthstone Rosary</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">6</td>
+                            <td>dev@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-08 03:06:25 AM</td>
+                            <td class="fw-bold">Plastic Crucifix (S)</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">6</td>
+                            <td>cashier@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-08 02:54:25 AM</td>
+                            <td class="fw-bold">Birthstone Rosary</td>
+                            <td>
+                                <span class="badge bg-success px-3 rounded-pill">
+                                    IN
+                                </span>
+                            </td>
+                            <td class="fw-bold">5</td>
+                            <td>cashier@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-07 03:11:25 AM</td>
+                            <td class="fw-bold">St. Augustine</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">1</td>
+                            <td>admin@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-06 07:47:25 PM</td>
+                            <td class="fw-bold">Plastic Crucifix (M)</td>
+                            <td>
+                                <span class="badge bg-success px-3 rounded-pill">
+                                    IN
+                                </span>
+                            </td>
+                            <td class="fw-bold">6</td>
+                            <td>cashier@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-05 04:20:25 AM</td>
+                            <td class="fw-bold">Gospel Today</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">5</td>
+                            <td>dev@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-05 01:25:25 PM</td>
+                            <td class="fw-bold">Gospel Today</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">6</td>
+                            <td>cashier@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-04 12:14:25 PM</td>
+                            <td class="fw-bold">Holy Water Bottle (L)</td>
+                            <td>
+                                <span class="badge bg-success px-3 rounded-pill">
+                                    IN
+                                </span>
+                            </td>
+                            <td class="fw-bold">3</td>
+                            <td>dev@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-04 10:27:25 PM</td>
+                            <td class="fw-bold">Guadalupe (700)</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">4</td>
+                            <td>cashier@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-04 08:58:25 AM</td>
+                            <td class="fw-bold">Paul the Apostle</td>
+                            <td>
+                                <span class="badge bg-success px-3 rounded-pill">
+                                    IN
+                                </span>
+                            </td>
+                            <td class="fw-bold">1</td>
+                            <td>admin@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-04 06:25:25 AM</td>
+                            <td class="fw-bold">St. Augustine</td>
+                            <td>
+                                <span class="badge bg-success px-3 rounded-pill">
+                                    IN
+                                </span>
+                            </td>
+                            <td class="fw-bold">1</td>
+                            <td>dev@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-03 11:02:25 AM</td>
+                            <td class="fw-bold">Ang Pagrosaryo</td>
+                            <td>
+                                <span class="badge bg-success px-3 rounded-pill">
+                                    IN
+                                </span>
+                            </td>
+                            <td class="fw-bold">6</td>
+                            <td>cashier@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-03 10:16:25 AM</td>
+                            <td class="fw-bold">Agimat ni Apo</td>
+                            <td>
+                                <span class="badge bg-success px-3 rounded-pill">
+                                    IN
+                                </span>
+                            </td>
+                            <td class="fw-bold">1</td>
+                            <td>cashier@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-03 06:35:25 PM</td>
+                            <td class="fw-bold">Plastic Crucifix (L)</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">1</td>
+                            <td>cashier@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-02 12:08:25 AM</td>
+                            <td class="fw-bold">Agimat ni Apo</td>
+                            <td>
+                                <span class="badge bg-success px-3 rounded-pill">
+                                    IN
+                                </span>
+                            </td>
+                            <td class="fw-bold">8</td>
+                            <td>dev@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-02 03:14:25 AM</td>
+                            <td class="fw-bold">Rosary Plastic</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">6</td>
+                            <td>admin@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-01 10:28:25 PM</td>
+                            <td class="fw-bold">Wood Crucifix (M)</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">8</td>
+                            <td>dev@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-01 05:35:25 AM</td>
+                            <td class="fw-bold">Gospel Today</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">7</td>
+                            <td>cashier@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-02-01 03:59:25 PM</td>
+                            <td class="fw-bold">Way of the Cross</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">6</td>
+                            <td>cashier@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-31 10:17:25 PM</td>
+                            <td class="fw-bold">Cloth Scapular (L)</td>
+                            <td>
+                                <span class="badge bg-success px-3 rounded-pill">
+                                    IN
+                                </span>
+                            </td>
+                            <td class="fw-bold">3</td>
+                            <td>admin@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-31 09:47:25 AM</td>
+                            <td class="fw-bold">Rosary Guide Cebuano</td>
+                            <td>
+                                <span class="badge bg-success px-3 rounded-pill">
+                                    IN
+                                </span>
+                            </td>
+                            <td class="fw-bold">9</td>
+                            <td>cashier@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-31 05:26:25 AM</td>
+                            <td class="fw-bold">Ang Rosaryo ug Mensahe</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">9</td>
+                            <td>admin@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-30 09:37:25 AM</td>
+                            <td class="fw-bold">Big Rosary</td>
+                            <td>
+                                <span class="badge bg-success px-3 rounded-pill">
+                                    IN
+                                </span>
+                            </td>
+                            <td class="fw-bold">9</td>
+                            <td>admin@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-30 03:20:25 PM</td>
+                            <td class="fw-bold">Holy Water Bottle (L)</td>
+                            <td>
+                                <span class="badge bg-success px-3 rounded-pill">
+                                    IN
+                                </span>
+                            </td>
+                            <td class="fw-bold">2</td>
+                            <td>admin@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-29 01:13:25 PM</td>
+                            <td class="fw-bold">Ang Pagrosaryo</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">4</td>
+                            <td>dev@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-28 10:57:25 AM</td>
+                            <td class="fw-bold">Assorted Necklace</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">10</td>
+                            <td>dev@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-27 12:52:25 AM</td>
+                            <td class="fw-bold">Lourdes (850)</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">6</td>
+                            <td>cashier@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-27 12:43:25 PM</td>
+                            <td class="fw-bold">Plastic Crucifix (S)</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">7</td>
+                            <td>admin@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-27 06:05:25 AM</td>
+                            <td class="fw-bold">Wood Crucifix (M)</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">7</td>
+                            <td>cashier@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-26 05:19:25 AM</td>
+                            <td class="fw-bold">Sacred Heart Novena</td>
+                            <td>
+                                <span class="badge bg-success px-3 rounded-pill">
+                                    IN
+                                </span>
+                            </td>
+                            <td class="fw-bold">7</td>
+                            <td>dev@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-26 04:18:25 PM</td>
+                            <td class="fw-bold">St. Michael</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">3</td>
+                            <td>cashier@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-25 02:51:25 PM</td>
+                            <td class="fw-bold">Mother of Perpetual Help</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">9</td>
+                            <td>cashier@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-24 12:43:25 PM</td>
+                            <td class="fw-bold">St. Joseph Novena</td>
+                            <td>
+                                <span class="badge bg-success px-3 rounded-pill">
+                                    IN
+                                </span>
+                            </td>
+                            <td class="fw-bold">2</td>
+                            <td>cashier@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-24 06:30:25 PM</td>
+                            <td class="fw-bold">Gold Necklace (120)</td>
+                            <td>
+                                <span class="badge bg-success px-3 rounded-pill">
+                                    IN
+                                </span>
+                            </td>
+                            <td class="fw-bold">1</td>
+                            <td>cashier@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-23 11:59:25 PM</td>
+                            <td class="fw-bold">Plastic Crucifix (L)</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">4</td>
+                            <td>admin@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-23 05:23:25 PM</td>
+                            <td class="fw-bold">Birthstone Rosary</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">4</td>
+                            <td>admin@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-22 11:50:25 PM</td>
+                            <td class="fw-bold">Ang Pagrosaryo</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">10</td>
+                            <td>admin@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-22 09:42:25 PM</td>
+                            <td class="fw-bold">Light Balls</td>
+                            <td>
+                                <span class="badge bg-success px-3 rounded-pill">
+                                    IN
+                                </span>
+                            </td>
+                            <td class="fw-bold">3</td>
+                            <td>dev@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-22 08:18:25 AM</td>
+                            <td class="fw-bold">Holy Family (740)</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">6</td>
+                            <td>admin@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-22 08:03:25 PM</td>
+                            <td class="fw-bold">St. Augustine</td>
+                            <td>
+                                <span class="badge bg-success px-3 rounded-pill">
+                                    IN
+                                </span>
+                            </td>
+                            <td class="fw-bold">9</td>
+                            <td>admin@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-21 10:57:25 PM</td>
+                            <td class="fw-bold">Sacred Heart Novena</td>
+                            <td>
+                                <span class="badge bg-success px-3 rounded-pill">
+                                    IN
+                                </span>
+                            </td>
+                            <td class="fw-bold">8</td>
+                            <td>admin@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-21 07:00:25 AM</td>
+                            <td class="fw-bold">Sto. Nino Novena</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">2</td>
+                            <td>admin@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-21 06:28:25 PM</td>
+                            <td class="fw-bold">Light Balls</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">8</td>
+                            <td>cashier@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-21 02:49:25 AM</td>
+                            <td class="fw-bold">Plastic Crucifix (L)</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">2</td>
+                            <td>admin@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-20 12:18:25 AM</td>
+                            <td class="fw-bold">Deliverance Book</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">9</td>
+                            <td>cashier@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-19 07:36:25 PM</td>
+                            <td class="fw-bold">Gospel Today</td>
+                            <td>
+                                <span class="badge bg-success px-3 rounded-pill">
+                                    IN
+                                </span>
+                            </td>
+                            <td class="fw-bold">2</td>
+                            <td>cashier@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-19 07:24:25 PM</td>
+                            <td class="fw-bold">Cross Frame</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">9</td>
+                            <td>dev@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-19 04:55:25 AM</td>
+                            <td class="fw-bold">Guadalupe (700)</td>
+                            <td>
+                                <span class="badge bg-success px-3 rounded-pill">
+                                    IN
+                                </span>
+                            </td>
+                            <td class="fw-bold">7</td>
+                            <td>cashier@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-18 04:01:25 PM</td>
+                            <td class="fw-bold">Birthstone Rosary</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">4</td>
+                            <td>cashier@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-17 10:58:25 PM</td>
+                            <td class="fw-bold">San Roque</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">1</td>
+                            <td>dev@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-16 04:46:25 AM</td>
+                            <td class="fw-bold">Wooden Rosary</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">7</td>
+                            <td>dev@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-16 02:45:25 PM</td>
+                            <td class="fw-bold">All Types Novena</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">2</td>
+                            <td>dev@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-15 10:10:25 AM</td>
+                            <td class="fw-bold">Wood Crucifix (M)</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">7</td>
+                            <td>dev@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-15 03:07:25 AM</td>
+                            <td class="fw-bold">Gospel Today</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">3</td>
+                            <td>admin@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-14 11:10:25 PM</td>
+                            <td class="fw-bold">Sacred Heart Novena</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">2</td>
+                            <td>dev@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-14 03:27:25 AM</td>
+                            <td class="fw-bold">Ang Pagrosaryo</td>
+                            <td>
+                                <span class="badge bg-success px-3 rounded-pill">
+                                    IN
+                                </span>
+                            </td>
+                            <td class="fw-bold">9</td>
+                            <td>cashier@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-13 08:43:25 PM</td>
+                            <td class="fw-bold">St. Joseph Novena</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">4</td>
+                            <td>cashier@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-12 07:48:25 PM</td>
+                            <td class="fw-bold">Assorted Necklace</td>
+                            <td>
+                                <span class="badge bg-success px-3 rounded-pill">
+                                    IN
+                                </span>
+                            </td>
+                            <td class="fw-bold">2</td>
+                            <td>cashier@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-12 06:38:25 AM</td>
+                            <td class="fw-bold">Holy Family (740)</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">5</td>
+                            <td>admin@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-11 12:55:25 AM</td>
+                            <td class="fw-bold">St. Augustine</td>
+                            <td>
+                                <span class="badge bg-success px-3 rounded-pill">
+                                    IN
+                                </span>
+                            </td>
+                            <td class="fw-bold">2</td>
+                            <td>cashier@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-11 10:12:25 PM</td>
+                            <td class="fw-bold">Sacred Heart Novena</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">3</td>
+                            <td>admin@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-11 06:50:25 PM</td>
+                            <td class="fw-bold">Divine Mercy</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">1</td>
+                            <td>admin@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-11 04:25:25 AM</td>
+                            <td class="fw-bold">Holy Family (740)</td>
+                            <td>
+                                <span class="badge bg-success px-3 rounded-pill">
+                                    IN
+                                </span>
+                            </td>
+                            <td class="fw-bold">7</td>
+                            <td>cashier@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-10 12:28:25 AM</td>
+                            <td class="fw-bold">Bible Stories</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">4</td>
+                            <td>cashier@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-10 11:19:25 PM</td>
+                            <td class="fw-bold">Paul the Apostle</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">3</td>
+                            <td>admin@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-10 10:57:25 AM</td>
+                            <td class="fw-bold">Hanging Amulet</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">2</td>
+                            <td>admin@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-10 05:19:25 PM</td>
+                            <td class="fw-bold">Agimat ni Apo</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">8</td>
+                            <td>cashier@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-09 12:46:25 PM</td>
+                            <td class="fw-bold">Way of the Cross</td>
+                            <td>
+                                <span class="badge bg-success px-3 rounded-pill">
+                                    IN
+                                </span>
+                            </td>
+                            <td class="fw-bold">8</td>
+                            <td>cashier@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-08 07:18:25 PM</td>
+                            <td class="fw-bold">Way of the Cross</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">10</td>
+                            <td>dev@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-08 07:11:25 PM</td>
+                            <td class="fw-bold">Paul the Apostle</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">10</td>
+                            <td>cashier@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-08 05:57:25 AM</td>
+                            <td class="fw-bold">Prayer Card</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">3</td>
+                            <td>cashier@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-08 05:05:25 AM</td>
+                            <td class="fw-bold">Gold Necklace (120)</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">7</td>
+                            <td>admin@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-07 12:17:25 PM</td>
+                            <td class="fw-bold">San Roque</td>
+                            <td>
+                                <span class="badge bg-success px-3 rounded-pill">
+                                    IN
+                                </span>
+                            </td>
+                            <td class="fw-bold">9</td>
+                            <td>cashier@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-07 09:14:25 AM</td>
+                            <td class="fw-bold">Deliverance Book</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">5</td>
+                            <td>admin@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-07 08:55:25 AM</td>
+                            <td class="fw-bold">Deliverance Book</td>
+                            <td>
+                                <span class="badge bg-success px-3 rounded-pill">
+                                    IN
+                                </span>
+                            </td>
+                            <td class="fw-bold">10</td>
+                            <td>dev@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-07 04:05:25 AM</td>
+                            <td class="fw-bold">All Types Novena</td>
+                            <td>
+                                <span class="badge bg-success px-3 rounded-pill">
+                                    IN
+                                </span>
+                            </td>
+                            <td class="fw-bold">1</td>
+                            <td>admin@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-07 03:15:25 AM</td>
+                            <td class="fw-bold">Agimat ni Apo</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">7</td>
+                            <td>admin@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-06 11:07:25 PM</td>
+                            <td class="fw-bold">Coloring Book</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">5</td>
+                            <td>dev@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-06 08:51:25 AM</td>
+                            <td class="fw-bold">Holy Water Bottle (S)</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">10</td>
+                            <td>admin@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-06 08:01:25 AM</td>
+                            <td class="fw-bold">Sto. Nino Ceramic</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">7</td>
+                            <td>cashier@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-05 12:42:25 AM</td>
+                            <td class="fw-bold">Birthstone Rosary</td>
+                            <td>
+                                <span class="badge bg-success px-3 rounded-pill">
+                                    IN
+                                </span>
+                            </td>
+                            <td class="fw-bold">8</td>
+                            <td>cashier@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-05 05:33:25 PM</td>
+                            <td class="fw-bold">Wooden Rosary</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">1</td>
+                            <td>cashier@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-05 05:02:25 PM</td>
+                            <td class="fw-bold">Crystal Rosary</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">7</td>
+                            <td>dev@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-05 04:56:25 PM</td>
+                            <td class="fw-bold">Metal Cross</td>
+                            <td>
+                                <span class="badge bg-success px-3 rounded-pill">
+                                    IN
+                                </span>
+                            </td>
+                            <td class="fw-bold">1</td>
+                            <td>admin@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-04 03:56:25 AM</td>
+                            <td class="fw-bold">Sto. Nino Pocket</td>
+                            <td>
+                                <span class="badge bg-success px-3 rounded-pill">
+                                    IN
+                                </span>
+                            </td>
+                            <td class="fw-bold">5</td>
+                            <td>admin@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-04 03:24:25 PM</td>
+                            <td class="fw-bold">Paul the Apostle</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">6</td>
+                            <td>admin@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-03 11:29:25 AM</td>
+                            <td class="fw-bold">Gold Necklace (200)</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">7</td>
+                            <td>dev@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-03 08:52:25 PM</td>
+                            <td class="fw-bold">Metal Cross</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">1</td>
+                            <td>dev@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-03 07:43:25 PM</td>
+                            <td class="fw-bold">Gold Rosary</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">7</td>
+                            <td>cashier@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-03 06:43:25 AM</td>
+                            <td class="fw-bold">Scapular Metal</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">5</td>
+                            <td>admin@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-03 05:08:25 PM</td>
+                            <td class="fw-bold">Divine Mercy</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">10</td>
+                            <td>cashier@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-02 07:27:25 AM</td>
+                            <td class="fw-bold">St. Jude Novena</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">6</td>
+                            <td>admin@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-02 06:10:25 AM</td>
+                            <td class="fw-bold">English Mass</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">8</td>
+                            <td>admin@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-01 11:17:25 PM</td>
+                            <td class="fw-bold">English Mass</td>
+                            <td>
+                                <span class="badge bg-success px-3 rounded-pill">
+                                    IN
+                                </span>
+                            </td>
+                            <td class="fw-bold">4</td>
+                            <td>admin@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-01 10:19:25 AM</td>
+                            <td class="fw-bold">Guadalupe (700)</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">7</td>
+                            <td>admin@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-01 09:24:25 PM</td>
+                            <td class="fw-bold">Colored Rosary</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">9</td>
+                            <td>admin@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-01 08:12:25 AM</td>
+                            <td class="fw-bold">Keychain Leather</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">9</td>
+                            <td>cashier@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2026-01-01 02:20:25 AM</td>
+                            <td class="fw-bold">San Vicente Ferrer</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">1</td>
+                            <td>dev@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2025-12-31 11:13:25 PM</td>
+                            <td class="fw-bold">Hanging Crucifix</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">1</td>
+                            <td>cashier@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2025-12-31 11:07:25 PM</td>
+                            <td class="fw-bold">San Vicente Ferrer</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">3</td>
+                            <td>dev@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2025-12-31 03:03:25 PM</td>
+                            <td class="fw-bold">Way of the Cross</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">7</td>
+                            <td>dev@inventory.com</td>
+                        </tr>
+                        
+                        <tr>
+                            <td class="text-muted small">2025-12-30 02:24:25 AM</td>
+                            <td class="fw-bold">Gold Necklace (120)</td>
+                            <td>
+                                <span class="badge bg-warning text-dark px-3 rounded-pill">
+                                    OUT
+                                </span>
+                            </td>
+                            <td class="fw-bold">7</td>
+                            <td>dev@inventory.com</td>
+                        </tr>
+                        
+                        
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Stock IN -->
+<div class="modal fade" id="stockInModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark border-secondary">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-success">Stock Intake - Increment Inventory</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="/inventory/stock-in" method="POST">
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label">Select Item</label>
+                        <select name="item_id" class="form-select bg-black text-light border-secondary" required>
+                            <option value="" disabled selected>Choose product...</option>
+                            
+                            <option value="69a693b10a0f2e6958897c4c">Agimat ni Apo (Available: 23)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c75">All Types Novena (Available: 27)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c40">Ang Pagrosaryo (Available: 6)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c41">Ang Rosaryo ug Mensahe (Available: 7)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c5f">Assorted Necklace (Available: 61)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c4d">Bible Stories (Available: 11)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c60">Big Rosary (Available: 78)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c5d">Birthstone Large (Available: 55)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c66">Birthstone Rosary (Available: 41)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c5e">Bracelet Gold (Available: 61)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c5b">Cloth Scapular (L) (Available: 14)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c65">Colored Rosary (Available: 85)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c49">Coloring Book (Available: 18)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c6e">Cross Frame (Available: 17)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c67">Crystal Rosary (Available: 94)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c46">Daily Devotion (Available: 65)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c43">Deliverance Book (Available: 43)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c76">Divine Mercy (Available: 8)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c44">English Mass (Available: 9)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c74">Ferrer Novena (Available: 9)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c58">Gold Necklace (120) (Available: 86)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c59">Gold Necklace (200) (Available: 67)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c61">Gold Rosary (Available: 76)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c4f">Gospel Today (Available: 46)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c51">Guadalupe (700) (Available: 43)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c3c">Hanging Amulet (Available: 97)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c6d">Hanging Crucifix (Available: 72)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c50">Holy Family (740) (Available: 81)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c38">Holy Oil (Available: 36)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c3e">Holy Water Bottle (L) (Available: 85)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c3d">Holy Water Bottle (S) (Available: 14)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c5c">Keychain Leather (Available: 62)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c39">Light Balls (Available: 17)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c4e">Lives of Saints (Available: 92)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c52">Lourdes (850) (Available: 74)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c6f">Metal Cross (Available: 50)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c70">Mother of Perpetual Help (Available: 11)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c4b">Paul the Apostle (Available: 88)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c6a">Plastic Crucifix (L) (Available: 50)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c69">Plastic Crucifix (M) (Available: 13)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c68">Plastic Crucifix (S) (Available: 53)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c3f">Prayer Card (Available: 10)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c4a">Rainbow of Peace (Available: 6)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c3b">Ref Magnet (Available: 56)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c42">Rosary Guide Cebuano (Available: 54)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c63">Rosary Plastic (Available: 61)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c72">Sacred Heart Novena (Available: 64)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c48">Sacred Heart Story (Available: 94)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c56">San Roque (Available: 51)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c54">San Vicente Ferrer (Available: 23)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c5a">Scapular Metal (Available: 40)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c64">Small Rosary (Available: 15)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c53">St. Augustine (Available: 87)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c77">St. Joseph Novena (Available: 28)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c71">St. Jude Novena (Available: 38)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c55">St. Michael (Available: 81)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c57">Sto. Nino Ceramic (Available: 16)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c73">Sto. Nino Novena (Available: 77)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c3a">Sto. Nino Pocket (Available: 52)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c47">Way of the Cross (Available: 32)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c6c">Wood Crucifix (M) (Available: 20)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c6b">Wood Crucifix (S) (Available: 20)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c62">Wooden Rosary (Available: 25)</option>
+                            
+                            <option value="69a693b10a0f2e6958897c45">Word of Fun (Available: 42)</option>
+                            
+                            <option value="69a6a3c3f4267499a8571ebb">test (Available: 1)</option>
+                            
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Quantity to Add</label>
+                        <input type="number" name="qty" class="form-control bg-black text-light border-secondary" min="1" required>
+                    </div>
+                </div>
+                <div class="modal-footer border-secondary">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success px-4">Record Stock IN</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+        </div>
+    </div>
+
+    <!-- Notification Toast Container -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1100;">
+        <div id="logToast" class="toast bg-card border-primary" role="alert" aria-live="assertive" aria-atomic="true" data-bs-delay="4000">
+            <div class="toast-header bg-dark text-white border-bottom border-secondary">
+                <i class="bi bi-bell-fill text-primary me-2"></i>
+                <strong class="me-auto">System Activity</strong>
+                <small id="toastTime">just now</small>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+            <div class="toast-body" id="toastBody">
+                New activity recorded.
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script>
+        // Real-time Socket.IO Connection
+        const socket = io({
+            transports: ['websocket', 'polling'],
+            secure: true,
+            reconnection: true,
+            reconnectionAttempts: 5,
+            timeout: 10000
+        });
+
+        socket.on('connect', () => {
+            console.log('[REAL-TIME] Connected to XPIDER Live-Sync via ' + socket.io.engine.transport.name);
+        });
+
+        // Global Theme Sync
+        function setGlobalThemeUI(theme) {
+            if (theme === 'default') {
+                document.documentElement.removeAttribute('data-theme');
+                localStorage.removeItem('xpider-theme');
+            } else {
+                document.documentElement.setAttribute('data-theme', theme);
+                localStorage.setItem('xpider-theme', theme);
+            }
+            
+            // If we are on developer portal, update button highlights
+            if (typeof updateThemeButtons === 'function') {
+                updateThemeButtons(theme);
+            }
+        }
+
+        socket.on('theme_update', (data) => {
+            console.log('[THEME] Syncing theme across devices:', data.theme);
+            setGlobalThemeUI(data.theme);
+        });
+
+        socket.on('system_update', (data) => {
+            console.log('[REAL-TIME] Update Received:', data);
+            
+            // Special case: Server just came online after a restart
+            if (data.action === 'SERVER_READY') {
+                document.getElementById('toastBody').innerHTML = `<span class="text-success fw-bold"><i class="bi bi-cpu-fill me-2"></i>ENGINE ONLINE:</span> ${data.details}`;
+                document.getElementById('toastTime').innerText = "now";
+                const toast = new bootstrap.Toast(document.getElementById('logToast'));
+                toast.show();
+                return; // Don't reload for this specific event
+            }
+
+            // Logic to refresh specific areas without full reload
+            const currentPath = window.location.pathname;
+            if (currentPath === '/dashboard' || currentPath === '/items' || currentPath === '/sales-summary' || currentPath === '/notes') {
+                // For now, we refresh the page to get the new data from DB
+                // but it feels smoother since it was triggered by an external action
+                console.log('[REAL-TIME] Refreshing data...');
+                
+                // Show a small "Syncing..." indicator if you want
+                window.location.reload();
+            }
+        });
+
+        // Sidebar Toggle
+        document.getElementById('sidebarCollapse').addEventListener('click', function() {
+            document.getElementById('sidebar').classList.toggle('active');
+            document.getElementById('content').classList.toggle('active');
+        });
+
+        // Live Clock
+        function updateClock() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('en-US', { hour12: true });
+            const dateString = now.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+            
+            document.getElementById('liveTime').textContent = timeString;
+            document.getElementById('liveDate').textContent = dateString;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // System Monitor
+        function updateSystemInfo() {
+            fetch('/system-info')
+                .then(response => {
+                    if (!response.ok) throw new Error('Network response was not ok');
+                    return response.text().then(text => text ? JSON.parse(text) : {});
+                })
+                .then(data => {
+                    if (!data || Object.keys(data).length === 0) return;
+                    const cpuVal = document.getElementById('cpuVal');
+                    const cpuBar = document.getElementById('cpuBar');
+                    if (cpuVal) cpuVal.textContent = (data.cpu || 0) + '%';
+                    if (cpuBar) cpuBar.style.width = (data.cpu || 0) + '%';
+                    
+                    const ramVal = document.getElementById('ramVal');
+                    const ramBar = document.getElementById('ramBar');
+                    const ramUsed = document.getElementById('ramUsed');
+                    const ramTotal = document.getElementById('ramTotal');
+                    if (ramVal) ramVal.textContent = (data.ram_percent || 0) + '%';
+                    if (ramBar) ramBar.style.width = (data.ram_percent || 0) + '%';
+                    if (ramUsed) ramUsed.textContent = data.ram_used || '0GB';
+                    if (ramTotal) ramTotal.textContent = data.ram_total || '0GB';
+                    
+                    const diskFree = document.getElementById('diskFree');
+                    const diskBar = document.getElementById('diskBar');
+                    if (diskFree) diskFree.textContent = data.disk_free || '0GB';
+                    if (diskBar) diskBar.style.width = (100 - (data.disk_percent || 0)) + '%';
+                })
+                .catch(err => {
+                    // console.error('Error fetching system info:', err);
+                });
+        }
+        setInterval(updateSystemInfo, 3000);
+        updateSystemInfo(); // Initial call
+
+        // Activity Notifications
+        let lastLogTime = null;
+        const logToast = new bootstrap.Toast(document.getElementById('logToast'));
+        const VAPID_PUBLIC_KEY = "BM2OjQW6IZkWYTdJhBbN7Jfl1wLRiY6YP3lMFR0DGD7DVrHhLW31MQot9K3YtKkSX5r8itfflCAYReXRtL75McI";
+
+        function urlBase64ToUint8Array(base64String) {
+            const padding = '='.repeat((4 - base64String.length % 4) % 4);
+            const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+            const rawData = window.atob(base64);
+            const outputArray = new Uint8Array(rawData.length);
+            for (let i = 0; i < rawData.length; ++i) {
+                outputArray[i] = rawData.charCodeAt(i);
+            }
+            return outputArray;
+        }
+
+        function subscribeUserToPush() {
+            console.log('Attempting to subscribe user to push...');
+            return navigator.serviceWorker.ready.then((registration) => {
+                const subscribeOptions = {
+                    userVisibleOnly: true,
+                    applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+                };
+                return registration.pushManager.subscribe(subscribeOptions);
+            }).then((pushSubscription) => {
+                console.log('Received PushSubscription: ', JSON.stringify(pushSubscription));
+                return fetch('/subscribe', {
+                    method: 'POST',
+                    body: JSON.stringify(pushSubscription),
+                    headers: { 'Content-Type': 'application/json' }
+                });
+            }).then(response => {
+                if (!response.ok) throw new Error('Server subscription failed');
+                console.log('Successfully subscribed to server push');
+            }).catch(err => {
+                console.error('Push subscription failed:', err);
+                // Only alert on real failures, not just missing support
+                if (err.name !== 'NotAllowedError') {
+                    // alert('Push Sync Error: ' + err.message);
+                }
+            });
+        }
+
+        // Request Native Notification Permission
+        function requestNotifyPermission() {
+            if ("Notification" in window) {
+                if (Notification.permission !== "granted" && Notification.permission !== "denied") {
+                    Notification.requestPermission().then(permission => {
+                        if (permission === 'granted') subscribeUserToPush();
+                    });
+                } else if (Notification.permission === 'granted') {
+                    subscribeUserToPush(); // Refresh subscription
+                }
+            }
+        }
+        requestNotifyPermission();
+
+        function checkNewLogs() {
+            fetch('/latest-log')
+                .then(response => response.json())
+                .then(data => {
+                    if (data && data.timestamp !== lastLogTime) {
+                        const action = (data.action || '').toUpperCase();
+                        // Strict exclusion for all background tasks
+                        if (lastLogTime !== null && !action.includes('SUBSCRIBE')) { 
+                            // Wait 3 seconds before showing
+                            setTimeout(() => {
+                                // 1. Show UI Toast (inside the website only)
+                                document.getElementById('toastBody').innerHTML = `<span class="text-primary fw-bold">${data.action}</span> by <span class="text-info">${data.email}</span>`;
+                                logToast.show();
+
+                                // 2. NATIVE NOTIFICATIONS REMOVED FROM HERE
+                                // They are now handled exclusively by the background Push service
+                                // to prevent duplicates on mobile and desktop.
+                            }, 3000);
+                        }
+                        lastLogTime = data.timestamp;
+                    }
+                })
+                .catch(err => console.error('Notification error:', err));
+        }
+        setInterval(checkNewLogs, 5000); // Check every 5 seconds
+        checkNewLogs();
+
+        // PWA Service Worker Registration
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                console.log("Registering Service Worker...");
+                navigator.serviceWorker.register("/sw.js?v=2.5")
+                    .then(reg => {
+                        console.log('SW Registered:', reg.scope);
+                        reg.update();
+                        
+                        // If it's the first time, refresh to let SW take control
+                        if (!navigator.serviceWorker.controller) {
+                            console.log("SW not controlling page. Attempting to take control...");
+                        }
+                    })
+                    .catch(err => {
+                        console.error('SW Registration Failed:', err);
+                        // alert("Service Worker Failed: " + err.message);
+                    });
+            });
+        } else {
+            console.log("Service Worker not supported in this browser.");
+        }
+
+        function resetServiceWorker() {
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(registrations => {
+                    for (let registration of registrations) {
+                        registration.unregister();
+                    }
+                    caches.keys().then(names => {
+                        for (let name of names) caches.delete(name);
+                    });
+                    alert("App cache and Service Worker cleared. The page will now reload. Please try the test again after it reloads.");
+                    window.location.reload();
+                });
+            }
+        }
+
+        function testMobileNotification() {
+            if (!("serviceWorker" in navigator)) {
+                alert("Fail: No Service Worker support in this browser.");
+                return;
+            }
+
+            Notification.requestPermission().then(permission => {
+                if (permission === "granted") {
+                    navigator.serviceWorker.ready.then(registration => {
+                        const options = {
+                            body: "XPIDER Engine: Push notifications are ACTIVE!",
+                            icon: "/static/images/login_hero.webp",
+                            vibrate: [200, 100, 200],
+                            tag: 'test-' + Date.now()
+                        };
+
+                        registration.showNotification("XPIDER Test", options)
+                            .then(() => {
+                                console.log("Test notification triggered successfully.");
+                            })
+                            .catch(err => {
+                                alert("Fail: showNotification error: " + err);
+                            });
+                    }).catch(err => {
+                        alert("Fail: SW not ready: " + err);
+                    });
+                } else {
+                    alert("Fail: Permission denied. You must click 'Allow'.");
+                }
+            });
+        }
+    </script>
+    
+</body>
+</html>
