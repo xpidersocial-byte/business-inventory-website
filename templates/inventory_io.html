@@ -7,9 +7,11 @@
     <div class="col-md-12 d-flex justify-content-between align-items-center mb-4">
         <h2 class="text-light">Restock Log</h2>
         <div class="d-flex gap-3">
-            {% if role != 'owner' %}<button class="btn btn-success shadow-sm" data-bs-toggle="modal" data-bs-target="#stockInModal">
+            {% if session.get('role') != 'owner' %}
+            <button class="btn btn-success shadow-sm" data-bs-toggle="modal" data-bs-target="#stockInModal">
                 <i class="bi bi-box-arrow-in-down me-2"></i>Record Stock IN
-            </button>{% endif %}
+            </button>
+            {% endif %}
         </div>
     </div>
 
@@ -58,7 +60,7 @@
         <div class="modal-content bg-dark border-secondary">
             <div class="modal-header border-secondary">
                 <h5 class="modal-title text-success">Stock Intake - Increment Inventory</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>{% endif %}
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <form action="{{ url_for('stock_in') }}" method="POST">
                 <div class="modal-body p-4">
@@ -77,8 +79,8 @@
                     </div>
                 </div>
                 <div class="modal-footer border-secondary">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>{% endif %}
-                    <button type="submit" class="btn btn-success px-4">Record Stock IN</button>{% endif %}
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success px-4">Record Stock IN</button>
                 </div>
             </form>
         </div>
