@@ -701,46 +701,6 @@ def stock_in():
             flash(f"Stock IN recorded!", "success")
     return redirect(url_for('inventory_io'))
 
-@app.route('/inventory/stock-out', methods=['POST'])
-@login_required
-def stock_out():
-    item_id = request.form.get('item_id'); qty = int(request.form.get('qty', 0))
-    if item_id and qty > 0:
-        item = items_collection.find_one({"_id": ObjectId(item_id)})
-        if item:
-            if item.get('stock', 0) >= qty:
-                new_stock = item['stock'] - qty
-                items_collection.update_one({"_id": ObjectId(item_id)}, {"$inc": {"stock": -qty, "sold": qty, "inventory_out": qty}})
-                inventory_log_collection.insert_one({"item_name": item['name'], "type": "OUT", "qty": qty, "user": session['email'], "timestamp": datetime.now().strftime('%Y-%m-%d %I:%M:%S %p')})
-                log_action("STOCK_OUT", f"Out: {qty} x {item['name']}")
-                
-                # Send Email Alert
-                send_email_notification(
-                    "Stock Out Recorded",
-                    f"Stock reduction: {qty} units of '{item['name']}' removed by {session.get('email')}. Remaining stock: {new_stock}",
-                    notif_type="stock_out"
-                )
-                
-                # Check for Low Stock
-                site_config = get_site_config()
-                threshold = site_config.get('low_stock_threshold', 5)
-                if 0 < new_stock <= threshold:
-                    send_email_notification(
-                        "Low Stock Alert!",
-                        f"CRITICAL: Item '{item['name']}' is now in low stock. Only {new_stock} units left! (Threshold: {threshold})",
-                        notif_type="low_stock"
-                    )
-                elif new_stock == 0:
-                    send_email_notification(
-                        "Out of Stock Alert!",
-                        f"URGENT: Item '{item['name']}' is now OUT OF STOCK!",
-                        notif_type="low_stock"
-                    )
-
-                flash(f"Stock OUT recorded!", "warning")
-            else:
-                flash("Insufficient stock!", "danger")
-    return redirect(url_for('inventory_io'))
 
 @app.route('/purchase')
 @login_required
@@ -1148,7 +1108,6 @@ def update_profile():
 @login_required
 @role_required('owner')
 def update_login_bg():
-    if 'login_bg' not in request.files:
         flash("No file part", "danger")
         return redirect(url_for('admin_accounts'))
     
