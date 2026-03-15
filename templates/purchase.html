@@ -5,10 +5,12 @@
 {% block content %}
 <div class="row">
     <div class="col-md-12 d-flex justify-content-between align-items-center mb-4">
-        <h2 class="text-light">Customer Sales Ledger</h2>
+        <h2 class="text-light">Log</h2>
+        {% if session.get('role') != 'owner' %}
         <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#newPurchaseModal">
             <i class="bi bi-cart-plus me-2"></i>Record New Sale
         </button>
+        {% endif %}
     </div>
 
     <div class="col-md-12">
