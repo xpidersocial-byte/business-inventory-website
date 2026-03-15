@@ -245,7 +245,7 @@ def role_required(role):
                 'items': 'items_master',
                 'purchase': 'sales_ledger',
                 'sales_summary': 'sales_summary',
-                'inventory_io': 'inventory_io',
+                'restock': 'inventory_io',
                 'bulletin': 'bulletin_board',
                 'developer_portal': 'developer_portal',
                 'live_debug': 'live_debug',
@@ -673,9 +673,9 @@ def delete_item(id):
         flash("Item deleted.", "info")
     return redirect(url_for('items'))
 
-@app.route('/inventory-io')
+@app.route('/restock')
 @login_required
-def inventory_io():
+def restock():
     logs = list(inventory_log_collection.find().sort("timestamp", -1))
     items_list = list(items_collection.find().sort("name", 1))
     return render_template('inventory_io.html', logs=logs, items=items_list, role=session.get('role'))
@@ -699,7 +699,7 @@ def stock_in():
             )
             
             flash(f"Stock IN recorded!", "success")
-    return redirect(url_for('inventory_io'))
+    return redirect(url_for('restock'))
 
 
 @app.route('/purchase')
@@ -947,7 +947,7 @@ def get_cashier_permissions():
             "items_master": True,
             "sales_ledger": True,
             "sales_summary": False,
-            "inventory_io": True,
+            "restock": True,
             "bulletin_board": True,
             "developer_portal": False,
             "live_debug": False,
@@ -995,7 +995,7 @@ def admin_accounts():
 def update_permissions():
     fields = [
         "dashboard", "items_master", "sales_ledger", "sales_summary", 
-        "inventory_io", "bulletin_board", "developer_portal", "live_debug", 
+        "restock", "bulletin_board", "developer_portal", "live_debug", 
         "health_scanner", "admin_accounts", "general_setup", "system_logs",
         "setup_identity", "setup_localization", "setup_logic", "setup_users",
         "setup_categories", "setup_themes", "setup_advanced", "setup_assets", 

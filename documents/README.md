@@ -34,7 +34,7 @@ ROOT (/)
 │   ├── /items ............................ Inventory Management (CRUD)
 │   ├── /purchase ......................... Sales Ledger (Owner Only)
 │   ├── /sales-summary .................... Visual Trends & Performance
-│   ├── /inventory-io ..................... Stock Movement Logs
+│   ├── /restock ..................... Stock Movement Logs
 │   └── /bulletin ......................... Team Task Management
 │
 ├── Admin & Security (High Privileges)

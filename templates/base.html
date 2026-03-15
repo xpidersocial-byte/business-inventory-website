@@ -388,7 +388,7 @@
             {% endif %}
 
             {% if session.get('role') == 'owner' or cashier_perms.inventory_io %}
-            <a href="{{ url_for('inventory_io') }}" class="sidebar-link {% if request.endpoint == 'inventory_io' %}active{% endif %}">
+            <a href="{{ url_for('restock') }}" class="sidebar-link {% if request.endpoint == 'restock' %}active{% endif %}">
                 <i class="bi bi-arrow-left-right"></i> Restock
             </a>
             {% endif %}

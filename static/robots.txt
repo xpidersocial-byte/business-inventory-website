@@ -2,7 +2,7 @@ User-agent: *
 Disallow: /dashboard
 Disallow: /items
 Disallow: /purchase
-Disallow: /inventory-io
+Disallow: /restock
 Disallow: /sales-summary
 Disallow: /settings
 Disallow: /developer
