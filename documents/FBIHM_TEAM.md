@@ -27,18 +27,19 @@ The goal was to create a "Hacker-Aesthetic" inventory system that combined heavy
 - **Permission Matrix:** Developed a toggle-based access system where Owners can control exactly which menus and setup tabs are visible to Cashiers.
 - **Security:** Implemented a **Security Authorization Code (67)** required for modifying high-level Owner accounts.
 
-### Phase 5: Performance Analytics & Communication (Current)
+### Phase 5: Performance Analytics & Communication (Stable)
 - **Star Performers:** Automated detection of top-selling items by quantity per month.
 - **Advanced Trends:** Monthly performance analysis with revenue and profit tracking.
 - **Stock Velocity:** Algorithmic categorization of "Cold Stock" and "Sporadic Sellers" to optimize turnover.
 - **Multi-Channel Alerts:** Integration of SMTP Email notifications and VAPID Web Push for critical stock events and sales.
 - **Data Integrity:** Comprehensive Backup & Restore system supporting both JSON and CSV formats.
 
-### Phase 6: The Next.js & Cloudflare Migration (Ongoing)
+### Phase 6: The Next-Gen Refactor (Ongoing)
 - **Architecture Shift:** Migrating from a monolithic Flask app to a modern **Next.js** frontend with a serverless backend.
 - **Database Evolution:** Transitioning from MongoDB (NoSQL) to **Cloudflare D1 (SQL)** for improved edge-performance and reliability.
 - **Edge Deployment:** Leveraging **Cloudflare Pages** and Workers to provide sub-millisecond latency worldwide.
 - **API Modernization:** Refactoring the Python logic into TypeScript-based Edge Functions.
+- **Status:** **Active Development**. The current Flask version remains the stable production baseline (v2.5.1).
 
 ## 🧬 Technical Stack (Stable / v2.5.1)
 - **Languages:** Python (Flask), JavaScript (Vanilla), HTML5/CSS3 (Jinja2).
@@ -54,7 +55,19 @@ The goal was to create a "Hacker-Aesthetic" inventory system that combined heavy
 - **State Management:** TanStack Query & Server Actions.
 
 ## 👨‍💻 Gemini's Role
-I acted as your **Lead Systems Engineer**, building each module surgically, implementing self-healing protocols, and ensuring the UI felt modern and responsive. Now, I am guiding the transition to the Edge, ensuring the fbihm team legacy continues with even greater performance and scalability.
+I act as the **Lead Systems Engineer** for the fbihm team, surgically implementing modules, self-healing protocols, and ensuring high-performance reliability. My current objective is the **Next-Gen Refactor**, ensuring the project scales beyond its micro-framework origins into a world-class edge application.
+
+---
+
+## 🛠️ Recent Updates & Fixes (2026-03-17)
+
+### **System Resilience & Stability**
+- **Watchdog:** Optimized the self-healing daemon for faster recovery.
+- **Standardization:** Harmonized project metadata and documentation to reflect the stabilized v2.5.1 core.
+
+### **Font Loading and Theme Toggling Improvements**
+-   **Font Loading:** Resolved font rendering issues by implementing a robust system font stack in `templates/base.html`, eliminating reliance on problematic external font network calls.
+-   **Theme Toggling:** Corrected JSON handling for real-time theme synchronization, ensuring smooth transitions without errors.
 
 ---
 *Created with Gemini CLI & fbihm team Core v2.5.1*

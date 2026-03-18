@@ -3,7 +3,6 @@
 {% block title %}Full Website Health Scanner{% endblock %}
 
 {% block extra_css %}
-<style>
     .terminal-window {
         background: #0d1117;
         border: 1px solid #30363d;
@@ -31,14 +30,13 @@
         transition: transform 0.3s ease;
     }
     .res-card:hover { transform: translateY(-5px); }
-</style>
 {% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <h2 class="text-light mb-1"><i class="bi bi-shield-check me-3 text-info"></i>Health & Security Scanner</h2>
-        <p class="text-muted small mb-0">Deep system crawl to identify broken links and vulnerabilities.</p>
+        <h2 class="text-theme-main mb-1"><i class="bi bi-shield-check me-3 text-info"></i>Health & Security Scanner</h2>
+        <p class="text-theme-muted small mb-0">Deep system crawl to identify broken links and vulnerabilities.</p>
     </div>
     <button class="btn btn-info fw-bold px-4 shadow-lg" id="scanBtn" onclick="runSystemScan()">
         <i class="bi bi-radar me-2"></i>LAUNCH FULL SYSTEM SCAN
@@ -49,19 +47,19 @@
     <div class="col-md-4">
         <div class="res-card">
             <div class="h2 mb-0 text-white" id="res_visited">0</div>
-            <div class="x-small text-muted text-uppercase fw-bold">Pages Audited</div>
+            <div class="x-small text-theme-muted text-uppercase fw-bold">Pages Audited</div>
         </div>
     </div>
     <div class="col-md-4">
         <div class="res-card" style="border-bottom: 3px solid #f85149;">
             <div class="h2 mb-0 text-danger" id="res_broken">0</div>
-            <div class="x-small text-muted text-uppercase fw-bold">Broken References</div>
+            <div class="x-small text-theme-muted text-uppercase fw-bold">Broken References</div>
         </div>
     </div>
     <div class="col-md-4">
         <div class="res-card" style="border-bottom: 3px solid #d29922;">
             <div class="h2 mb-0 text-warning" id="res_vuln">0</div>
-            <div class="x-small text-muted text-uppercase fw-bold">Security Flags</div>
+            <div class="x-small text-theme-muted text-uppercase fw-bold">Security Flags</div>
         </div>
     </div>
 </div>
@@ -72,7 +70,7 @@
             <div class="spinner-border text-info me-3" role="status"></div>
             <div>
                 <h6 class="text-info mb-1 fw-bold">Crawl in progress...</h6>
-                <p class="text-muted small mb-0">Mapping application routes and testing for exploits.</p>
+                <p class="text-theme-muted small mb-0">Mapping application routes and testing for exploits.</p>
             </div>
         </div>
         <div class="progress bg-dark" style="height: 10px; border-radius: 5px;">
@@ -83,14 +81,14 @@
 
 <div class="card bg-card border-secondary shadow-lg overflow-hidden">
     <div class="card-header bg-dark bg-opacity-25 border-bottom border-secondary p-3 d-flex justify-content-between align-items-center">
-        <span class="small fw-bold text-uppercase text-muted"><i class="bi bi-list-check me-2"></i>Audit Log & Vulnerability Report</span>
-        <button class="btn btn-link btn-sm text-muted p-0" onclick="document.getElementById('scanLog').innerHTML = ''">Clear Log</button>
+        <span class="small fw-bold text-uppercase text-theme-muted"><i class="bi bi-list-check me-2"></i>Audit Log & Vulnerability Report</span>
+        <button class="btn btn-link btn-sm text-theme-muted p-0" onclick="document.getElementById('scanLog').innerHTML = ''">Clear Log</button>
     </div>
     <div class="card-body p-0" style="overflow: hidden;">
         <div id="scanLog" class="terminal-window border-0 rounded-0" style="height: 500px; max-width: 100%; display: block;">
             <div id="scanPlaceholder" class="text-center py-5">
                 <i class="bi bi-shield-shaded text-secondary opacity-25 mb-3" style="font-size: 4rem;"></i>
-                <p class="text-muted">Click the button above to begin a system-wide audit.</p>
+                <p class="text-theme-muted">Click the button above to begin a system-wide audit.</p>
             </div>
         </div>
     </div>
@@ -123,7 +121,7 @@
 
                 let logHtml = '';
                 data.scan_log.forEach(msg => {
-                    let cls = 'text-light';
+                    let cls = 'text-theme-main';
                     if (msg.includes('Broken')) cls = 'text-danger fw-bold';
                     if (msg.includes('Found')) cls = 'text-warning';
                     if (msg.includes('Scanning:')) cls = 'text-info';
@@ -135,8 +133,8 @@
                     data.vulnerabilities.forEach(v => {
                         logHtml += `<div class="p-2 mb-2 rounded bg-danger bg-opacity-10 border border-danger border-opacity-25">
                             <span class="text-danger fw-bold">[${v.type}]</span> 
-                            <div class="text-light small mt-1">Location: ${v.url}</div>
-                            <div class="text-muted x-small">${v.details}</div>
+                            <div class="text-theme-main small mt-1">Location: ${v.url}</div>
+                            <div class="text-theme-muted x-small">${v.details}</div>
                         </div>`;
                     });
                 } else {

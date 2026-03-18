@@ -1,287 +1,251 @@
 {% extends "base.html" %}
 
-{% block title %}Dashboard - Inventory Manager{% endblock %}
+{% block title %}Dashboard - XPIDER Inventory{% endblock %}
 
 {% block extra_css %}
 <style>
-    .metric-card { transition: transform 0.2s; border-radius: 12px; }
-    .metric-card:hover { transform: translateY(-5px); }
-    .chart-container { position: relative; height: 250px; width: 100%; }
-    
-    .scrollable-list {
-        max-height: 300px;
-        overflow-y: auto;
+    .bg-card { background-color: #1a1d24 !important; }
+    .text-theme-main { color: #e0e0e0; }
+    .text-theme-muted { color: #9ca3af; }
+    .x-small { font-size: 0.7rem; }
+    .ls-1 { letter-spacing: 1px; }
+    .period-btn { 
+        padding: 6px 16px; 
+        border-radius: 20px; 
+        font-size: 0.85rem; 
+        transition: all 0.3s ease;
+        text-decoration: none;
+        color: #9ca3af;
     }
-    .scrollable-list::-webkit-scrollbar { width: 4px; }
-    .scrollable-list::-webkit-scrollbar-track { background: transparent; }
-    .scrollable-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
-
-    .trophy-card {
-        background: linear-gradient(135deg, rgba(13, 110, 253, 0.1) 0%, rgba(13, 110, 253, 0.02) 100%);
-        border: 1px solid rgba(13, 110, 253, 0.2) !important;
+    .period-btn.active { 
+        background-color: #0d6efd; 
+        color: white; 
+        box-shadow: 0 4px 12px rgba(13, 110, 253, 0.3);
     }
+    .stat-card { transition: transform 0.3s ease, border-color 0.3s ease; }
+    .stat-card:hover { transform: translateY(-5px); border-color: rgba(13, 110, 253, 0.5) !important; }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="row mb-4 align-items-center">
-    <div class="col-md-12 d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h2 class="text-light mb-1">Dashboard Summary</h2>
-            <p class="text-muted small mb-0">Real-time business performance and inventory health</p>
-        </div>
-        <span class="badge bg-primary fs-6 px-3 py-2 opacity-75">{{ current_month }}</span>
-    </div>
-    
-    <!-- Row 1: Primary Metrics -->
-    <div class="col-6 col-md-3 mb-3">
-        <div class="card metric-card shadow-sm border-success h-100 bg-dark bg-opacity-25">
-            <div class="card-body text-center py-3">
-                <i class="bi bi-currency-dollar text-success fs-3 mb-2"></i>
-                <h6 class="card-title text-muted text-uppercase x-small fw-bold mb-1" style="font-size: 0.7rem;">Total Revenue</h6>
-                <h4 class="card-text fw-bold mb-1 text-light">₱{{ "{:,.0f}".format(total_revenue) }}</h4>
-                <div class="badge bg-success bg-opacity-10 text-success x-small">₱{{ "{:,.0f}".format(monthly_revenue) }} in {{ current_month }}</div>
+<div class="container-fluid p-0">
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-md-12 d-flex justify-content-between align-items-center">
+            <div>
+                <h4 class="text-theme-main fw-bold mb-0">Business Intelligence</h4>
+                <p class="text-theme-muted small mb-0">Showing performance for <span class="text-primary fw-bold">{{ current_month_display }}</span></p>
             </div>
-        </div>
-    </div>
-    <div class="col-6 col-md-3 mb-3">
-        <div class="card metric-card shadow-sm border-primary h-100 bg-dark bg-opacity-25">
-            <div class="card-body text-center py-3">
-                <i class="bi bi-graph-up-arrow text-primary fs-3 mb-2"></i>
-                <h6 class="card-title text-muted text-uppercase x-small fw-bold mb-1" style="font-size: 0.7rem;">Total Profit</h6>
-                <h4 class="card-text fw-bold mb-1 text-light">₱{{ "{:,.0f}".format(total_profit) }}</h4>
-                <div class="badge bg-primary bg-opacity-10 text-primary x-small">₱{{ "{:,.0f}".format(monthly_profit) }} in {{ current_month }}</div>
-            </div>
-        </div>
-    </div>
-    <div class="col-6 col-md-3 mb-3">
-        <div class="card metric-card shadow-sm border-info h-100 bg-dark bg-opacity-25">
-            <div class="card-body text-center py-3">
-                <i class="bi bi-cart-check text-info fs-3 mb-2"></i>
-                <h6 class="card-title text-muted text-uppercase x-small fw-bold mb-1" style="font-size: 0.7rem;">Quantity Sales</h6>
-                <h4 class="card-text fw-bold mb-1 text-light">{{ total_qty }}</h4>
-                <div class="badge bg-info bg-opacity-10 text-info x-small">{{ monthly_qty }} sold in {{ current_month }}</div>
-            </div>
-        </div>
-    </div>
-    <div class="col-6 col-md-3 mb-3">
-        <div class="card metric-card shadow-sm border-warning h-100 bg-dark bg-opacity-25">
-            <div class="card-body text-center py-3">
-                <i class="bi bi-safe text-warning fs-3 mb-2"></i>
-                <h6 class="card-title text-muted text-uppercase x-small fw-bold mb-1" style="font-size: 0.7rem;">Inventory Value</h6>
-                <h4 class="card-text fw-bold mb-0 text-light">₱{{ "{:,.0f}".format(total_value) }}</h4>
-                <div class="badge bg-warning bg-opacity-10 text-warning x-small mt-1">{{ items_count }} Products Active</div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="row mb-5 g-4">
-    <!-- 1. Top Sales Chart -->
-    <div class="col-lg-5">
-        <div class="card bg-card border-secondary shadow-lg h-100 rounded-4">
-            <div class="card-body p-4">
-                <h6 class="text-muted text-uppercase fw-bold small mb-4"><i class="bi bi-pie-chart me-2"></i>Sales Distribution ({{ current_month }})</h6>
-                <div class="chart-container">
-                    <canvas id="topSalesChart"></canvas>
-                </div>
+            
+            <div class="d-flex gap-2 bg-black bg-opacity-25 p-2 rounded-pill border border-secondary border-opacity-10">
+                <a href="{{ url_for('dashboard.dashboard', view='daily') }}" class="period-btn {{ 'active' if current_view == 'daily' }}">Daily</a>
+                <a href="{{ url_for('dashboard.dashboard', view='weekly') }}" class="period-btn {{ 'active' if current_view == 'weekly' }}">Weekly</a>
+                <a href="{{ url_for('dashboard.dashboard', view='monthly') }}" class="period-btn {{ 'active' if current_view == 'monthly' }}">Monthly</a>
+                <a href="{{ url_for('dashboard.dashboard', view='yearly') }}" class="period-btn {{ 'active' if current_view == 'yearly' }}">Yearly</a>
             </div>
         </div>
     </div>
 
-    <!-- 2. Top 5 Star Performers -->
-    <div class="col-lg-7">
-        <div class="card bg-card border-secondary shadow-lg h-100 rounded-4">
-            <div class="card-header bg-transparent border-bottom border-secondary border-opacity-25 p-3 px-4">
-                <h6 class="text-light mb-0 small fw-bold text-uppercase"><i class="bi bi-star-fill me-2 text-warning"></i>Top 5 Star Performers ({{ current_month }})</h6>
-            </div>
-            <div class="card-body p-0 scrollable-list">
-                <div class="table-responsive">
-                    <table class="table table-dark table-hover mb-0 align-middle bg-transparent">
-                        <thead class="text-muted x-small text-uppercase">
-                            <tr>
-                                <th class="ps-4">Rank</th>
-                                <th>Item Name</th>
-                                <th>Sold</th>
-                                <th>Revenue</th>
-                                <th class="text-end pe-4">Profit</th>
-                            </tr>
-                        </thead>
-                        <tbody class="small">
-                            {% for item in star_performers %}
-                            <tr class="border-secondary border-opacity-10">
-                                <td class="ps-4">
-                                    {% if loop.index == 1 %}
-                                        <span class="badge bg-warning text-dark rounded-circle" style="width: 24px; height: 24px;">1</span>
-                                    {% elif loop.index == 2 %}
-                                        <span class="badge bg-secondary text-white rounded-circle" style="width: 24px; height: 24px;">2</span>
-                                    {% elif loop.index == 3 %}
-                                        <span class="badge bg-bronze text-white rounded-circle" style="width: 24px; height: 24px; background: #cd7f32;">3</span>
-                                    {% else %}
-                                        <span class="text-muted ms-1">{{ loop.index }}</span>
-                                    {% endif %}
-                                </td>
-                                <td class="fw-bold text-light">{{ item.name }}</td>
-                                <td><span class="badge bg-info bg-opacity-10 text-info">{{ item.qty }}</span></td>
-                                <td class="text-muted">₱{{ "{:,.0f}".format(item.revenue) }}</td>
-                                <td class="text-end pe-4 text-success fw-bold">+₱{{ "{:,.0f}".format(item.profit) }}</td>
-                            </tr>
-                            {% else %}
-                            <tr><td colspan="5" class="text-center text-muted py-5">No sales recorded this month.</td></tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Inventory Health Analysis -->
-<div class="row mb-5">
-    <div class="col-md-12 mb-3">
-        <h5 class="text-light border-start border-4 border-info ps-3 text-uppercase small fw-bold" style="letter-spacing: 1px;">Critical Inventory Health</h5>
-    </div>
-    
-    <!-- Cold Stock -->
-    <div class="col-md-6 mb-4">
-        <div class="card shadow-lg h-100 border-secondary border-opacity-25 bg-card rounded-4">
-            <div class="card-header bg-transparent border-bottom border-secondary border-opacity-25 d-flex justify-content-between align-items-center p-3 px-4">
-                <h6 class="text-info mb-0 small fw-bold text-uppercase"><i class="bi bi-snow2 me-2"></i>Cold Stock (Slow Movers)</h6>
-            </div>
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-dark table-hover mb-0 align-middle bg-transparent">
-                        <thead class="text-muted x-small text-uppercase">
-                            <tr>
-                                <th class="ps-4">Item Name</th>
-                                <th>Stock Value</th>
-                                <th>Dormant</th>
-                            </tr>
-                        </thead>
-                        <tbody class="small">
-                            {% for item in cold_stock %}
-                            <tr class="border-secondary border-opacity-10">
-                                <td class="ps-4 fw-bold text-light">{{ item.name }}</td>
-                                <td class="text-warning">₱{{ "{:,.0f}".format(item.inventory_value) }}</td>
-                                <td><span class="text-danger">{{ item.days_dormant }}d</span></td>
-                            </tr>
-                            {% else %}
-                            <tr><td colspan="3" class="text-center text-muted py-4">No dead stock found.</td></tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Sporadic Sellers -->
-    <div class="col-md-6 mb-4">
-        <div class="card shadow-lg h-100 border-secondary border-opacity-25 bg-card rounded-4">
-            <div class="card-header bg-transparent border-bottom border-secondary border-opacity-25 d-flex justify-content-between align-items-center p-3 px-4">
-                <h6 class="text-primary mb-0 small fw-bold text-uppercase"><i class="bi bi-activity me-2"></i>Sporadic Sellers</h6>
-            </div>
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-dark table-hover mb-0 align-middle bg-transparent">
-                        <thead class="text-muted x-small text-uppercase">
-                            <tr>
-                                <th class="ps-4">Item Name</th>
-                                <th>Last Sold</th>
-                                <th>Vol.</th>
-                            </tr>
-                        </thead>
-                        <tbody class="small">
-                            {% for item in sporadic_stock %}
-                            <tr class="border-secondary border-opacity-10">
-                                <td class="ps-4 fw-bold text-light">{{ item.name }}</td>
-                                <td class="text-muted">{{ item.last_sold.split(' ')[0] if item.last_sold else 'N/A' }}</td>
-                                <td><span class="text-info">{{ item.sold }}</span></td>
-                            </tr>
-                            {% else %}
-                            <tr><td colspan="3" class="text-center text-muted py-4">No data available.</td></tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Row 4: Out of Stock Alerts -->
-<div class="row mb-5">
-    <div class="col-12">
-        <div class="card bg-card border-danger border-opacity-25 shadow-lg rounded-4 overflow-hidden">
-            <div class="card-header bg-danger bg-opacity-10 border-bottom border-danger border-opacity-10 d-flex justify-content-between align-items-center py-3 px-4">
-                <h6 class="mb-0 fw-bold text-uppercase text-danger"><i class="bi bi-x-circle-fill me-2"></i>Critical Out of Stock Items</h6>
-                <span class="badge bg-danger text-white rounded-pill px-3">{{ out_of_stock_items|length }} Items Empty</span>
-            </div>
-            <div class="card-body p-0">
-                <div class="row g-0">
-                    {% for item in out_of_stock_items %}
-                    <div class="col-md-4 border-bottom border-end border-secondary border-opacity-10 p-4 text-center">
-                        <div class="fw-bold text-light mb-1">{{ item.name }}</div>
-                        <div class="small text-danger fw-bold">OUT OF STOCK</div>
+    <!-- Row 1: Key Performance Metrics -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3 mb-md-0">
+            <div class="card bg-card border-secondary border-opacity-25 shadow-lg h-100 rounded-4 overflow-hidden stat-card">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div class="rounded-circle bg-primary bg-opacity-10 p-3">
+                            <i class="bi bi-box-seam text-primary fs-4"></i>
+                        </div>
+                        <span class="badge bg-success bg-opacity-10 text-success rounded-pill px-3">Stock Intake</span>
                     </div>
-                    {% endfor %}
+                    <h6 class="text-theme-muted x-small text-uppercase fw-bold mb-1 ls-1">Stock Added ({{ current_view|capitalize }})</h6>
+                    <h3 class="text-theme-main fw-bold mb-0">₱{{ "{:,.2f}".format(period_inventory_value) }}</h3>
                 </div>
-                {% if out_of_stock_items|length == 0 %}
-                <div class="text-center py-5">
-                    <i class="bi bi-shield-check mb-3 text-success" style="font-size: 3rem; opacity: 0.3;"></i>
-                    <h5 class="text-muted">No items are currently out of stock.</h5>
-                </div>
-                {% endif %}
             </div>
         </div>
-    </div>
-</div>
-
-<!-- Row 5: Low Stock Alerts (Lowest Area) -->
-<div class="row mb-5">
-    <div class="col-12">
-        <div class="card bg-card border-warning border-opacity-25 shadow-lg rounded-4 overflow-hidden">
-            <div class="card-header bg-warning bg-opacity-10 border-bottom border-warning border-opacity-10 d-flex justify-content-between align-items-center py-3 px-4">
-                <h6 class="mb-0 fw-bold text-uppercase text-warning"><i class="bi bi-exclamation-triangle-fill me-2"></i>Critical Low Stock Alerts</h6>
-                <span class="badge bg-warning text-dark rounded-pill px-3">{{ low_stock_items|length }} Items Require Attention</span>
-            </div>
-            <div class="card-body p-0">
-                <div class="row g-0">
-                    {% for item in low_stock_items %}
-                    <div class="col-md-4 border-bottom border-end border-secondary border-opacity-10 p-4 text-center">
-                        <div class="fw-bold text-light mb-1">{{ item.name }}</div>
-                        <div class="small text-muted">Available Stock: <span class="text-danger fw-bold">{{ item.stock }}</span></div>
+        
+        <div class="col-md-3 mb-3 mb-md-0">
+            <div class="card bg-card border-secondary border-opacity-25 shadow-lg h-100 rounded-4 overflow-hidden stat-card">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div class="rounded-circle bg-info bg-opacity-10 p-3">
+                            <i class="bi bi-cart-check text-info fs-4"></i>
+                        </div>
+                        <span class="badge bg-info bg-opacity-10 text-info rounded-pill px-3">{{ current_view|capitalize }}</span>
                     </div>
-                    {% endfor %}
+                    <h6 class="text-theme-muted x-small text-uppercase fw-bold mb-1 ls-1">Revenue ({{ current_month_display }})</h6>
+                    <h3 class="text-theme-main fw-bold mb-0">₱{{ "{:,.2f}".format(monthly_revenue) }}</h3>
                 </div>
-                {% if low_stock_items|length == 0 %}
-                <div class="text-center py-5">
-                    <i class="bi bi-check-circle-fill mb-3 text-success" style="font-size: 3rem; opacity: 0.3;"></i>
-                    <h5 class="text-muted">Inventory levels are within safe parameters.</h5>
+            </div>
+        </div>
+
+        <div class="col-md-3 mb-3 mb-md-0">
+            <div class="card bg-card border-secondary border-opacity-25 shadow-lg h-100 rounded-4 overflow-hidden stat-card">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div class="rounded-circle bg-success bg-opacity-10 p-3">
+                            <i class="bi bi-graph-up-arrow text-success fs-4"></i>
+                        </div>
+                        <span class="badge bg-success bg-opacity-10 text-success rounded-pill px-3">+{{ ((monthly_profit / monthly_revenue * 100) if monthly_revenue > 0 else 0)|round(1) }}% Margin</span>
+                    </div>
+                    <h6 class="text-theme-muted x-small text-uppercase fw-bold mb-1 ls-1">Net Profit ({{ current_view|capitalize }})</h6>
+                    <h3 class="text-theme-main fw-bold mb-0">₱{{ "{:,.2f}".format(monthly_profit) }}</h3>
                 </div>
-                {% endif %}
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card bg-card border-secondary border-opacity-25 shadow-lg h-100 rounded-4 overflow-hidden stat-card">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div class="rounded-circle bg-warning bg-opacity-10 p-3">
+                            <i class="bi bi-star-fill text-warning fs-4"></i>
+                        </div>
+                        <span class="badge bg-warning bg-opacity-10 text-warning rounded-pill px-3">Top Seller</span>
+                    </div>
+                    <h6 class="text-theme-muted x-small text-uppercase fw-bold mb-1 ls-1">Star Performer</h6>
+                    <h3 class="text-theme-main fw-bold mb-0 text-truncate" title="{{ top_item_name }}">{{ top_item_name }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Row 2: Sales Chart & Star Performers -->
+    <div class="row mb-4">
+        <div class="col-md-8 mb-4 mb-md-0">
+            <div class="card bg-card border-secondary border-opacity-25 shadow-lg h-100 rounded-4">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h6 class="text-theme-main fw-bold mb-0">Sales Distribution by Volume</h6>
+                        <span class="text-theme-muted x-small text-uppercase ls-1">Top 5 Items</span>
+                    </div>
+                    <div style="height: 300px;">
+                        <canvas id="salesChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card bg-card border-secondary border-opacity-25 shadow-lg h-100 rounded-4">
+                <div class="card-body p-4">
+                    <h6 class="text-theme-main fw-bold mb-3">Top Performers</h6>
+                    <div class="list-group list-group-flush">
+                        {% for performer in star_performers %}
+                        <div class="list-group-item bg-transparent border-secondary border-opacity-10 px-0 py-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div class="text-theme-main small fw-bold mb-1">{{ performer.name }}</div>
+                                    <div class="text-theme-muted x-small">{{ performer.qty }} units sold</div>
+                                </div>
+                                <div class="text-end">
+                                    <div class="text-primary small fw-bold">₱{{ "{:,.0f}".format(performer.revenue) }}</div>
+                                    <div class="text-success x-small">+₱{{ "{:,.0f}".format(performer.profit) }}</div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        {% if not star_performers %}
+                        <div class="text-center py-5">
+                            <i class="bi bi-inbox text-theme-muted fs-1 opacity-25"></i>
+                            <p class="text-theme-muted small mt-2">No sales data for this period</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Row 3: Inventory Health & Stock Movement -->
+    <div class="row">
+        <!-- Stock Alerts -->
+        <div class="col-md-6 mb-4 mb-md-0">
+            <div class="card bg-card border-secondary border-opacity-25 shadow-lg h-100 rounded-4">
+                <div class="card-body p-4">
+                    <h6 class="text-theme-main fw-bold mb-4 d-flex align-items-center">
+                        <i class="bi bi-exclamation-triangle-fill text-danger me-2"></i> Critical Alerts
+                    </h6>
+                    
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="text-danger x-small text-uppercase fw-bold mb-2 d-block ls-1">Out of Stock ({{ out_of_stock_items|length }})</label>
+                            {% for item in out_of_stock_items %}
+                            <div class="d-flex justify-content-between align-items-center mb-2 p-2 rounded bg-danger bg-opacity-10">
+                                <span class="text-theme-main small text-truncate" title="{{ item.name }}">{{ item.name }}</span>
+                            </div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="col-md-4 mb-3">
+                            <label class="text-warning x-small text-uppercase fw-bold mb-2 d-block ls-1">Low Stock ({{ low_stock_items|length }})</label>
+                            {% for item in low_stock_items %}
+                            <div class="d-flex justify-content-between align-items-center mb-2 p-2 rounded bg-warning bg-opacity-10">
+                                <span class="text-theme-main small text-truncate" title="{{ item.name }}">{{ item.name }}</span>
+                                <span class="text-warning x-small fw-bold ms-2">{{ item.stock }}</span>
+                            </div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="col-md-4 mb-3">
+                            <label class="text-info x-small text-uppercase fw-bold mb-2 d-block ls-1">Warnings ({{ warning_items|length }})</label>
+                            {% for item in warning_items %}
+                            <div class="d-flex justify-content-between align-items-center mb-2 p-2 rounded bg-info bg-opacity-10">
+                                <span class="text-theme-main small text-truncate" title="{{ item.name }}">{{ item.name }}</span>
+                                <span class="text-info x-small fw-bold ms-2">{{ item.stock }}</span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cold/Sporadic Stock -->
+        <div class="col-md-6">
+            <div class="card bg-card border-secondary border-opacity-25 shadow-lg h-100 rounded-4">
+                <div class="card-body p-4">
+                    <h6 class="text-theme-main fw-bold mb-4">Inventory Movement</h6>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="text-theme-muted x-small text-uppercase fw-bold mb-2 d-block ls-1">Dormant Stock (30+ Days)</label>
+                            {% for item in cold_stock[:5] %}
+                            <div class="d-flex justify-content-between align-items-center mb-2 border-bottom border-secondary border-opacity-10 pb-2">
+                                <span class="text-theme-main small text-truncate" title="{{ item.name }}">{{ item.name }}</span>
+                                <span class="text-theme-muted x-small ms-2">{{ item.days_dormant }}d</span>
+                            </div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label class="text-theme-muted x-small text-uppercase fw-bold mb-2 d-block ls-1">Slow Moving Items</label>
+                            {% for item in sporadic_stock[:5] %}
+                            <div class="d-flex justify-content-between align-items-center mb-2 border-bottom border-secondary border-opacity-10 pb-2">
+                                <span class="text-theme-main small text-truncate" title="{{ item.name }}">{{ item.name }}</span>
+                                <span class="text-theme-muted x-small ms-2">Sold: {{ item.sold }}</span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    const ctx = document.getElementById('topSalesChart').getContext('2d');
-    const topSalesChart = new Chart(ctx, {
+    const ctx = document.getElementById('salesChart').getContext('2d');
+    new Chart(ctx, {
         type: 'doughnut',
         data: {
             labels: {{ chart_labels|tojson }},
             datasets: [{
-                label: 'Units Sold',
                 data: {{ chart_values|tojson }},
                 backgroundColor: [
-                    '#0d6efd', '#198754', '#ffc107', '#0dcaf0', '#6610f2', '#fd7e14', '#20c997', '#adb5bd'
+                    '#0d6efd', '#6610f2', '#6f42c1', '#d63384', '#dc3545', '#adb5bd'
                 ],
-                borderColor: '#252a37',
-                borderWidth: 2
+                borderWidth: 0,
+                hoverOffset: 20
             }]
         },
         options: {
@@ -289,28 +253,11 @@
             maintainAspectRatio: false,
             plugins: {
                 legend: {
-                    position: 'bottom',
-                    labels: { 
-                        color: '#94a3b8', 
-                        padding: 12,
-                        font: { size: 10 },
-                        usePointStyle: true
-                    }
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            let label = context.label || '';
-                            if (label) {
-                                label = label.split(' (')[0]; // Get name only
-                            }
-                            let value = context.raw;
-                            return `${label}: ${value} units`;
-                        }
-                    }
+                    position: 'right',
+                    labels: { color: '#9ca3af', font: { size: 10 }, usePointStyle: true, padding: 15 }
                 }
             },
-            cutout: '70%'
+            cutout: '75%'
         }
     });
 </script>

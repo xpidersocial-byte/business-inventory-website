@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+
+{% block title %}Sales History - XPIDER Inventory{% endblock %}
+
+{% block extra_css %}
+    .table th { white-space: nowrap; font-size: 0.85rem; padding: 12px 10px !important; }
+    .table td { font-size: 0.9rem; padding: 10px 10px !important; }
+    
+    .status-badge { font-size: 0.7rem; padding: 4px 10px; border-radius: 50px; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; }
+    .status-sold { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.2); }
+    .status-refunded { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.2); }
+
+    .date-divider { 
+        background: var(--card-bg); 
+        color: var(--text-theme-muted); 
+        font-size: 0.75rem; 
+        text-transform: uppercase; 
+        letter-spacing: 1px; 
+        padding: 8px 15px;
+        border-bottom: 1px solid var(--border-soft);
+        font-weight: bold;
+    }
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-12 d-flex justify-content-between align-items-center">
+        <div>
+            <h4 class="text-theme-main fw-bold mb-0">Sales Ledger</h4>
+            <p class="text-theme-muted small mb-0">Comprehensive transaction history</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-secondary btn-sm" onclick="exportToCSV()"><i class="bi bi-download me-2"></i>Export CSV</button>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card shadow-lg p-0">
+            <div class="p-3 border-bottom border-secondary border-opacity-25 bg-black bg-opacity-25">
+                <div class="row g-2 align-items-center">
+                    <div class="col-md-4">
+                        <div class="position-relative">
+                            <i class="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-theme-muted"></i>
+                            <label for="salesSearch" class="visually-hidden">Search sales</label>
+                            <!-- Removed bg-dark for theme adaptability -->
+                            <input type="text" id="salesSearch" class="form-control text-theme-main border-secondary ps-5" placeholder="Search item, user, or ID..." onkeyup="filterSales()">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="dateFilter" class="visually-hidden">Filter by date</label><input type="date" id="dateFilter" class="form-control bg-dark text-theme-main border-secondary" onchange="filterSales()">
+                    </div>
+                    <div class="col-md-5 text-end text-theme-muted small">
+                        Showing <span id="visibleCount" class="fw-bold text-white">{{ sales|length }}</span> transactions
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-responsive" style="max-height: 70vh;">
+                <table class="table table-dark table-hover align-middle border-secondary mb-0" id="salesTable">
+                    <thead class="text-theme-main border-bottom border-theme-soft bg-black sticky-top" style="z-index: 5;">
+                        <tr>
+                            <th>Date / Time</th>
+                            <th>Item Details</th>
+                            <th>Qty</th>
+                            <th>Unit Price</th>
+                            <th>Total</th>
+                            <th>Cashier</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% set current_date = None %}
+                        {% for sale in sales %}
+                        {% set sale_date = sale.date.split(' ')[0] %}
+                        
+                        {% if current_date != sale_date %}
+                        <tr class="date-divider-row">
+                            <td colspan="8" class="date-divider"><i class="bi bi-calendar-event me-2"></i>{{ sale_date }}</td>
+                        </tr>
+                        {% set current_date = sale_date %}
+                        {% endif %}
+
+                        <tr class="sale-row" data-date="{{ sale_date }}">
+                            <td class="text-theme-muted small">{{ sale.date.split(' ')[1] }} {{ sale.date.split(' ')[2] }}</td>
+                            <td>
+                                <div class="fw-bold text-white">{{ sale.item_name }}</div>
+                                <div class="x-small text-theme-muted">ID: {{ sale._id }}</div>
+                            </td>
+                            <td><span class="badge bg-dark border border-secondary">{{ sale.qty }}</span></td>
+                            <td class="text-theme-muted">₱{{ "{:,.2f}".format(sale.unit_cost) }}</td>
+                            <td class="fw-bold text-success">₱{{ "{:,.2f}".format(sale.total) }}</td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="user-avatar-xs me-2 bg-secondary rounded-circle d-flex align-items-center justify-content-center small" style="width:20px; height:20px; font-size: 0.6rem;">
+                                        {{ sale.user[0]|upper }}
+                                    </div>
+                                    <span class="small text-theme-muted">{{ sale.user.split('@')[0] }}</span>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="status-badge status-{{ sale.status|lower }}">{{ sale.status }}</span>
+                            </td>
+                            <td>
+                                {% if sale.status == 'Sold' and role == 'owner' %}
+                                <button class="btn btn-sm btn-outline-danger py-0 px-2" onclick="refundSale('{{ sale._id }}')" title="Refund Transaction">
+                                    <i class="bi bi-arrow-counterclockwise"></i>
+                                </button>
+                                {% else %}
+                                <span class="text-muted small">-</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function filterSales() {
+        const search = document.getElementById('salesSearch').value.toLowerCase();
+        const date = document.getElementById('dateFilter').value;
+        const rows = document.querySelectorAll('.sale-row');
+        let count = 0;
+
+        rows.forEach(row => {
+            const text = row.innerText.toLowerCase();
+            const rowDate = row.getAttribute('data-date');
+            
+            const matchesSearch = text.includes(search);
+            const matchesDate = !date || rowDate === date;
+
+            if (matchesSearch && matchesDate) {
+                row.style.display = '';
+                count++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        // Manage Date Dividers visibility
+        document.querySelectorAll('.date-divider-row').forEach(divider => {
+            let nextRow = divider.nextElementSibling;
+            let hasVisibleChildren = false;
+            while(nextRow && !nextRow.classList.contains('date-divider-row')) {
+                if(nextRow.style.display !== 'none') {
+                    hasVisibleChildren = true;
+                    break;
+                }
+                nextRow = nextRow.nextElementSibling;
+            }
+            divider.style.display = hasVisibleChildren ? '' : 'none';
+        });
+
+        document.getElementById('visibleCount').innerText = count;
+    }
+
+    function refundSale(id) {
+        if(confirm("Are you sure you want to REFUND this transaction? This will return items to stock.")) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = `/sales/refund/${id}`;
+            document.body.appendChild(form);
+            form.submit();
+        }
+    }
+
+    function exportToCSV() {
+        let csv = [];
+        const rows = document.querySelectorAll("table tr");
+        rows.forEach(row => {
+            if(row.style.display !== 'none') {
+                const cols = row.querySelectorAll("td, th");
+                const rowData = [];
+                cols.forEach(col => rowData.push(col.innerText.replace(/(\r\n|\n|\r)/gm, " ").trim()));
+                csv.push(rowData.join(","));
+            }
+        });
+        const csvFile = new Blob([csv.join("\n")], {type: "text/csv"});
+        const downloadLink = document.createElement("a");
+        downloadLink.download = `sales_report_${new Date().toISOString().slice(0,10)}.csv`;
+        downloadLink.href = window.URL.createObjectURL(csvFile);
+        downloadLink.style.display = "none";
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+    }
+</script>
+{% endblock %}

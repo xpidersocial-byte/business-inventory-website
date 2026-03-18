@@ -3,334 +3,181 @@
 {% block title %}General Setup{% endblock %}
 
 {% block extra_css %}
-<style>
     .dev-card { border-left: 4px solid var(--primary-soft); }
     .code-editor { resize: vertical; transition: border-color 0.2s; font-family: monospace !important; font-size: 0.85rem !important; }
     .code-editor:focus { border-color: rgba(255,255,255,0.3) !important; box-shadow: none; }
     .theme-btn.active { border-width: 2px; box-shadow: 0 0 10px rgba(168, 85, 247, 0.4); }
     .x-small { font-size: 0.7rem; }
-</style>
 {% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <h2 class="text-light mb-1"><i class="bi bi-sliders me-2 text-primary"></i>General Setup</h2>
-        <p class="text-muted small mb-0">Core application settings, identity, and system-wide configurations.</p>
+        <h2 class="text-theme-main mb-1"><i class="bi bi-sliders me-2 text-primary"></i>General Setup</h2>
+        <p class="text-theme-muted small mb-0">Core application settings, identity, and system-wide configurations.</p>
     </div>
 </div>
 
 <div class="row">
     <div class="col-lg-12">
-        <!-- Identity, Localization, and Logic Form -->
-        <form id="siteConfigForm" action="{{ url_for('update_profile') }}" method="POST">
+        <form id="siteConfigForm" action="{{ url_for('admin.update_profile') }}" method="POST">
             <div class="card bg-card border-secondary shadow-lg mb-4">
                 <div class="card-header bg-transparent border-bottom border-secondary p-0">
                     <ul class="nav nav-tabs border-0" id="setupTabs" role="tablist">
-                        {% if session.get('role') == 'owner' or cashier_perms.setup_identity %}
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link active border-0 py-3 px-4 text-light small fw-bold text-uppercase" id="identity-tab" data-bs-toggle="tab" data-bs-target="#identity" type="button" role="tab"><i class="bi bi-building me-2 text-primary"></i>Identity</button>
+                            <button class="nav-link active border-0 py-3 px-4 text-theme-main small fw-bold text-uppercase" id="identity-tab" data-bs-toggle="tab" data-bs-target="#identity" type="button" role="tab"><i class="bi bi-building me-2 text-primary"></i>Identity</button>
                         </li>
-                        {% endif %}
-                        
-                        {% if session.get('role') == 'owner' or cashier_perms.setup_localization %}
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link border-0 py-3 px-4 text-light small fw-bold text-uppercase" id="localization-tab" data-bs-toggle="tab" data-bs-target="#localization" type="button" role="tab"><i class="bi bi-geo-alt me-2 text-info"></i>Localization</button>
+                            <button class="nav-link border-0 py-3 px-4 text-theme-main small fw-bold text-uppercase" id="localization-tab" data-bs-toggle="tab" data-bs-target="#localization" type="button" role="tab"><i class="bi bi-geo-alt me-2 text-info"></i>Localization</button>
                         </li>
-                        {% endif %}
-
-                        {% if session.get('role') == 'owner' or cashier_perms.setup_logic %}
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link border-0 py-3 px-4 text-light small fw-bold text-uppercase" id="logic-tab" data-bs-toggle="tab" data-bs-target="#logic" type="button" role="tab"><i class="bi bi-gear-wide-connected me-2 text-warning"></i>System Logic</button>
+                            <button class="nav-link border-0 py-3 px-4 text-theme-main small fw-bold text-uppercase" id="logic-tab" data-bs-toggle="tab" data-bs-target="#logic" type="button" role="tab"><i class="bi bi-gear-wide-connected me-2 text-warning"></i>System Logic</button>
                         </li>
-                        {% endif %}
-
-                        {% if session.get('role') == 'owner' or cashier_perms.setup_smtp %}
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link border-0 py-3 px-4 text-light small fw-bold text-uppercase" id="smtp-tab" data-bs-toggle="tab" data-bs-target="#smtp" type="button" role="tab"><i class="bi bi-envelope-at me-2 text-primary"></i>SMTP Settings</button>
+                            <button class="nav-link border-0 py-3 px-4 text-theme-main small fw-bold text-uppercase" id="smtp-tab" data-bs-toggle="tab" data-bs-target="#smtp" type="button" role="tab"><i class="bi bi-envelope-at me-2 text-primary"></i>SMTP Settings</button>
                         </li>
-                        {% endif %}
-
-                        {% if session.get('role') == 'owner' or cashier_perms.setup_users %}
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link border-0 py-3 px-4 text-light small fw-bold text-uppercase" id="users-tab" data-bs-toggle="tab" data-bs-target="#users_pane" type="button" role="tab"><i class="bi bi-people-fill me-2 text-info"></i>User Accounts</button>
+                            <button class="nav-link border-0 py-3 px-4 text-theme-main small fw-bold text-uppercase" id="users-tab" data-bs-toggle="tab" data-bs-target="#users_pane" type="button" role="tab"><i class="bi bi-people-fill me-2 text-info"></i>User Accounts</button>
                         </li>
-                        {% endif %}
-
-                        {% if session.get('role') == 'owner' or cashier_perms.setup_categories %}
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link border-0 py-3 px-4 text-light small fw-bold text-uppercase" id="categories-tab" data-bs-toggle="tab" data-bs-target="#categories_pane" type="button" role="tab"><i class="bi bi-tags-fill me-2 text-success"></i>Categories</button>
+                            <button class="nav-link border-0 py-3 px-4 text-theme-main small fw-bold text-uppercase" id="categories-tab" data-bs-toggle="tab" data-bs-target="#categories_pane" type="button" role="tab"><i class="bi bi-tags-fill me-2 text-success"></i>Categories</button>
                         </li>
-                        {% endif %}
-
-                        {% if session.get('role') == 'owner' or cashier_perms.setup_advanced %}
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link border-0 py-3 px-4 text-light small fw-bold text-uppercase" id="advanced-tab" data-bs-toggle="tab" data-bs-target="#advanced" type="button" role="tab"><i class="bi bi-code-slash me-2 text-danger"></i>Advanced</button>
+                            <button class="nav-link border-0 py-3 px-4 text-theme-main small fw-bold text-uppercase" id="menus-tab" data-bs-toggle="tab" data-bs-target="#menus_pane" type="button" role="tab"><i class="bi bi-list-stars me-2 text-warning"></i>Menus</button>
                         </li>
-                        {% endif %}
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link border-0 py-3 px-4 text-theme-main small fw-bold text-uppercase" id="advanced-tab" data-bs-toggle="tab" data-bs-target="#advanced" type="button" role="tab"><i class="bi bi-code-slash me-2 text-danger"></i>Advanced</button>
+                        </li>
                     </ul>
                 </div>
                 <div class="card-body p-4">
                     <div class="tab-content" id="setupTabsContent">
-                        {% if session.get('role') == 'owner' or cashier_perms.setup_identity %}
+                        <!-- Identity -->
                         <div class="tab-pane fade show active" id="identity" role="tabpanel">
                             <div class="row g-4">
                                 <div class="col-md-4">
-                                    <label class="form-label small text-muted">Business Name</label>
-                                    <input type="text" name="business_name" class="form-control bg-dark border-secondary text-light" value="{{ site_config.business_name }}">
+                                    <label for="setup_business_name" class="form-label small text-theme-muted">Business Name</label>
+                                    <input type="text" id="setup_business_name" name="business_name" autocomplete="organization" class="form-control bg-dark border-secondary text-theme-main" value="{{ site_config.business_name }}">
                                 </div>
                                 <div class="col-md-4">
-                                    <label class="form-label small text-muted">Business Logo Icon</label>
+                                    <label for="setup_business_icon" class="form-label small text-theme-muted">Business Logo Icon</label>
                                     <div class="input-group">
                                         <span class="input-group-text bg-dark border-secondary text-primary"><i class="bi {{ site_config.business_icon or 'bi-box-seam' }}" id="iconPreview"></i></span>
-                                        <select name="business_icon" class="form-select bg-dark border-secondary text-light" onchange="document.getElementById('iconPreview').className = 'bi ' + this.value">
-                                            <optgroup label="Retail & Commerce">
-                                                <option value="bi-box-seam" {% if site_config.business_icon == 'bi-box-seam' %}selected{% endif %}>Box Seam</option>
-                                                <option value="bi-cart4" {% if site_config.business_icon == 'bi-cart4' %}selected{% endif %}>Shopping Cart</option>
-                                                <option value="bi-bag-check" {% if site_config.business_icon == 'bi-bag-check' %}selected{% endif %}>Shopping Bag</option>
-                                                <option value="bi-shop" {% if site_config.business_icon == 'bi-shop' %}selected{% endif %}>Shop Front</option>
-                                                <option value="bi-tag-fill" {% if site_config.business_icon == 'bi-tag-fill' %}selected{% endif %}>Price Tag</option>
-                                                <option value="bi-wallet2" {% if site_config.business_icon == 'bi-wallet2' %}selected{% endif %}>Wallet</option>
-                                                <option value="bi-receipt" {% if site_config.business_icon == 'bi-receipt' %}selected{% endif %}>Receipt</option>
-                                            </optgroup>
-                                            <optgroup label="Objects & Items">
-                                                <option value="bi-book-half" {% if site_config.business_icon == 'bi-book-half' %}selected{% endif %}>Book</option>
-                                                <option value="bi-gem" {% if site_config.business_icon == 'bi-gem' %}selected{% endif %}>Gem/Jewelry</option>
-                                                <option value="bi-gift-fill" {% if site_config.business_icon == 'bi-gift-fill' %}selected{% endif %}>Gift</option>
-                                                <option value="bi-tools" {% if site_config.business_icon == 'bi-tools' %}selected{% endif %}>Tools</option>
-                                                <option value="bi-lamp-fill" {% if site_config.business_icon == 'bi-lamp-fill' %}selected{% endif %}>Lamp</option>
-                                                <option value="bi-cup-hot-fill" {% if site_config.business_icon == 'bi-cup-hot-fill' %}selected{% endif %}>Coffee/Cafe</option>
-                                            </optgroup>
-                                            <optgroup label="Religious & Spiritual">
-                                                <option value="bi-cross" {% if site_config.business_icon == 'bi-cross' %}selected{% endif %}>Plain Cross</option>
-                                                <option value="bi-heart-fill" {% if site_config.business_icon == 'bi-heart-fill' %}selected{% endif %}>Heart (Sacred)</option>
-                                                <option value="bi-stars" {% if site_config.business_icon == 'bi-stars' %}selected{% endif %}>Divine Stars</option>
-                                                <option value="bi-sun-fill" {% if site_config.business_icon == 'bi-sun-fill' %}selected{% endif %}>Sun/Light</option>
-                                                <option value="bi-brightness-high-fill" {% if site_config.business_icon == 'bi-brightness-high-fill' %}selected{% endif %}>Radiance</option>
-                                                <option value="bi-shield-shaded" {% if site_config.business_icon == 'bi-shield-shaded' %}selected{% endif %}>Shield/Protection</option>
-                                            </optgroup>
-                                            <optgroup label="Data & System">
-                                                <option value="bi-database-fill" {% if site_config.business_icon == 'bi-database-fill' %}selected{% endif %}>Database</option>
-                                                <option value="bi-cpu-fill" {% if site_config.business_icon == 'bi-cpu-fill' %}selected{% endif %}>Processor</option>
-                                                <option value="bi-lightning-charge-fill" {% if site_config.business_icon == 'bi-lightning-charge-fill' %}selected{% endif %}>Power/Energy</option>
-                                                <option value="bi-activity" {% if site_config.business_icon == 'bi-activity' %}selected{% endif %}>Pulse/Live</option>
-                                                <option value="bi-globe2" {% if site_config.business_icon == 'bi-globe2' %}selected{% endif %}>World/Global</option>
-                                            </optgroup>
-                                            <optgroup label="Abstract">
-                                                <option value="bi-circle-square" {% if site_config.business_icon == 'bi-circle-square' %}selected{% endif %}>Modern Abstract</option>
-                                                <option value="bi-hexagon-fill" {% if site_config.business_icon == 'bi-hexagon-fill' %}selected{% endif %}>Hexagon</option>
-                                                <option value="bi-triangle-fill" {% if site_config.business_icon == 'bi-triangle-fill' %}selected{% endif %}>Triangle</option>
-                                                <option value="bi-diamond-fill" {% if site_config.business_icon == 'bi-diamond-fill' %}selected{% endif %}>Diamond</option>
-                                            </optgroup>
+                                        <select id="setup_business_icon" name="business_icon" autocomplete="off" class="form-select bg-dark border-secondary text-theme-main" onchange="document.getElementById('iconPreview').className = 'bi ' + this.value">
+                                            {% include 'partials/icon_options.html' %}
                                         </select>
                                     </div>
                                 </div>
                                 <div class="col-md-4">
-                                    <label class="form-label small text-muted">Footer Text</label>
-                                    <input type="text" name="footer_text" class="form-control bg-dark border-secondary text-light" value="{{ site_config.footer_text }}">
+                                    <label for="setup_footer_text" class="form-label small text-theme-muted">Footer Text</label>
+                                    <input type="text" id="setup_footer_text" name="footer_text" autocomplete="off" class="form-control bg-dark border-secondary text-theme-main" value="{{ site_config.footer_text }}">
                                 </div>
                                 <div class="col-md-4">
-                                    <label class="form-label small text-muted">Contact Email</label>
-                                    <input type="email" name="contact_email" class="form-control bg-dark border-secondary text-light" value="{{ site_config.contact_email }}">
+                                    <label for="setup_contact_email" class="form-label small text-theme-muted">Contact Email</label>
+                                    <input type="email" id="setup_contact_email" name="contact_email" autocomplete="email" class="form-control bg-dark border-secondary text-theme-main" value="{{ site_config.contact_email }}">
                                 </div>
                                 <div class="col-md-4">
-                                    <label class="form-label small text-muted">Contact Phone</label>
-                                    <input type="text" name="contact_phone" class="form-control bg-dark border-secondary text-light" value="{{ site_config.contact_phone }}">
+                                    <label for="setup_contact_phone" class="form-label small text-theme-muted">Contact Phone</label>
+                                    <input type="text" id="setup_contact_phone" name="contact_phone" autocomplete="tel" class="form-control bg-dark border-secondary text-theme-main" value="{{ site_config.contact_phone }}">
                                 </div>
                                 <div class="col-md-4">
-                                    <label class="form-label small text-muted">Currency Symbol</label>
-                                    <input type="text" name="currency_symbol" class="form-control bg-dark border-secondary text-light" value="{{ site_config.currency_symbol }}">
+                                    <label for="setup_currency_symbol" class="form-label small text-theme-muted">Currency Symbol</label>
+                                    <input type="text" id="setup_currency_symbol" name="currency_symbol" autocomplete="off" class="form-control bg-dark border-secondary text-theme-main" value="{{ site_config.currency_symbol }}">
                                 </div>
                                 <div class="col-12">
-                                    <label class="form-label small text-muted">Physical Address</label>
-                                    <textarea name="contact_address" class="form-control bg-dark border-secondary text-light" rows="2">{{ site_config.contact_address }}</textarea>
+                                    <label for="setup_contact_address" class="form-label small text-theme-muted">Physical Address</label>
+                                    <textarea id="setup_contact_address" name="contact_address" autocomplete="street-address" class="form-control bg-dark border-secondary text-theme-main" rows="2">{{ site_config.contact_address }}</textarea>
                                 </div>
                                 <div class="col-md-4">
-                                    <label class="form-label small text-muted"><i class="bi bi-facebook me-2 text-primary"></i>Facebook URL</label>
-                                    <input type="text" name="social_facebook" class="form-control bg-dark border-secondary text-light" value="{{ site_config.social_facebook }}">
+                                    <label class="form-label small text-theme-muted" for="setup_facebook"><i class="bi bi-facebook me-2 text-primary"></i>Facebook URL</label>
+                                    <input type="text" id="setup_facebook" name="social_facebook" autocomplete="off" class="form-control bg-dark border-secondary text-theme-main" value="{{ site_config.social_facebook }}">
                                 </div>
                                 <div class="col-md-4">
-                                    <label class="form-label small text-muted"><i class="bi bi-twitter-x me-2 text-light"></i>Twitter URL</label>
-                                    <input type="text" name="social_twitter" class="form-control bg-dark border-secondary text-light" value="{{ site_config.social_twitter }}">
+                                    <label class="form-label small text-theme-muted" for="setup_twitter"><i class="bi bi-twitter-x me-2 text-theme-main"></i>Twitter URL</label>
+                                    <input type="text" id="setup_twitter" name="social_twitter" autocomplete="off" class="form-control bg-dark border-secondary text-theme-main" value="{{ site_config.social_twitter }}">
                                 </div>
                                 <div class="col-md-4">
-                                    <label class="form-label small text-muted"><i class="bi bi-instagram me-2 text-danger"></i>Instagram URL</label>
-                                    <input type="text" name="social_instagram" class="form-control bg-dark border-secondary text-light" value="{{ site_config.social_instagram }}">
+                                    <label class="form-label small text-theme-muted" for="setup_instagram"><i class="bi bi-instagram me-2 text-danger"></i>Instagram URL</label>
+                                    <input type="text" id="setup_instagram" name="social_instagram" autocomplete="off" class="form-control bg-dark border-secondary text-theme-main" value="{{ site_config.social_instagram }}">
                                 </div>
                             </div>
                         </div>
-                        {% endif %}
 
                         <!-- Localization -->
-                        {% if session.get('role') == 'owner' or cashier_perms.setup_localization %}
                         <div class="tab-pane fade" id="localization" role="tabpanel">
                             <div class="row g-4">
-                                <div class="col-md-6">
-                                    <label class="form-label small text-muted">System Timezone</label>
-                                    <select name="timezone" class="form-select bg-dark border-secondary text-light">
-                                        <option value="UTC" {% if site_config.timezone == 'UTC' %}selected{% endif %}>UTC (Universal Time)</option>
-                                        <option value="Asia/Manila" {% if site_config.timezone == 'Asia/Manila' %}selected{% endif %}>Asia/Manila (PST)</option>
-                                        <option value="America/New_York" {% if site_config.timezone == 'America/New_York' %}selected{% endif %}>America/New_York (EST)</option>
-                                        <option value="Europe/London" {% if site_config.timezone == 'Europe/London' %}selected{% endif %}>Europe/London (GMT)</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-3">
-                                    <label class="form-label small text-muted">Date Format</label>
-                                    <input type="text" name="date_format" class="form-control bg-dark border-secondary text-light" value="{{ site_config.date_format }}">
-                                    <div class="x-small text-muted mt-1">e.g. %Y-%m-%d</div>
-                                </div>
-                                <div class="col-md-3">
-                                    <label class="form-label small text-muted">Time Format</label>
-                                    <input type="text" name="time_format" class="form-control bg-dark border-secondary text-light" value="{{ site_config.time_format }}">
-                                    <div class="x-small text-muted mt-1">e.g. %I:%M:%S %p</div>
-                                </div>
-                            </div>
-                        </div>
-                        {% endif %}
-
-                        <!-- System Logic -->
-                        {% if session.get('role') == 'owner' or cashier_perms.setup_logic %}
-                        <div class="tab-pane fade" id="logic" role="tabpanel">
-                            <div class="row g-4">
-                                <div class="col-md-6">
-                                    <div class="p-3 bg-dark bg-opacity-25 rounded border border-secondary border-opacity-10 mb-3">
-                                        <div class="form-check form-switch">
-                                            <input class="form-check-input" type="checkbox" name="maintenance_mode" id="maintenanceMode" {% if site_config.maintenance_mode %}checked{% endif %}>
-                                            <label class="form-check-label fw-bold text-warning ms-2" for="maintenanceMode">
-                                                <i class="bi bi-exclamation-triangle-fill me-2"></i>MAINTENANCE MODE
-                                            </label>
-                                        </div>
-                                        <p class="x-small text-muted mb-0 mt-2 ms-5">When enabled, only developers can access the system.</p>
-                                    </div>
-                                    
-                                    {% if session.get('role') == 'owner' or cashier_perms.setup_notifications %}
-                                    <div class="p-3 bg-dark bg-opacity-50 rounded border border-primary border-opacity-25">
-                                        <h6 class="text-primary small fw-bold text-uppercase mb-3"><i class="bi bi-bell-fill me-2"></i>Notification Alerts</h6>
-                                        <div class="row g-3">
-                                            <div class="col-6">
-                                                <div class="form-check form-switch">
-                                                    <input class="form-check-input" type="checkbox" name="email_notif_stock_in" id="notifStockIn" {% if site_config.email_notif_stock_in %}checked{% endif %}>
-                                                    <label class="form-check-label small text-light ms-2" for="notifStockIn">Stock In Alerts</label>
-                                                </div>
-                                            </div>
-                                            <div class="col-6">
-                                                <div class="form-check form-switch">
-                                                    <input class="form-check-input" type="checkbox" name="email_notif_low_stock" id="notifLowStock" {% if site_config.email_notif_low_stock %}checked{% endif %}>
-                                                    <label class="form-check-label small text-warning ms-2" for="notifLowStock">Low Stock Alerts</label>
-                                                </div>
-                                            </div>
-                                            <div class="col-6">
-                                                <div class="form-check form-switch">
-                                                    <input class="form-check-input" type="checkbox" name="email_notif_sales" id="notifSales" {% if site_config.email_notif_sales %}checked{% endif %}>
-                                                    <label class="form-check-label small text-success ms-2" for="notifSales">Sales Reports</label>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    {% endif %}
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="row g-3">
-                                        <div class="col-md-6">
-                                            <label class="form-label small text-muted">Low Stock Threshold</label>
-                                            <input type="number" name="low_stock_threshold" class="form-control bg-dark border-secondary text-light" value="{{ site_config.low_stock_threshold }}">
-                                            <div class="x-small text-muted mt-1">Alert when stock falls below this.</div>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label small text-muted">Global Tax Rate (%)</label>
-                                            <input type="number" step="0.01" name="tax_rate" class="form-control bg-dark border-secondary text-light" value="{{ site_config.tax_rate }}">
-                                        </div>
-                                        <div class="col-12">
-                                            <label class="form-label small text-muted">Additional Email Recipients</label>
-                                            <textarea name="email_recipient_list" class="form-control bg-dark border-secondary text-light small" rows="3" placeholder="manager@example.com, owner@example.com">{{ site_config.email_recipient_list }}</textarea>
-                                            <div class="x-small text-muted mt-1">Comma-separated list of emails to receive alerts besides the primary business email.</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        {% endif %}
-
-                        <!-- SMTP Settings -->
-                        {% if session.get('role') == 'owner' or cashier_perms.setup_smtp %}
-                        <div class="tab-pane fade" id="smtp" role="tabpanel">
-                            <div class="row g-4">
-                                <div class="col-md-8">
-                                    <label class="form-label small text-muted">SMTP Host</label>
-                                    <input type="text" name="smtp_host" class="form-control bg-dark border-secondary text-light" value="{{ site_config.smtp_host }}" placeholder="smtp.gmail.com">
+                                <div class="col-md-4">
+                                    <label class="form-label small text-theme-muted">Timezone</label>
+                                    <input type="text" id="setup_timezone" name="timezone" autocomplete="off" class="form-control bg-dark border-secondary text-theme-main" value="{{ site_config.timezone }}">
                                 </div>
                                 <div class="col-md-4">
-                                    <label class="form-label small text-muted">SMTP Port</label>
-                                    <input type="number" name="smtp_port" class="form-control bg-dark border-secondary text-light" value="{{ site_config.smtp_port }}" placeholder="587">
+                                    <label class="form-label small text-theme-muted">Date Format</label>
+                                    <input type="text" id="setup_date_format" name="date_format" autocomplete="off" class="form-control bg-dark border-secondary text-theme-main" value="{{ site_config.date_format }}">
                                 </div>
-                                <div class="col-md-6">
-                                    <label class="form-label small text-muted">SMTP Username</label>
-                                    <input type="text" name="smtp_user" class="form-control bg-dark border-secondary text-light" value="{{ site_config.smtp_user }}" placeholder="user@example.com">
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label small text-muted">SMTP Password</label>
-                                    <input type="password" name="smtp_password" class="form-control bg-dark border-secondary text-light" value="{{ site_config.smtp_password }}">
-                                </div>
-                                <div class="col-md-8">
-                                    <label class="form-label small text-muted">Sender Email Address</label>
-                                    <input type="email" name="smtp_sender" class="form-control bg-dark border-secondary text-light" value="{{ site_config.smtp_sender }}" placeholder="noreply@business.com">
-                                </div>
-                                <div class="col-md-2 mt-auto">
-                                    <div class="form-check form-switch mb-2">
-                                        <input class="form-check-input" type="checkbox" name="smtp_use_tls" id="smtpTLS" {% if site_config.smtp_use_tls %}checked{% endif %}>
-                                        <label class="form-check-label small text-muted ms-2" for="smtpTLS">Use TLS</label>
-                                    </div>
-                                </div>
-                                <div class="col-md-2 mt-auto">
-                                    <div class="form-check form-switch mb-2">
-                                        <input class="form-check-input" type="checkbox" name="smtp_use_ssl" id="smtpSSL" {% if site_config.smtp_use_ssl %}checked{% endif %}>
-                                        <label class="form-check-label small text-muted ms-2" for="smtpSSL">Use SSL</label>
-                                    </div>
-                                </div>
-                                <div class="col-12">
-                                    <div class="alert alert-info bg-dark bg-opacity-25 border-secondary x-small mb-4">
-                                        <i class="bi bi-info-circle-fill me-2"></i> These settings are used for sending automated notifications, reports, and alerts via email.
-                                    </div>
-                                </div>
-                                <div class="col-md-12">
-                                    <h6 class="text-light small fw-bold text-uppercase border-bottom border-secondary pb-2 mb-3">SMTP Connectivity Test</h6>
-                                    <div class="row g-2 align-items-end">
-                                        <div class="col-md-8">
-                                            <label class="form-label small text-muted">Recipient Email for Test</label>
-                                            <input type="email" id="smtpTestEmail" class="form-control form-control-sm bg-dark border-secondary text-light" placeholder="someone@example.com">
-                                        </div>
-                                        <div class="col-md-4">
-                                            <button type="button" class="btn btn-outline-info btn-sm w-100 fw-bold" onclick="testSMTPSettings()">
-                                                <i class="bi bi-send me-1"></i> SEND TEST EMAIL
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <div id="smtpTestStatus" class="mt-3 x-small"></div>
+                                <div class="col-md-4">
+                                    <label class="form-label small text-theme-muted">Time Format</label>
+                                    <input type="text" id="setup_time_format" name="time_format" autocomplete="off" class="form-control bg-dark border-secondary text-theme-main" value="{{ site_config.time_format }}">
                                 </div>
                             </div>
                         </div>
-                        {% endif %}
 
-                        <!-- Advanced (Scripts) -->
-                        {% if session.get('role') == 'owner' or cashier_perms.setup_advanced %}
-                        <div class="tab-pane fade" id="advanced" role="tabpanel">
+                        <!-- System Logic -->
+                        <div class="tab-pane fade" id="logic" role="tabpanel">
                             <div class="row g-4">
-                                <div class="col-md-12">
-                                    <label class="form-label small text-muted">Custom Head Scripts</label>
-                                    <textarea name="custom_head_scripts" class="form-control bg-dark border-secondary text-info small code-editor" rows="4" placeholder="<script>...</script> or <link>">{{ site_config.custom_head_scripts }}</textarea>
-                                    <div class="x-small text-muted mt-1">Injected into the &lt;head&gt; of every page. Useful for Analytics.</div>
+                                <div class="col-md-4">
+                                    <label class="form-label small text-theme-muted">Low Stock Threshold</label>
+                                    <input type="number" id="setup_low_stock" name="low_stock_threshold" autocomplete="off" class="form-control bg-dark border-secondary text-theme-main" value="{{ site_config.low_stock_threshold }}">
                                 </div>
-                                <div class="col-md-12">
-                                    <label class="form-label small text-muted">Custom Body Scripts</label>
-                                    <textarea name="custom_body_scripts" class="form-control bg-dark border-secondary text-info small code-editor" rows="4" placeholder="<script>...</script>">{{ site_config.custom_body_scripts }}</textarea>
-                                    <div class="x-small text-muted mt-1">Injected before the &lt;/body&gt; tag.</div>
+                                <div class="col-md-4">
+                                    <label class="form-label small text-theme-muted">Tax Rate (%)</label>
+                                    <input type="number" id="setup_tax_rate" step="0.01" name="tax_rate" autocomplete="off" class="form-control bg-dark border-secondary text-theme-main" value="{{ site_config.tax_rate }}">
+                                </div>
+                                <div class="col-md-4 pt-4">
+                                    <div class="form-check form-switch mt-2">
+                                        <input class="form-check-input" type="checkbox" name="maintenance_mode" id="maintenanceSwitch" {{ 'checked' if site_config.maintenance_mode }}>
+                                        <label class="form-check-label text-theme-main" for="maintenanceSwitch">Maintenance Mode</label>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                        {% endif %}
 
-                        <!-- User Accounts (Display Only) -->
-                        {% if session.get('role') == 'owner' or cashier_perms.setup_users %}
+                        <!-- SMTP Settings -->
+                        <div class="tab-pane fade" id="smtp" role="tabpanel">
+                            <div class="row g-4">
+                                <div class="col-md-6">
+                                    <label for="setup_smtp_host" class="form-label small text-theme-muted">SMTP Host</label>
+                                    <input type="text" id="setup_smtp_host" name="smtp_host" autocomplete="off" class="form-control bg-dark border-secondary text-theme-main" value="{{ site_config.smtp_host }}">
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label small text-theme-muted">Port</label>
+                                    <input type="number" id="setup_smtp_port" name="smtp_port" autocomplete="off" class="form-control bg-dark border-secondary text-theme-main" value="{{ site_config.smtp_port }}">
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="setup_smtp_user" class="form-label small text-theme-muted">SMTP User</label>
+                                    <input type="text" id="setup_smtp_user" name="smtp_user" autocomplete="username" class="form-control bg-dark border-secondary text-theme-main" value="{{ site_config.smtp_user }}">
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="setup_smtp_pass" class="form-label small text-theme-muted">SMTP Password</label>
+                                    <input type="password" id="setup_smtp_pass" name="smtp_password" autocomplete="current-password" class="form-control bg-dark border-secondary text-theme-main" value="{{ site_config.smtp_password }}">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small text-theme-muted">Sender Email</label>
+                                    <input type="text" id="setup_smtp_sender" name="smtp_sender" autocomplete="email" class="form-control bg-dark border-secondary text-theme-main" value="{{ site_config.smtp_sender }}">
+                                </div>
+                                <div class="col-md-4 d-flex align-items-center pt-4 gap-3">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" name="smtp_use_tls" id="tlsSwitch" {{ 'checked' if site_config.smtp_use_tls }}>
+                                        <label class="form-check-label text-theme-main" for="tlsSwitch">TLS</label>
+                                    </div>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" name="smtp_use_ssl" id="sslSwitch" {{ 'checked' if site_config.smtp_use_ssl }}>
+                                        <label class="form-check-label text-theme-main" for="sslSwitch">SSL</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- User Accounts -->
                         <div class="tab-pane fade" id="users_pane" role="tabpanel">
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <h6 class="text-info small fw-bold mb-0 text-uppercase">Account Management</h6>
@@ -341,7 +188,7 @@
                             <div class="table-responsive">
                                 <table class="table table-dark table-hover align-middle">
                                     <thead>
-                                        <tr class="text-muted small text-uppercase">
+                                        <tr class="text-theme-muted small text-uppercase">
                                             <th>Email Address</th>
                                             <th>Role</th>
                                             <th class="text-end">Action</th>
@@ -358,11 +205,11 @@
                                             </td>
                                             <td class="text-end">
                                                 {% if user.email != 'admin@inventory.com' and user.email != session.get('email') %}
-                                                <button type="button" onclick="confirmAction('/settings/user/delete/{{ user._id }}', 'Delete this user account?')" class="btn btn-link text-danger btn-sm p-0">
+                                                <button type="button" onclick="confirmAction('{{ url_for('admin.delete_user', id=user._id) }}', 'Delete this user account?')" class="btn btn-link text-danger btn-sm p-0">
                                                     <i class="bi bi-trash"></i>
                                                 </button>
                                                 {% else %}
-                                                <span class="text-muted x-small">Protected</span>
+                                                <span class="text-theme-muted x-small">Protected</span>
                                                 {% endif %}
                                             </td>
                                         </tr>
@@ -371,10 +218,8 @@
                                 </table>
                             </div>
                         </div>
-                        {% endif %}
 
-                        <!-- Categories (Display Only) -->
-                        {% if session.get('role') == 'owner' or cashier_perms.setup_categories %}
+                        <!-- Categories -->
                         <div class="tab-pane fade" id="categories_pane" role="tabpanel">
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <h6 class="text-success small fw-bold mb-0 text-uppercase">Inventory Categories</h6>
@@ -385,7 +230,7 @@
                             <div class="table-responsive">
                                 <table class="table table-dark table-hover align-middle">
                                     <thead>
-                                        <tr class="text-muted small text-uppercase">
+                                        <tr class="text-theme-muted small text-uppercase">
                                             <th>Category Name</th>
                                             <th class="text-end">Action</th>
                                         </tr>
@@ -395,7 +240,7 @@
                                         <tr>
                                             <td class="fw-bold">{{ cat.name }}</td>
                                             <td class="text-end">
-                                                <button type="button" onclick="confirmAction('/settings/category/delete/{{ cat._id }}', 'Delete this category?')" class="btn btn-link text-danger btn-sm p-0">
+                                                <button type="button" onclick="confirmAction('{{ url_for('admin.delete_category', id=cat._id) }}', 'Delete this category?')" class="btn btn-link text-danger btn-sm p-0">
                                                     <i class="bi bi-x-circle-fill"></i>
                                                 </button>
                                             </td>
@@ -405,7 +250,58 @@
                                 </table>
                             </div>
                         </div>
-                        {% endif %}
+
+                        <!-- Menus -->
+                        <div class="tab-pane fade" id="menus_pane" role="tabpanel">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6 class="text-warning small fw-bold mb-0 text-uppercase">Menu Anchors</h6>
+                                <button type="button" class="btn btn-warning btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#addMenuModal">
+                                    <i class="bi bi-plus-lg me-1"></i> ADD NEW MENU
+                                </button>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-dark table-hover align-middle">
+                                    <thead>
+                                        <tr class="text-theme-muted small text-uppercase">
+                                            <th>Icon</th>
+                                            <th>Menu Name</th>
+                                            <th class="text-center">Warning</th>
+                                            <th class="text-center">Low</th>
+                                            <th class="text-end">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for menu in menus %}
+                                        <tr>
+                                            <td class="text-center"><i class="bi {{ menu.icon or 'bi-list-stars' }} text-warning fs-5"></i></td>
+                                            <td class="fw-bold text-warning">{{ menu.name }}</td>
+                                            <td class="text-center">{{ menu.warning_threshold or 10 }}</td>
+                                            <td class="text-center">{{ menu.low_stock_threshold or 5 }}</td>
+                                            <td class="text-end">
+                                                <button type="button" onclick="confirmAction('{{ url_for('admin.delete_menu', id=menu._id) }}', 'Delete menu anchor?')" class="btn btn-link text-danger btn-sm p-0">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Advanced -->
+                        <div class="tab-pane fade" id="advanced" role="tabpanel">
+                            <div class="row g-4">
+                                <div class="col-md-6">
+                                    <label class="form-label small text-theme-muted">Custom Head Scripts</label>
+                                    <textarea id="setup_head_scripts" name="custom_head_scripts" autocomplete="off" class="form-control bg-dark border-secondary text-theme-main code-editor" rows="5">{{ site_config.custom_head_scripts }}</textarea>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small text-theme-muted">Custom Body Scripts</label>
+                                    <textarea id="setup_body_scripts" name="custom_body_scripts" autocomplete="off" class="form-control bg-dark border-secondary text-theme-main code-editor" rows="5">{{ site_config.custom_body_scripts }}</textarea>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="card-footer bg-transparent border-top border-secondary p-3 text-end">
@@ -413,347 +309,103 @@
                 </div>
             </div>
         </form>
-
-        <!-- Theme Manager -->
-        {% if session.get('role') == 'owner' or cashier_perms.setup_themes %}
-        <div class="card bg-card border-secondary shadow-lg mb-4" style="border-left: 4px solid #a855f7;">
-            <div class="card-body p-4">
-                <h6 class="text-purple mb-3 fw-bold text-uppercase small" style="color: #a855f7;"><i class="bi bi-palette-fill me-2"></i>Personalize Theme</h6>
-                <div class="row g-2">
-                    <div class="col-md-3 col-6">
-                        <button type="button" class="btn btn-outline-secondary btn-sm w-100 theme-btn" data-theme="default" onclick="setTheme('default')">Original</button>
-                    </div>
-                    <div class="col-md-3 col-6">
-                        <button type="button" class="btn btn-outline-light btn-sm w-100 theme-btn" data-theme="light" onclick="setTheme('light')" style="color: #666; border-color: #dee2e6; background: #fff;">Classic Light</button>
-                    </div>
-                    <div class="col-md-3 col-6">
-                        <button type="button" class="btn btn-outline-dark btn-sm w-100 theme-btn" data-theme="oled" onclick="setTheme('oled')" style="color: #fff; border-color: #333; background: #000;">OLED Black</button>
-                    </div>
-                    <div class="col-md-3 col-6">
-                        <button type="button" class="btn btn-outline-info btn-sm w-100 theme-btn" data-theme="cyberpunk" onclick="setTheme('cyberpunk')">Cyberpunk</button>
-                    </div>
-                    <div class="col-md-3 col-6">
-                        <button type="button" class="btn btn-outline-primary btn-sm w-100 theme-btn" data-theme="synthwave" onclick="setTheme('synthwave')" style="color: #f92aad; border-color: #f92aad;">Synthwave</button>
-                    </div>
-                    <div class="col-md-3 col-6">
-                        <button type="button" class="btn btn-outline-success btn-sm w-100 theme-btn" data-theme="forest-neon" onclick="setTheme('forest-neon')" style="color: #00ff41; border-color: #00ff41;">Forest Neon</button>
-                    </div>
-                    <div class="col-md-3 col-6">
-                        <button type="button" class="btn btn-outline-dark btn-sm w-100 theme-btn" data-theme="matrix" onclick="setTheme('matrix')" style="color: #00ff41; border-color: #008f11;">Matrix</button>
-                    </div>
-                    <div class="col-md-3 col-6">
-                        <button type="button" class="btn btn-outline-danger btn-sm w-100 theme-btn" data-theme="volcano" onclick="setTheme('volcano')" style="color: #ff4d00; border-color: #ff0000;">Volcano</button>
-                    </div>
-                    <div class="col-md-3 col-6">
-                        <button type="button" class="btn btn-outline-info btn-sm w-100 theme-btn" data-theme="ice" onclick="setTheme('ice')" style="color: #0c4a6e; border-color: #38bdf8;">Ice Blue</button>
-                    </div>
-                    <div class="col-md-3 col-6">
-                        <button type="button" class="btn btn-outline-warning btn-sm w-100 theme-btn" data-theme="deep-sea" onclick="setTheme('deep-sea')" style="color: #94d2bd; border-color: #0a9396;">Deep Sea</button>
-                    </div>
-                    <div class="col-md-3 col-6">
-                        <button type="button" class="btn btn-outline-success btn-sm w-100 theme-btn" data-theme="emerald" onclick="setTheme('emerald')">Emerald</button>
-                    </div>
-                    <div class="col-md-3 col-6">
-                        <button type="button" class="btn btn-outline-primary btn-sm w-100 theme-btn" data-theme="midnight" onclick="setTheme('midnight')">Midnight</button>
-                    </div>
-                    <div class="col-md-3 col-6">
-                        <button type="button" class="btn btn-outline-warning btn-sm w-100 theme-btn" data-theme="royal" onclick="setTheme('royal')">Royal</button>
-                    </div>
-                    <div class="col-md-3 col-6">
-                        <button type="button" class="btn btn-outline-secondary btn-sm w-100 theme-btn" data-theme="nord" onclick="setTheme('nord')">Nord</button>
-                    </div>
-                    <div class="col-md-3 col-6">
-                        <button type="button" class="btn btn-outline-primary btn-sm w-100 theme-btn" data-theme="dracula" onclick="setTheme('dracula')" style="color: #bd93f9; border-color: #bd93f9;">Dracula</button>
-                    </div>
-                    <div class="col-md-3 col-6">
-                        <button type="button" class="btn btn-outline-warning btn-sm w-100 theme-btn" data-theme="gruvbox" onclick="setTheme('gruvbox')" style="color: #ebdbb2; border-color: #d79921;">Gruvbox</button>
-                    </div>
-                </div>
-                <p class="x-small text-muted mt-3 mb-0"><i class="bi bi-info-circle me-1"></i> Themes are saved to your account profile and will persist across sessions.</p>
-            </div>
-        </div>
-        {% endif %}
-
-        <!-- Favicon & Asset Upload -->
-        {% if session.get('role') == 'owner' or cashier_perms.setup_assets %}
-        <div class="card bg-card border-secondary shadow-lg mb-4" style="border-left: 4px solid #0dcaf0;">
-            <div class="card-header bg-transparent border-bottom border-secondary p-3">
-                <span class="small fw-bold text-uppercase opacity-75"><i class="bi bi-image me-2 text-info"></i>Asset Management</span>
-            </div>
-            <div class="card-body p-4">
-                <form action="{{ url_for('update_favicon') }}" method="POST" enctype="multipart/form-data" class="mb-4">
-                    <div class="row align-items-end g-3">
-                        <div class="col-md-8">
-                            <label class="form-label small text-muted">Website Favicon (.ico, .png, .jpg)</label>
-                            <div class="d-flex align-items-center">
-                                <img src="{{ url_for('static', filename='favicon.ico') }}?v={{ range(1, 9999) | random }}" class="me-3 rounded border border-secondary" style="width: 32px; height: 32px; object-fit: contain; background: #1a1e26;" onerror="this.src='https://placehold.co/32x32/1a1e26/white?text=?'">
-                                <input type="file" name="favicon" class="form-control form-control-sm bg-dark border-secondary text-light" accept=".ico,.png,.jpg,.jpeg" required>
-                            </div>
-                        </div>
-                        <div class="col-md-4 text-end">
-                            <button type="submit" class="btn btn-info btn-sm w-100 fw-bold">UPLOAD FAVICON</button>
-                        </div>
-                    </div>
-                </form>
-
-                <hr class="border-secondary border-opacity-25 my-4">
-
-                <form action="{{ url_for('update_login_bg') }}" method="POST" enctype="multipart/form-data">
-                    <div class="row align-items-end g-3">
-                        <div class="col-md-8">
-                            <label class="form-label small text-muted">Login Page Background Image (.jpg, .png, .webp)</label>
-                            <div class="d-flex align-items-center">
-                                <img src="{{ url_for('static', filename=site_config.login_background) }}" class="me-3 rounded border border-secondary" style="width: 64px; height: 36px; object-fit: cover; background: #1a1e26;">
-                                <input type="file" name="login_bg" class="form-control form-control-sm bg-dark border-secondary text-light" accept=".jpg,.jpeg,.png,.webp" required>
-                            </div>
-                        </div>
-                        <div class="col-md-4 text-end">
-                            <button type="submit" class="btn btn-outline-info btn-sm w-100 fw-bold">UPLOAD BACKGROUND</button>
-                        </div>
-                    </div>
-                </form>
-            </div>
-        </div>
-        {% endif %}
-
-        <!-- Backup & Recovery -->
-        {% if session.get('role') == 'owner' or cashier_perms.setup_backup %}
-        <div class="card bg-card border-secondary shadow-lg mb-4" style="border-left: 4px solid #6c757d;">
-            <div class="card-header bg-transparent border-bottom border-secondary p-3">
-                <span class="small fw-bold text-uppercase opacity-75"><i class="bi bi-shield-lock-fill me-2 text-secondary"></i>System Backup & Recovery</span>
-            </div>
-            <div class="card-body p-4">
-                <div class="row g-4">
-                    <div class="col-md-6 border-end border-secondary border-opacity-25">
-                        <h6 class="text-light mb-2 small fw-bold text-uppercase">Export Full JSON</h6>
-                        <p class="text-muted x-small mb-3">Download a complete snapshot of all inventory, users, and settings.</p>
-                        <a href="{{ url_for('download_backup') }}" class="btn btn-outline-secondary btn-sm w-100 fw-bold">
-                            <i class="bi bi-cloud-arrow-down me-2"></i>DOWNLOAD .JSON BACKUP
-                        </a>
-                    </div>
-                    <div class="col-md-6">
-                        <h6 class="text-warning mb-2 small fw-bold text-uppercase">Restore from JSON</h6>
-                        <p class="text-muted x-small mb-3">Overwrite entire database from a previously downloaded .json file.</p>
-                        <form action="{{ url_for('restore_backup') }}" method="POST" enctype="multipart/form-data" onsubmit="return confirm('WARNING: This will overwrite ALL current data. Continue?')">
-                            <div class="input-group input-group-sm mb-2">
-                                <input type="file" name="backup_file" class="form-control bg-dark border-secondary text-light" accept=".json" required>
-                                <button class="btn btn-warning fw-bold" type="submit">RESTORE</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-                <div class="mt-3 x-small text-danger text-center"><i class="bi bi-exclamation-circle me-1"></i> Data restoration actions are irreversible. Always keep a copy of your current backup.</div>
-            </div>
-        </div>
-        {% endif %}
-
-        <!-- Danger Zone -->
-        {% if session.get('role') == 'owner' or cashier_perms.setup_danger_zone %}
-        <div class="card bg-card border-danger border-opacity-25 shadow-lg mb-4" style="border-left: 4px solid #dc3545; background: rgba(220, 53, 69, 0.05);">
-            <div class="card-header bg-transparent border-bottom border-danger border-opacity-10 p-3">
-                <span class="small fw-bold text-uppercase text-danger"><i class="bi bi-exclamation-octagon-fill me-2"></i>Critical Danger Zone</span>
-            </div>
-            <div class="card-body p-4">
-                <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
-                    <div class="col-md-8">
-                        <h6 class="text-light mb-1 fw-bold">Wipe All Business Records</h6>
-                        <p class="text-muted x-small mb-3">Permanently delete all inventory items, sales history, movement logs, and system alerts. This action is irreversible.</p>
-                        
-                        <div class="input-group input-group-sm w-100" style="max-width: 400px;">
-                            <input type="text" name="verification_code" id="dangerZoneCode" class="form-control bg-black border-danger text-light" placeholder="Enter 6-digit Security Code">
-                            <button class="btn btn-danger fw-bold" type="button" id="dangerCodeBtn" onclick="sendDangerZoneCode()">
-                                <i class="bi bi-envelope-check me-1"></i> SEND CODE
-                            </button>
-                        </div>
-                        <div id="dangerCodeStatus" class="x-small text-muted mt-2">Required to authorize a full system wipe. Code sent to bejasadhev@gmail.com.</div>
-                    </div>
-                    <form action="{{ url_for('clear_all_data') }}" method="POST" onsubmit="return confirm('CRITICAL WARNING: Are you absolutely sure? This will WIPE EVERYTHING.')">
-                        <input type="hidden" name="verification_code" id="hiddenDangerCode">
-                        <button type="submit" class="btn btn-outline-danger fw-bold px-4" onclick="document.getElementById('hiddenDangerCode').value = document.getElementById('dangerZoneCode').value">
-                            <i class="bi bi-trash3-fill me-2"></i>PURGE ALL DATA
-                        </button>
-                    </form>
-                </div>
-            </div>
-        </div>
-        {% endif %}
     </div>
 </div>
 
-<!-- Modal: Add User -->
+<!-- Modals -->
 <div class="modal fade" id="addUserModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content bg-card border-secondary shadow-lg">
+        <div class="modal-content bg-card border-secondary text-theme-main">
             <div class="modal-header border-bottom border-secondary">
-                <h5 class="modal-title text-light fw-bold">Add New Account</h5>
+                <h6 class="modal-title fw-bold">ADD NEW USER</h6>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <form action="{{ url_for('add_user') }}" method="POST">
+            <form action="{{ url_for('admin.add_user') }}" method="POST">
                 <div class="modal-body p-4">
                     <div class="mb-3">
-                        <label class="form-label small text-muted">Email Address</label>
-                        <input type="email" name="email" class="form-control bg-dark border-secondary text-light" required>
+                        <label class="form-label small text-theme-muted">Email Address</label>
+                        <input type="email" id="setup_add_email" name="email" class="form-control bg-dark border-secondary text-theme-main" required autocomplete="email">
                     </div>
                     <div class="mb-3">
-                        <label class="form-label small text-muted">Password</label>
-                        <input type="password" name="password" class="form-control bg-dark border-secondary text-light" required>
+                        <label class="form-label small text-theme-muted">Password</label>
+                        <input type="password" id="setup_add_pass" name="password" class="form-control bg-dark border-secondary text-theme-main" required autocomplete="new-password">
                     </div>
                     <div class="mb-3">
-                        <label class="form-label small text-muted">Access Level</label>
-                        <select name="role" class="form-select bg-dark border-secondary text-light">
+                        <label class="form-label small text-theme-muted">Role</label>
+                        <select id="setup_add_role" name="role" class="form-select bg-dark border-secondary text-theme-main" autocomplete="off">
                             <option value="cashier">Cashier</option>
                             <option value="owner">Owner</option>
                         </select>
                     </div>
                 </div>
                 <div class="modal-footer border-top border-secondary">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-success fw-bold">CREATE ACCOUNT</button>
+                    <button type="submit" class="btn btn-primary btn-sm">CREATE USER</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
 
-<!-- Modal: Add Category -->
 <div class="modal fade" id="addCategoryModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content bg-card border-secondary shadow-lg">
+        <div class="modal-content bg-card border-secondary text-theme-main">
             <div class="modal-header border-bottom border-secondary">
-                <h5 class="modal-title text-light fw-bold">Add New Category</h5>
+                <h6 class="modal-title fw-bold">ADD CATEGORY</h6>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <form action="{{ url_for('add_category') }}" method="POST">
+            <form action="{{ url_for('admin.add_category') }}" method="POST">
                 <div class="modal-body p-4">
                     <div class="mb-3">
-                        <label class="form-label small text-muted">Category Name</label>
-                        <input type="text" name="name" class="form-control bg-dark border-secondary text-light" required>
+                        <label class="form-label small text-theme-muted">Category Name</label>
+                        <input type="text" id="setup_add_cat" name="name" class="form-control bg-dark border-secondary text-theme-main" required autocomplete="off">
                     </div>
                 </div>
                 <div class="modal-footer border-top border-secondary">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-success fw-bold">ADD CATEGORY</button>
+                    <button type="submit" class="btn btn-success btn-sm">ADD CATEGORY</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
 
-<!-- Web & SEO Manager MODAL -->
-<div class="modal fade" id="seoModal" tabindex="-1" aria-labelledby="seoModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-centered">
-        <div class="modal-content bg-card border-secondary shadow-2xl">
-            <div class="modal-header border-bottom border-secondary p-3">
-                <div class="d-flex align-items-center">
-                    <i class="bi bi-globe2 text-info fs-4 me-3"></i>
-                    <div>
-                        <h5 class="modal-title text-light mb-0" id="seoModalLabel">Web & SEO Manager</h5>
-                        <span class="text-muted small">Indexing & App Configuration</span>
-                    </div>
-                </div>
-                <div class="ms-auto d-flex align-items-center">
-                    <button class="btn btn-sm btn-outline-secondary me-3" onclick="toggleSEOWorkspace()">
-                        <span id="viewLabel"><i class="bi bi-code-slash me-2"></i>Switch to Code View</span>
-                    </button>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
+<div class="modal fade" id="addMenuModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-card border-secondary text-theme-main">
+            <div class="modal-header border-bottom border-secondary">
+                <h6 class="modal-title fw-bold">ADD MENU ANCHOR</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body p-4" style="background-color: rgba(0,0,0,0.2);">
-                <!-- Hidden inputs for raw content -->
-                <textarea id="robots_content" style="display:none;">{{ tech_files.robots_txt }}</textarea>
-                <textarea id="sitemap_content" style="display:none;">{{ tech_files.sitemap_xml }}</textarea>
-                <textarea id="manifest_content" style="display:none;">{{ tech_files.manifest_json }}</textarea>
-
-                <!-- FORM VIEW -->
-                <div id="seo_form_view">
+            <form action="{{ url_for('admin.add_menu') }}" method="POST">
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label small text-theme-muted">Menu Name</label>
+                        <input type="text" id="setup_add_menu" name="name" class="form-control bg-dark border-secondary text-theme-main" required autocomplete="off">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small text-theme-muted">Icon</label>
+                        <select id="setup_add_menu_icon" name="icon" class="form-select bg-dark border-secondary text-theme-main" autocomplete="off">
+                            {% include 'partials/icon_options.html' %}
+                        </select>
+                    </div>
                     <div class="row">
-                        <div class="col-md-4 mb-4">
-                            <div class="p-3 bg-dark bg-opacity-50 rounded border border-secondary border-opacity-25 h-100">
-                                <h6 class="text-info small fw-bold mb-3 text-uppercase">ROBOTS.TXT</h6>
-                                <div class="mb-3">
-                                    <label class="form-label small text-muted">User-Agent</label>
-                                    <input type="text" id="f_robots_agent" class="form-control form-control-sm bg-dark border-secondary text-light">
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label small text-muted">Disallowed Paths (one per line)</label>
-                                    <textarea id="f_robots_disallow" class="form-control form-control-sm bg-dark border-secondary text-light" rows="6"></textarea>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label small text-muted">Sitemap URL</label>
-                                    <input type="text" id="f_robots_sitemap" class="form-control form-control-sm bg-dark border-secondary text-light">
-                                </div>
-                                <button class="btn btn-info btn-sm w-100 fw-bold mt-2" onclick="saveFromForm('robots.txt')">UPDATE ROBOTS</button>
-                            </div>
+                        <div class="col-6">
+                            <label class="form-label small text-theme-muted">Warning Threshold</label>
+                            <input type="number" id="setup_add_menu_warn" name="warning_threshold" autocomplete="off" class="form-control bg-dark border-secondary text-theme-main" value="10">
                         </div>
-
-                        <div class="col-md-4 mb-4">
-                            <div class="p-3 bg-dark bg-opacity-50 rounded border border-secondary border-opacity-25 h-100">
-                                <h6 class="text-success small fw-bold mb-3 text-uppercase">SITEMAP.XML</h6>
-                                <div id="sitemap_entries" class="overflow-auto mb-3" style="max-height: 300px;"></div>
-                                <button class="btn btn-outline-success btn-sm w-100 mb-3" onclick="addSitemapRow()">+ Add URL</button>
-                                <button class="btn btn-success btn-sm w-100 fw-bold" onclick="saveFromForm('sitemap.xml')">UPDATE SITEMAP</button>
-                            </div>
-                        </div>
-
-                        <div class="col-md-4 mb-4">
-                            <div class="p-3 bg-dark bg-opacity-50 rounded border border-secondary border-opacity-25 h-100">
-                                <h6 class="text-warning small fw-bold mb-3 text-uppercase">MANIFEST (PWA)</h6>
-                                <div class="row g-2">
-                                    <div class="col-12 mb-2">
-                                        <label class="form-label small text-muted">Application Name</label>
-                                        <input type="text" id="f_manifest_name" class="form-control form-control-sm bg-dark border-secondary text-light">
-                                    </div>
-                                    <div class="col-6 mb-2">
-                                        <label class="form-label small text-muted">Short Name</label>
-                                        <input type="text" id="f_manifest_short" class="form-control form-control-sm bg-dark border-secondary text-light">
-                                    </div>
-                                    <div class="col-6 mb-2">
-                                        <label class="form-label small text-muted">Start URL</label>
-                                        <input type="text" id="f_manifest_start" class="form-control form-control-sm bg-dark border-secondary text-light">
-                                    </div>
-                                    <div class="col-6 mb-2">
-                                        <label class="form-label small text-muted">Theme Color</label>
-                                        <input type="color" id="f_manifest_theme" class="form-control form-control-color bg-dark border-secondary w-100">
-                                    </div>
-                                    <div class="col-6 mb-2">
-                                        <label class="form-label small text-muted">BG Color</label>
-                                        <input type="color" id="f_manifest_bg" class="form-control form-control-color bg-dark border-secondary w-100">
-                                    </div>
-                                    <div class="col-12 mb-2">
-                                        <label class="form-label small text-muted">Description</label>
-                                        <textarea id="f_manifest_desc" class="form-control form-control-sm bg-dark border-secondary text-light" rows="2"></textarea>
-                                    </div>
-                                </div>
-                                <button class="btn btn-warning btn-sm w-100 fw-bold mt-2" onclick="saveFromForm('manifest.json')">UPDATE MANIFEST</button>
-                            </div>
+                        <div class="col-6">
+                            <label class="form-label small text-theme-muted">Low Threshold</label>
+                            <input type="number" id="setup_low_stock" name="low_stock_threshold" autocomplete="off" class="form-control bg-dark border-secondary text-theme-main" value="5">
                         </div>
                     </div>
                 </div>
-
-                <!-- CODE VIEW -->
-                <div id="seo_code_view" style="display: none;">
-                    <div class="row">
-                        <div class="col-md-4 mb-4">
-                            <label class="form-label small fw-bold text-muted text-uppercase">ROBOTS.TXT</label>
-                            <textarea id="robots_content_raw" class="form-control bg-dark border-secondary text-info small mb-2 code-editor" rows="12">{{ tech_files.robots_txt }}</textarea>
-                            <button class="btn btn-outline-info btn-sm w-100 fw-bold" onclick="saveTechFile('robots.txt', 'robots_content_raw')">SAVE ROBOTS</button>
-                        </div>
-                        <div class="col-md-4 mb-4">
-                            <label class="form-label small fw-bold text-muted text-uppercase">SITEMAP.XML</label>
-                            <textarea id="sitemap_content_raw" class="form-control bg-dark border-secondary text-success small mb-2 code-editor" rows="12">{{ tech_files.sitemap_xml }}</textarea>
-                            <button class="btn btn-outline-success btn-sm w-100 fw-bold" onclick="saveTechFile('sitemap.xml', 'sitemap_content_raw')">SAVE SITEMAP</button>
-                        </div>
-                        <div class="col-md-4 mb-4">
-                            <label class="form-label small fw-bold text-muted text-uppercase">MANIFEST.JSON</label>
-                            <textarea id="manifest_content_raw" class="form-control bg-dark border-secondary text-warning small mb-2 code-editor" rows="12">{{ tech_files.manifest_json }}</textarea>
-                            <button class="btn btn-outline-warning btn-sm w-100 fw-bold" onclick="saveTechFile('manifest.json', 'manifest_content_raw')">SAVE MANIFEST</button>
-                        </div>
-                    </div>
+                <div class="modal-footer border-top border-secondary">
+                    <button type="submit" class="btn btn-warning btn-sm">CREATE MENU</button>
                 </div>
-            </div>
+            </form>
         </div>
     </div>
 </div>
+
 {% endblock %}
 
 {% block scripts %}
@@ -767,210 +419,5 @@
             form.submit();
         }
     }
-
-    function restartServer() {
-        if (!confirm("Restart engine?")) return;
-        fetch('/developer/server/restart', { method: 'POST' });
-    }
-
-    function setTheme(theme) {
-        if (typeof setGlobalThemeUI === 'function') setGlobalThemeUI(theme);
-        fetch('/update-theme', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ theme: theme }) });
-    }
-
-    function updateThemeButtons(theme) {
-        document.querySelectorAll('.theme-btn').forEach(btn => {
-            btn.classList.remove('active');
-            if (btn.getAttribute('data-theme') === theme) btn.classList.add('active');
-        });
-    }
-
-    function testSMTPSettings() {
-        const testEmail = document.getElementById('smtpTestEmail').value;
-        const statusDiv = document.getElementById('smtpTestStatus');
-        
-        if (!testEmail) {
-            alert("Please enter a recipient email for the test.");
-            return;
-        }
-
-        statusDiv.innerHTML = '<span class="text-info"><i class="bi bi-hourglass-split me-2 animate-spin"></i>Testing connection... please wait...</span>';
-        
-        const formData = new FormData();
-        formData.append('smtp_host', document.querySelector('input[name="smtp_host"]').value);
-        formData.append('smtp_port', document.querySelector('input[name="smtp_port"]').value);
-        formData.append('smtp_user', document.querySelector('input[name="smtp_user"]').value);
-        formData.append('smtp_password', document.querySelector('input[name="smtp_password"]').value);
-        formData.append('smtp_sender', document.querySelector('input[name="smtp_sender"]').value);
-        formData.append('smtp_use_tls', document.querySelector('input[name="smtp_use_tls"]').checked ? 'on' : 'off');
-        formData.append('smtp_use_ssl', document.querySelector('input[name="smtp_use_ssl"]').checked ? 'on' : 'off');
-        formData.append('test_email', testEmail);
-
-        fetch('/settings/smtp/test', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                statusDiv.innerHTML = `<span class="text-success"><i class="bi bi-check-circle-fill me-2"></i>${data.message}</span>`;
-            } else {
-                statusDiv.innerHTML = `<span class="text-danger"><i class="bi bi-x-circle-fill me-2"></i>${data.message}</span>`;
-            }
-        })
-        .catch(error => {
-            statusDiv.innerHTML = `<span class="text-danger"><i class="bi bi-exclamation-triangle-fill me-2"></i>Connection Error: ${error}</span>`;
-        });
-    }
-
-    // --- SEO LOGIC ---
-    function saveTechFile(filename, sourceId) {
-        const content = document.getElementById(sourceId).value;
-        const formData = new FormData();
-        formData.append('filename', filename);
-        formData.append('content', content);
-        fetch('/developer/file/update', { method: 'POST', body: formData })
-        .then(r => r.json()).then(data => alert(data.message));
-    }
-
-    function toggleSEOWorkspace() {
-        const formView = document.getElementById('seo_form_view');
-        const codeView = document.getElementById('seo_code_view');
-        const label = document.getElementById('viewLabel');
-        if (formView.style.display === 'none') {
-            formView.style.display = 'block'; codeView.style.display = 'none';
-            label.innerHTML = '<i class="bi bi-code-slash me-2"></i>Switch to Code View';
-            parseFilesToForms();
-        } else {
-            formView.style.display = 'none'; codeView.style.display = 'block';
-            label.innerHTML = '<i class="bi bi-ui-checks me-2"></i>Switch to Form View';
-        }
-    }
-
-    function addSitemapRow(loc = '', priority = '0.8') {
-        const container = document.getElementById('sitemap_entries');
-        const id = Date.now();
-        const row = document.createElement('div');
-        row.className = 'mb-2 p-2 bg-dark rounded border border-secondary border-opacity-25 sitemap-row';
-        row.id = `sm_row_${id}`;
-        row.innerHTML = `<div class="row g-2"><div class="col-8"><input type="text" class="form-control form-control-sm bg-dark border-secondary text-light sm-loc" value="${loc}"></div><div class="col-4 d-flex"><select class="form-select form-select-sm bg-dark border-secondary text-light sm-pri me-1"><option value="1.0" ${priority==='1.0'?'selected':''}>1.0</option><option value="0.8" ${priority==='0.8'?'selected':''}>0.8</option></select><button class="btn btn-outline-danger btn-sm p-1" onclick="document.getElementById('sm_row_${id}').remove()"><i class="bi bi-x"></i></button></div></div>`;
-        container.appendChild(row);
-    }
-
-    function parseFilesToForms() {
-        const robotsRaw = document.getElementById('robots_content').value;
-        const robotsLines = robotsRaw.split('\n');
-        let disallows = [];
-        robotsLines.forEach(line => {
-            if (line.startsWith('User-agent:')) document.getElementById('f_robots_agent').value = line.split(':')[1].trim();
-            if (line.startsWith('Disallow:')) disallows.push(line.split(':')[1].trim());
-            if (line.startsWith('Sitemap:')) document.getElementById('f_robots_sitemap').value = line.split('Sitemap:')[1].trim();
-        });
-        document.getElementById('f_robots_disallow').value = disallows.join('\n');
-
-        try {
-            const manifest = JSON.parse(document.getElementById('manifest_content').value || '{}');
-            document.getElementById('f_manifest_name').value = manifest.name || '';
-            document.getElementById('f_manifest_short').value = manifest.short_name || '';
-            document.getElementById('f_manifest_start').value = manifest.start_url || '';
-            document.getElementById('f_manifest_desc').value = manifest.description || '';
-            document.getElementById('f_manifest_theme').value = manifest.theme_color || '#252a37';
-            document.getElementById('f_manifest_bg').value = manifest.background_color || '#1e222d';
-        } catch(e) {}
-
-        const sitemapRaw = document.getElementById('sitemap_content').value;
-        const parser = new DOMParser();
-        const xmlDoc = parser.parseFromString(sitemapRaw, "text/xml");
-        const urls = xmlDoc.getElementsByTagName("url");
-        document.getElementById('sitemap_entries').innerHTML = '';
-        if (urls.length > 0) {
-            Array.from(urls).forEach(url => {
-                const loc = url.getElementsByTagName("loc")[0]?.textContent || '';
-                const pri = url.getElementsByTagName("priority")[0]?.textContent || '0.8';
-                addSitemapRow(loc.replace(/https?:\/\/[^\/]+/, ''), pri);
-            });
-        } else {
-            addSitemapRow('/', '1.0');
-        }
-    }
-
-    function saveFromForm(type) {
-        let content = '';
-        if (type === 'robots.txt') {
-            content = `User-agent: ${document.getElementById('f_robots_agent').value}\n`;
-            document.getElementById('f_robots_disallow').value.split('\n').forEach(d => { if(d.trim()) content += `Disallow: ${d.trim()}\n`; });
-            if (document.getElementById('f_robots_sitemap').value) content += `\nSitemap: ${document.getElementById('f_robots_sitemap').value}`;
-            document.getElementById('robots_content_raw').value = content;
-        } else if (type === 'manifest.json') {
-            const current = {
-                name: document.getElementById('f_manifest_name').value,
-                short_name: document.getElementById('f_manifest_short').value,
-                start_url: document.getElementById('f_manifest_start').value,
-                description: document.getElementById('f_manifest_desc').value,
-                theme_color: document.getElementById('f_manifest_theme').value,
-                background_color: document.getElementById('f_manifest_bg').value,
-                display: "standalone", orientation: "portrait"
-            };
-            content = JSON.stringify(current, null, 4);
-            document.getElementById('manifest_content_raw').value = content;
-        } else if (type === 'sitemap.xml') {
-            const rows = document.querySelectorAll('.sitemap-row');
-            content = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
-            rows.forEach(row => {
-                const loc = row.querySelector('.sm-loc').value.trim();
-                const pri = row.querySelector('.sm-pri').value;
-                if (loc) content += `    <url>\n        <loc>${window.location.origin}${loc.startsWith('/')?loc:'/'+loc}</loc>\n        <priority>${pri}</priority>\n    </url>\n`;
-            });
-            content += '</urlset>';
-            document.getElementById('sitemap_content_raw').value = content;
-        }
-        saveTechFile(type, type.replace('.', '_') + '_content_raw');
-    }
-
-    function sendDangerZoneCode() {
-        const btn = document.getElementById('dangerCodeBtn');
-        const status = document.getElementById('dangerCodeStatus');
-        const originalText = btn.innerHTML;
-        
-        btn.disabled = true;
-        btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> SENDING...';
-        status.innerHTML = '<span class="text-info">Requesting master authorization...</span>';
-
-        fetch('/admin/send-auth-code', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                status.innerHTML = `<span class="text-success fw-bold"><i class="bi bi-check-circle-fill me-1"></i> ${data.message}</span>`;
-                btn.innerHTML = 'SENT';
-                // Countdown to re-enable
-                let timer = 30;
-                const interval = setInterval(() => {
-                    timer--;
-                    if (timer <= 0) {
-                        btn.disabled = false;
-                        btn.innerHTML = '<i class="bi bi-envelope-check me-1"></i> SEND CODE';
-                        clearInterval(interval);
-                    }
-                }, 1000);
-            } else {
-                status.innerHTML = `<span class="text-danger fw-bold"><i class="bi bi-exclamation-triangle-fill me-1"></i> ${data.message}</span>`;
-                btn.disabled = false;
-                btn.innerHTML = originalText;
-            }
-        })
-        .catch(error => {
-            status.innerHTML = `<span class="text-danger">Network error.</span>`;
-            btn.disabled = false;
-            btn.innerHTML = originalText;
-        });
-    }
-
-    window.onload = () => {
-        parseFilesToForms();
-        updateThemeButtons("{{ session.get('theme', 'default') }}");
-    };
 </script>
 {% endblock %}

@@ -3,7 +3,6 @@
 {% block title %}Live System Debug{% endblock %}
 
 {% block extra_css %}
-<style>
     .terminal-window {
         background: #0d1117;
         border: 1px solid #30363d;
@@ -53,14 +52,13 @@
         50% { opacity: 0.4; }
         100% { opacity: 1; }
     }
-</style>
 {% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <h2 class="text-light mb-1"><i class="bi bi-activity me-3 text-success"></i>Live System Debug</h2>
-        <p class="text-muted small mb-0">Real-time application telemetry and kernel logs.</p>
+        <h2 class="text-theme-main mb-1"><i class="bi bi-activity me-3 text-success"></i>Live System Debug</h2>
+        <p class="text-theme-muted small mb-0">Real-time application telemetry and kernel logs.</p>
     </div>
     <div class="d-flex gap-3 align-items-center">
         <div class="status-pill">
@@ -76,11 +74,11 @@
 <div class="card bg-card border-secondary shadow-2xl overflow-hidden">
     <div class="card-header bg-dark bg-opacity-50 border-bottom border-secondary d-flex justify-content-between align-items-center p-3">
         <div class="d-flex gap-3 align-items-center">
-            <span class="small fw-bold text-uppercase text-muted"><i class="bi bi-terminal me-2"></i>Application Kernel Output</span>
+            <span class="small fw-bold text-uppercase text-theme-muted"><i class="bi bi-terminal me-2"></i>Application Kernel Output</span>
         </div>
         <div class="form-check form-switch mb-0">
             <input class="form-check-input" type="checkbox" id="autoScroll" checked>
-            <label class="form-check-label small text-muted" for="autoScroll">Auto-scroll to bottom</label>
+            <label class="form-check-label small text-theme-muted" for="autoScroll">Auto-scroll to bottom</label>
         </div>
     </div>
     <div class="card-body p-0">
@@ -92,10 +90,10 @@
     <div class="card-footer bg-dark bg-opacity-25 border-top border-secondary p-2 px-3">
         <div class="row align-items-center">
             <div class="col-md-6">
-                <span class="x-small text-muted"><i class="bi bi-info-circle me-1"></i> Logs are fetched every 2 seconds from <code>app.log</code></span>
+                <span class="x-small text-theme-muted"><i class="bi bi-info-circle me-1"></i> Logs are fetched every 2 seconds from <code>app.log</code></span>
             </div>
             <div class="col-md-6 text-end">
-                <span id="byteCount" class="x-small text-muted font-monospace">0 BYTES RECEIVED</span>
+                <span id="byteCount" class="x-small text-theme-muted font-monospace">0 BYTES RECEIVED</span>
             </div>
         </div>
     </div>
@@ -130,7 +128,7 @@
 
     function clearConsole() {
         if(confirm("Are you sure you want to clear the visual display? (Log file will remain on disk)")) {
-            document.getElementById('terminal').innerHTML = '<div class="text-muted small">Display cleared by user. Waiting for next kernel output...</div>';
+            document.getElementById('terminal').innerHTML = '<div class="text-theme-muted small">Display cleared by user. Waiting for next kernel output...</div>';
         }
     }
 

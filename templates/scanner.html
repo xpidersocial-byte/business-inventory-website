@@ -25,10 +25,10 @@
                 <div class="card-body p-4">
                     <form method="POST" action="{{ url_for('scanner') }}">
                         <div class="mb-4">
-                            <label class="text-white-40 small text-uppercase tracking-widest mb-2 d-block">Root Domain / URL</label>
+                            <label for="scanDomain" class="text-white-40 small text-uppercase tracking-widest mb-2 d-block">Root Domain / URL</label>
                             <div class="input-group">
                                 <span class="input-group-text bg-black-40 border-white-5 text-white-20"><i class="bi bi-globe"></i></span>
-                                <input type="text" name="domain" class="form-control bg-black-40 border-white-5 text-white placeholder-white-20" placeholder="e.g. cloudflare.com" required>
+                                <input id="scanDomain" type="text" name="domain" class="form-control bg-black-40 border-white-5 text-white placeholder-white-20" placeholder="e.g. cloudflare.com" required autocomplete="url">
                             </div>
                         </div>
                         <button type="submit" class="btn btn-purple w-100 py-3 text-uppercase fw-bold tracking-widest rounded-3 shadow-glow">

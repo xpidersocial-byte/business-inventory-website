@@ -3,7 +3,6 @@
 {% block title %}Sales Summary - Inventory Manager{% endblock %}
 
 {% block extra_css %}
-<style>
     :root {
         --soft-blue: #7c9df2;
         --soft-teal: #63e6be;
@@ -16,17 +15,16 @@
     .bg-gradient-primary { background: linear-gradient(135deg, #7c9df2 0%, #4d6ab3 100%); }
     .bg-gradient-success { background: linear-gradient(135deg, #82c91e 0%, #66a117 100%); }
     .bg-gradient-info { background: linear-gradient(135deg, #63e6be 0%, #4ab596 100%); color: #000 !important; }
-</style>
 {% endblock %}
 
 {% block content %}
 <div class="row mb-5">
     <div class="col-md-12 d-flex justify-content-between align-items-center mb-4">
-        <h2 class="text-light">Sales Analysis Summary ({{ now.year if now else 2026 }})</h2>
+        <h2 class="text-theme-main">Sales Analysis Summary ({{ now.year if now else 2026 }})</h2>
         <div class="btn-group shadow-sm">
-            <button onclick="window.location.href='{{ url_for('sales_summary', view='yearly') }}'" class="btn btn-outline-primary {{ 'active' if view_type == 'yearly' else '' }}">Yearly Overview</button>
-            <button onclick="window.location.href='{{ url_for('sales_summary', view='weekly') }}'" class="btn btn-outline-primary {{ 'active' if view_type == 'weekly' else '' }}">Weekly</button>
-            <button onclick="window.location.href='{{ url_for('sales_summary', view='daily') }}'" class="btn btn-outline-primary {{ 'active' if view_type == 'daily' else '' }}">Daily</button>
+            <button onclick="window.location.href='{{ url_for('sales.sales_summary', view='yearly') }}'" class="btn btn-outline-primary {{ 'active' if view_type == 'yearly' else '' }}">Yearly Overview</button>
+            <button onclick="window.location.href='{{ url_for('sales.sales_summary', view='weekly') }}'" class="btn btn-outline-primary {{ 'active' if view_type == 'weekly' else '' }}">Weekly</button>
+            <button onclick="window.location.href='{{ url_for('sales.sales_summary', view='daily') }}'" class="btn btn-outline-primary {{ 'active' if view_type == 'daily' else '' }}">Daily</button>
         </div>
     </div>
 
@@ -103,7 +101,7 @@
     <div class="col-md-12">
         <div class="card bg-dark bg-opacity-50 border-secondary shadow-lg">
             <div class="card-header bg-transparent border-bottom border-secondary p-4">
-                <h5 class="text-light mb-0">
+                <h5 class="text-theme-main mb-0">
                     <i class="bi bi-calendar3 me-2 text-info"></i>
                     {% if view_type == 'weekly' %}Weekly{% elif view_type == 'daily' %}Daily{% else %}Monthly{% endif %} Performance Breakdown
                 </h5>
@@ -124,7 +122,7 @@
                                 {% for i in range(weeks_labels|length) %}
                                 {% if weekly_revenue[i] > 0 %}
                                 <tr>
-                                    <td class="ps-4 fw-bold text-light">{{ weeks_labels[i] }}</td>
+                                    <td class="ps-4 fw-bold text-theme-main">{{ weeks_labels[i] }}</td>
                                     <td class="text-info fw-bold">₱{{ "{:,.2f}".format(weekly_revenue[i]) }}</td>
                                     <td class="text-success fw-bold">₱{{ "{:,.2f}".format(weekly_profit_values[i]) }}</td>
                                     <td class="text-end pe-4">
@@ -137,7 +135,7 @@
                                 {% for i in range(daily_labels|length) %}
                                 {% if daily_revenue[i] > 0 %}
                                 <tr>
-                                    <td class="ps-4 fw-bold text-light">{{ daily_labels[i] }}</td>
+                                    <td class="ps-4 fw-bold text-theme-main">{{ daily_labels[i] }}</td>
                                     <td class="text-info fw-bold">₱{{ "{:,.2f}".format(daily_revenue[i]) }}</td>
                                     <td class="text-success fw-bold">₱{{ "{:,.2f}".format(daily_profit_values[i]) }}</td>
                                     <td class="text-end pe-4">
@@ -150,7 +148,7 @@
                                 {% for i in range(months_labels|length) %}
                                 {% if revenue_values[i] > 0 or profit_values[i] > 0 %}
                                 <tr>
-                                    <td class="ps-4 fw-bold text-light">{{ months_labels[i]|upper }}</td>
+                                    <td class="ps-4 fw-bold text-theme-main">{{ months_labels[i]|upper }}</td>
                                     <td class="text-info fw-bold">₱{{ "{:,.2f}".format(revenue_values[i]) }}</td>
                                     <td class="text-success fw-bold">₱{{ "{:,.2f}".format(profit_values[i]) }}</td>
                                     <td class="text-end pe-4">
@@ -163,7 +161,7 @@
                             
                             {% if (view_type == 'weekly' and weekly_revenue|sum == 0) or (view_type == 'daily' and daily_revenue|sum == 0) or (view_type == 'yearly' and revenue_values|sum == 0) %}
                             <tr>
-                                <td colspan="4" class="text-center text-muted py-5">
+                                <td colspan="4" class="text-center text-theme-muted py-5">
                                     <i class="bi bi-info-circle me-2"></i> No sales data recorded for this period.
                                 </td>
                             </tr>

@@ -3,7 +3,6 @@
 {% block title %}Debugging AI{% endblock %}
 
 {% block extra_css %}
-<style>
     .ai-container {
         background: #0d1117;
         border: 1px solid #30363d;
@@ -54,14 +53,13 @@
         50% { opacity: 1; }
         100% { opacity: 0.5; }
     }
-</style>
 {% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
         <h4 class="mb-1 text-purple" style="color: #a855f7;"><i class="bi bi-robot me-2"></i>XPIDER Debugging AI <span class="badge bg-danger ms-2" style="font-size: 0.6rem; vertical-align: middle; animation: pulse 1.5s infinite;">BETA MODE</span></h4>
-        <p class="text-muted small mb-0">Automated system health audit and error root-cause analysis.</p>
+        <p class="text-theme-muted small mb-0">Automated system health audit and error root-cause analysis.</p>
         <div class="text-danger x-small mt-1 fw-bold"><i class="bi bi-exclamation-triangle-fill me-1"></i> BETA MODE: Do not run, data might break. Use with extreme caution.</div>
     </div>
     <div class="d-flex gap-2">
@@ -82,8 +80,8 @@
                 <i class="bi bi-activity text-white"></i>
             </div>
             <div>
-                <div class="fw-bold text-light">Neural Diagnostic Core</div>
-                <div id="aiStatus" class="small text-muted">Ready for system telemetry input...</div>
+                <div class="fw-bold text-theme-main">Neural Diagnostic Core</div>
+                <div id="aiStatus" class="small text-theme-muted">Ready for system telemetry input...</div>
             </div>
         </div>
     </div>
@@ -92,7 +90,7 @@
         <div class="text-center py-5">
             <i class="bi bi-shield-shaded display-1 opacity-10 mb-4"></i>
             <h5 class="opacity-50">Initiate a "System Audit" or "Deep Crawl" to analyze engine activity.</h5>
-            <p class="text-muted small">The AI will scan system logs, browser errors, and crawl internal routes.</p>
+            <p class="text-theme-muted small">The AI will scan system logs, browser errors, and crawl internal routes.</p>
         </div>
     </div>
 
@@ -100,19 +98,19 @@
         <div class="row g-2">
             <div class="col-md-4">
                 <div class="p-2 border border-secondary border-opacity-25 rounded bg-dark">
-                    <div class="x-small text-muted text-uppercase fw-bold mb-1">Knowledge Base</div>
+                    <div class="x-small text-theme-muted text-uppercase fw-bold mb-1">Knowledge Base</div>
                     <div class="small text-info">XPIDER Core v2.5.4</div>
                 </div>
             </div>
             <div class="col-md-4">
                 <div class="p-2 border border-secondary border-opacity-25 rounded bg-dark">
-                    <div class="x-small text-muted text-uppercase fw-bold mb-1">Context Window</div>
+                    <div class="x-small text-theme-muted text-uppercase fw-bold mb-1">Context Window</div>
                     <div class="small text-success">Latest 15 System Events</div>
                 </div>
             </div>
             <div class="col-md-4">
                 <div class="p-2 border border-secondary border-opacity-25 rounded bg-dark">
-                    <div class="x-small text-muted text-uppercase fw-bold mb-1">Analysis Mode</div>
+                    <div class="x-small text-theme-muted text-uppercase fw-bold mb-1">Analysis Mode</div>
                     <div class="small text-warning">Real-time Root Cause</div>
                 </div>
             </div>
@@ -131,7 +129,7 @@
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>AUDITING...';
         status.innerHTML = '<span class="text-purple pulsing">Scanning system logs and telemetry...</span>';
-        responseDiv.innerHTML = '<div class="text-center mt-5"><div class="spinner-grow text-purple mb-3" style="width: 3rem; height: 3rem; background: #a855f7;"></div><p class="text-muted">Synthesizing log data...</p></div>';
+        responseDiv.innerHTML = '<div class="text-center mt-5"><div class="spinner-grow text-purple mb-3" style="width: 3rem; height: 3rem; background: #a855f7;"></div><p class="text-theme-muted">Synthesizing log data...</p></div>';
         scanLine.style.display = 'block';
         
         let pos = 0;
@@ -175,7 +173,7 @@
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>CRAWLING...';
         status.innerHTML = '<span class="text-warning pulsing">Crawling internal routes for dead links...</span>';
-        responseDiv.innerHTML = '<div class="text-center mt-5"><div class="spinner-grow text-warning mb-3" style="width: 3rem; height: 3rem;"></div><p class="text-muted">Probing site structure...</p></div>';
+        responseDiv.innerHTML = '<div class="text-center mt-5"><div class="spinner-grow text-warning mb-3" style="width: 3rem; height: 3rem;"></div><p class="text-theme-muted">Probing site structure...</p></div>';
         
         fetch('/debugging-ai/scan', { method: 'POST' })
             .then(r => r.json())
@@ -199,8 +197,8 @@
                                 <div class="card-body p-2 d-flex justify-content-between align-items-center">
                                     <div>
                                         <span class="badge bg-danger me-2">${link.status}</span>
-                                        <span class="text-light font-monospace small">${link.url}</span>
-                                        <div class="text-muted x-small ms-1">${link.error}</div>
+                                        <span class="text-theme-main font-monospace small">${link.url}</span>
+                                        <div class="text-theme-muted x-small ms-1">${link.error}</div>
                                     </div>
                                     <button class="btn btn-sm btn-outline-info" onclick="fixError('${link.url}', '${link.error}')">
                                         <i class="bi bi-magic me-1"></i>AI FIX
@@ -212,14 +210,14 @@
                         html += '<div class="alert alert-success"><i class="bi bi-check-circle me-2"></i>No broken links found. Site is healthy.</div>';
                     }
 
-                    html += `<h6 class="text-muted mt-4 mb-2">Crawl Log</h6>
+                    html += `<h6 class="text-theme-muted mt-4 mb-2">Crawl Log</h6>
                     <div class="bg-dark p-2 rounded border border-secondary border-opacity-25" style="max-height: 300px; overflow-y: auto;">`;
                     results.scan_log.forEach(log => {
                         let color = log.status >= 400 ? 'text-danger' : (log.status >= 300 ? 'text-warning' : 'text-success');
                         html += `<div class="d-flex justify-content-between small font-monospace border-bottom border-secondary border-opacity-10 py-1">
                             <span class="${color} fw-bold w-25">[${log.status}]</span>
-                            <span class="text-light opacity-75 w-50 text-truncate">${log.url}</span>
-                            <span class="text-muted w-25 text-end">${log.latency}</span>
+                            <span class="text-theme-main opacity-75 w-50 text-truncate">${log.url}</span>
+                            <span class="text-theme-muted w-25 text-end">${log.latency}</span>
                         </div>`;
                     });
                     html += '</div>';

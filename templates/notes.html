@@ -3,12 +3,11 @@
 {% block title %}Bulletin Board{% endblock %}
 
 {% block extra_css %}
-<style>
     .board-header { margin-bottom: 2rem; }
     .note-card {
-        background: rgba(37, 42, 55, 0.6);
+        background: rgba(37, 42, 55, 0.85); /* Slightly more opaque for better contrast */
         backdrop-filter: blur(10px);
-        border: 1px solid rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 12px;
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         height: 100%;
@@ -16,7 +15,7 @@
         flex-direction: column;
         position: relative;
     }
-    .note-card:hover { transform: translateY(-3px); border-color: var(--primary-soft); background: rgba(37, 42, 55, 0.8); }
+    .note-card:hover { transform: translateY(-3px); border-color: var(--primary-soft); background: rgba(37, 42, 55, 0.95); }
     .note-pinned { border-top: 3px solid #ffd43b !important; box-shadow: 0 10px 30px rgba(255, 212, 59, 0.1); }
     
     .done-sidebar {
@@ -55,11 +54,14 @@
     .tag-normal { background: #7c9df2; color: white; }
     .tag-pending { background: #ffd43b; color: #000; }
 
-    .note-body { padding: 1.25rem; flex-grow: 1; font-size: 0.95rem; color: #e0e0e0; line-height: 1.6; }
+    /* Forcing light text for dark note cards regardless of theme */
+    .note-body { padding: 1.25rem; flex-grow: 1; font-size: 0.95rem; color: #f8fafc !important; line-height: 1.6; }
+    .note-text { color: #f8fafc !important; }
+    
     .note-footer {
         padding: 0.75rem 1.25rem;
-        background: rgba(0, 0, 0, 0.1);
-        border-top: 1px solid rgba(255, 255, 255, 0.03);
+        background: rgba(0, 0, 0, 0.2);
+        border-top: 1px solid rgba(255, 255, 255, 0.05);
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -71,15 +73,14 @@
     .dot-yellow { background-color: #ffd43b; }
     .dot-red { background-color: #ff6b6b; }
     .dot-purple { background-color: #a855f7; }
-</style>
 {% endblock %}
 
 {% block content %}
 <div class="row board-header">
     <div class="col-md-12 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
         <div>
-            <h2 class="text-light mb-1">Bulletin Board</h2>
-            <p class="text-muted small mb-0">Official announcements and collaborative task tracking</p>
+            <h2 class="text-theme-main mb-1">Bulletin Board</h2>
+            <p class="text-theme-muted small mb-0">Official announcements and collaborative task tracking</p>
         </div>
         <div class="d-flex gap-3">
             <button class="btn btn-primary px-4 shadow-sm" data-bs-toggle="modal" data-bs-target="#addNoteModal">
@@ -106,10 +107,10 @@
                                 <span class="color-dot dot-{{ note.color or 'blue' }}"></span>
                             </div>
                             <div class="dropdown">
-                                <button class="btn btn-link text-muted p-0" data-bs-toggle="dropdown">
+                                <button class="btn btn-link text-white opacity-50 p-0" data-bs-toggle="dropdown">
                                     <i class="bi bi-three-dots-vertical"></i>
                                 </button>
-                                <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark bg-card border-secondary shadow">
+                                <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark bg-dark border-secondary shadow">
                                     <li><button class="dropdown-item" onclick="toggleStatus('{{ note._id }}')">
                                         <i class="bi bi-check-circle me-2"></i> Mark as Done
                                     </button></li>
@@ -130,16 +131,16 @@
                                 </ul>
                             </div>
                         </div>
-                        <div class="note-text text-light">{{ note.content }}</div>
+                        <div class="note-text">{{ note.content }}</div>
                     </div>
                     <div class="note-footer">
                         <div class="d-flex align-items-center">
                             <div class="user-avatar-sm me-2 bg-primary bg-opacity-25 text-primary rounded-circle d-flex align-items-center justify-content-center fw-bold small" style="width:24px; height:24px; font-size:0.7rem;">
                                 {{ note.author[0]|upper }}
                             </div>
-                            <div class="text-muted" style="font-size: 0.7rem;">{{ note.author.split('@')[0] }}</div>
+                            <div class="text-white opacity-75" style="font-size: 0.7rem;">{{ note.author.split('@')[0] }}</div>
                         </div>
-                        <div class="text-muted small" style="font-size: 0.65rem;">{{ note.timestamp.split(' ')[0] }}</div>
+                        <div class="text-white opacity-50 small" style="font-size: 0.65rem;">{{ note.timestamp.split(' ')[0] }}</div>
                     </div>
                 </div>
             </div>
@@ -158,7 +159,7 @@
     <!-- Sidebar: Done Items -->
     <div class="col-lg-3">
         <div class="done-sidebar">
-            <h6 class="text-muted text-uppercase fw-bold small mb-4 d-flex justify-content-between">
+            <h6 class="text-theme-muted text-uppercase fw-bold small mb-4 d-flex justify-content-between">
                 <span>Completed</span>
                 <i class="bi bi-archive"></i>
             </h6>
@@ -172,12 +173,12 @@
                     <span class="countdown-timer" data-done-at="{{ note.done_at }}">
                         <i class="bi bi-clock-history"></i> ...
                     </span>
-                    <button class="btn btn-link p-0 text-muted" onclick="toggleStatus('{{ note._id }}')">
+                    <button class="btn btn-link p-0 text-theme-muted" onclick="toggleStatus('{{ note._id }}')">
                         <i class="bi bi-arrow-counterclockwise"></i>
                     </button>
                 </div>
                 <div class="note-text mb-2">{{ note.content }}</div>
-                <div class="text-muted" style="font-size: 0.65rem;">
+                <div class="text-theme-muted" style="font-size: 0.65rem;">
                     <div><i class="bi bi-person me-1"></i>Author: {{ note.author.split('@')[0] }}</div>
                     <div class="text-success"><i class="bi bi-check-all me-1"></i>Done by: {{ note.done_by.split('@')[0] if note.done_by else 'Unknown' }}</div>
                 </div>
@@ -196,24 +197,24 @@
                 <h5 class="modal-title fw-bold">Post to Bulletin</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <form action="{{ url_for('add_bulletin') }}" method="POST">
+            <form action="{{ url_for('bulletin.add_bulletin') }}" method="POST">
                 <div class="modal-body p-4">
                     <div class="mb-3">
-                        <label class="form-label small text-muted text-uppercase fw-bold">Content</label>
-                        <textarea name="content" class="form-control bg-dark border-secondary text-light p-3" rows="4" required></textarea>
+                        <label for="addContent" class="form-label small text-theme-muted text-uppercase fw-bold">Content</label>
+                        <textarea id="addContent" name="content" class="form-control bg-dark border-secondary text-white p-3" rows="4" required></textarea>
                     </div>
                     <div class="row">
                         <div class="col-6">
-                            <label class="form-label small text-muted text-uppercase fw-bold">Tag</label>
-                            <select name="tag" class="form-select bg-dark border-secondary text-light">
+                            <label for="addTag" class="form-label small text-theme-muted text-uppercase fw-bold">Tag</label>
+                            <select id="addTag" name="tag" class="form-select bg-dark border-secondary text-white">
                                 <option value="Normal">Normal</option>
                                 <option value="Urgent">Urgent</option>
                                 <option value="Pending">Pending</option>
                             </select>
                         </div>
                         <div class="col-6">
-                            <label class="form-label small text-muted text-uppercase fw-bold">Color Theme</label>
-                            <select name="color" class="form-select bg-dark border-secondary text-light">
+                            <label for="addColor" class="form-label small text-theme-muted text-uppercase fw-bold">Color Theme</label>
+                            <select id="addColor" name="color" class="form-select bg-dark border-secondary text-white">
                                 <option value="blue">Blue</option>
                                 <option value="red">Red</option>
                                 <option value="green">Green</option>
@@ -242,21 +243,21 @@
             <form id="editNoteForm" method="POST">
                 <div class="modal-body p-4">
                     <div class="mb-3">
-                        <label class="form-label small text-muted text-uppercase fw-bold">Content</label>
-                        <textarea name="content" id="editContent" class="form-control bg-dark border-secondary text-light p-3" rows="4" required></textarea>
+                        <label for="addContent" class="form-label small text-theme-muted text-uppercase fw-bold">Content</label>
+                        <textarea name="content" id="editContent" class="form-control bg-dark border-secondary text-white p-3" rows="4" required></textarea>
                     </div>
                     <div class="row">
                         <div class="col-6">
-                            <label class="form-label small text-muted text-uppercase fw-bold">Tag</label>
-                            <select name="tag" id="editTag" class="form-select bg-dark border-secondary text-light">
+                            <label for="addTag" class="form-label small text-theme-muted text-uppercase fw-bold">Tag</label>
+                            <select name="tag" id="editTag" class="form-select bg-dark border-secondary text-white">
                                 <option value="Normal">Normal</option>
                                 <option value="Urgent">Urgent</option>
                                 <option value="Pending">Pending</option>
                             </select>
                         </div>
                         <div class="col-6">
-                            <label class="form-label small text-muted text-uppercase fw-bold">Color Theme</label>
-                            <select name="color" id="editColor" class="form-select bg-dark border-secondary text-light">
+                            <label for="addColor" class="form-label small text-theme-muted text-uppercase fw-bold">Color Theme</label>
+                            <select name="color" id="editColor" class="form-select bg-dark border-secondary text-white">
                                 <option value="blue">Blue</option>
                                 <option value="red">Red</option>
                                 <option value="green">Green</option>
@@ -267,7 +268,7 @@
                     </div>
                 </div>
                 <div class="modal-footer border-0 p-4 pt-0">
-                    <button type="submit" class="btn btn-info px-4 fw-bold text-white">Save Changes</button>
+                    <button type="submit" class="btn btn-info px-4 fw-bold text-dark">Save Changes</button>
                 </div>
             </form>
         </div>
@@ -322,7 +323,7 @@
                 timer.innerHTML = '<i class="bi bi-trash"></i> Expiring...';
             } else {
                 const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-                const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const hours = Math.floor((diff % (1000 * 60 * 60));
                 timer.innerHTML = `<i class="bi bi-clock-history"></i> ${days}d ${hours}h left`;
             }
         });

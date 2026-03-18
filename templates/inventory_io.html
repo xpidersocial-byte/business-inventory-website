@@ -1,89 +1,199 @@
 {% extends "base.html" %}
 
-{% block title %}Restock - Inventory Manager{% endblock %}
+{% block title %}Restock Log - XPIDER Inventory{% endblock %}
+
+{% block extra_css %}
+<style>
+    .sortable { cursor: pointer; position: relative; }
+    .sortable:hover { background: rgba(255,255,255,0.05) !important; }
+    .sort-icon { font-size: 0.7rem; margin-left: 5px; opacity: 0.3; }
+    .sort-active .sort-icon { opacity: 1; color: var(--primary-soft); }
+    .search-container { max-width: 400px; }
+</style>
+{% endblock %}
 
 {% block content %}
 <div class="row">
-    <div class="col-md-12 d-flex justify-content-between align-items-center mb-4">
-        <h2 class="text-light">Restock Log</h2>
-        <div class="d-flex gap-3">
+    <div class="col-md-12 d-flex flex-column flex-md-row justify-content-between align-items-center mb-4 gap-3">
+        <div>
+            <h2 class="text-theme-main fw-bold mb-0">Restock Log</h2>
+            <p class="text-theme-muted small mb-0">History of items added to your master inventory</p>
+        </div>
+        
+        <div class="d-flex gap-2 w-100 w-md-auto">
+            <div class="position-relative flex-grow-1 search-container">
+                <i class="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-theme-muted"></i>
+                <!-- Removed bg-dark for theme adaptability -->
+                <input type="text" id="restockSearch" class="form-control text-theme-main border-theme-soft ps-5" placeholder="Search restocks..." onkeyup="filterRestocks()">
+            </div>
             {% if session.get('role') != 'owner' %}
-            <button class="btn btn-success shadow-sm" data-bs-toggle="modal" data-bs-target="#stockInModal">
-                <i class="bi bi-box-arrow-in-down me-2"></i>Record Stock IN
+            <button class="btn btn-success shadow-sm d-flex align-items-center gap-2 px-4 py-2" data-bs-toggle="modal" data-bs-target="#stockInModal">
+                <i class="bi bi-plus-circle-fill"></i> <span class="fw-bold">Add Restock Items</span>
             </button>
             {% endif %}
         </div>
     </div>
 
     <div class="col-md-12">
-        <div class="card shadow-lg p-0">
+        <div class="card bg-theme-card border-theme-soft shadow-lg p-0 rounded-4 overflow-hidden">
             <div class="table-responsive">
-                <table class="table table-dark table-hover align-middle border-secondary mb-0">
-                    <thead class="text-info border-bottom border-info bg-black">
-                        <tr>
-                            <th>Timestamp</th>
-                            <th>Item Name</th>
-                            <th>Movement</th>
-                            <th>Quantity</th>
-                            <th>Operator</th>
+                <table class="table table-dark table-hover align-middle border-secondary mb-0" id="restockTable">
+                    <thead class="text-theme-main border-bottom border-theme-soft bg-black bg-opacity-50">
+                        <tr class="small text-uppercase ls-1">
+                            <th class="ps-4 py-3 sortable" onclick="sortTable(0, 'date')">Timestamp <i class="bi bi-arrow-down-up sort-icon"></i></th>
+                            <th class="sortable" onclick="sortTable(1, 'text')">Item Name <i class="bi bi-arrow-down-up sort-icon"></i></th>
+                            <th class="sortable" onclick="sortTable(2, 'text')">Activity <i class="bi bi-arrow-down-up sort-icon"></i></th>
+                            <th class="sortable" onclick="sortTable(3, 'int')">Quality Added <i class="bi bi-arrow-down-up sort-icon"></i></th>
+                            <th class="sortable" onclick="sortTable(4, 'int')">Stock Balance <i class="bi bi-arrow-down-up sort-icon"></i></th>
+                            <th class="sortable" onclick="sortTable(5, 'text')">Operator <i class="bi bi-arrow-down-up sort-icon"></i></th>
+                            <th class="text-end pe-4">Status</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="restockTableBody">
                         {% for log in logs %}
-                        <tr>
-                            <td class="text-muted small">{{ log.timestamp|format_datetime }}</td>
-                            <td class="fw-bold">{{ log.item_name }}</td>
+                        <tr class="restock-row">
+                            <td class="ps-4 text-theme-muted small" data-sort="{{ log.timestamp }}">{{ log.timestamp|format_datetime }}</td>
+                            <td class="fw-bold text-theme-main">{{ log.item_name }}</td>
                             <td>
-                                <span class="badge {% if log.type == 'IN' %}bg-success{% else %}bg-warning text-dark{% endif %} px-3 rounded-pill">
-                                    {{ log.type }}
+                                <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-3 rounded-pill">
+                                    <i class="bi bi-plus-lg me-1"></i> RESTOCK
                                 </span>
                             </td>
-                            <td class="fw-bold">{{ log.qty }}</td>
-                            <td>{{ log.user }}</td>
+                            <td class="fw-bold text-success" data-sort="{{ log.qty }}">
+                                +{{ log.qty }} Items
+                            </td>
+                            <td class="fw-bold text-info">
+                                {{ log.new_stock if log.new_stock is defined else '0' }}
+                            </td>
+                            <td>
+                                <span class="small text-theme-muted">
+                                    <i class="bi bi-person-circle me-1"></i> {{ log.user if log.user else 'System' }}
+                                </span>
+                            </td>
+                            <td class="text-end pe-4">
+                                <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-3 rounded-pill small">
+                                    VERIFIED
+                                </span>
+                            </td>
                         </tr>
                         {% endfor %}
-                        {% if logs|length == 0 %}
-                        <tr>
-                            <td colspan="5" class="text-center text-muted py-5 fs-6">No inventory movements recorded yet.</td>
-                        </tr>
-                        {% endif %}
                     </tbody>
                 </table>
+                <div id="noResults" class="text-center text-theme-muted py-5 d-none">
+                    <i class="bi bi-search fs-1 d-block mb-3 opacity-25"></i>
+                    No matches found for your search.
+                </div>
+                {% if not logs %}
+                <div class="text-center text-theme-muted py-5 fs-6 italic">
+                    <i class="bi bi-inbox fs-1 d-block mb-3 opacity-25"></i>
+                    No restock records found. Use the button above to add stock.
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>
 </div>
 
-<!-- Modal: Stock IN -->
-<div class="modal fade" id="stockInModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content bg-dark border-secondary">
-            <div class="modal-header border-secondary">
-                <h5 class="modal-title text-success">Stock Intake - Increment Inventory</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <form action="{{ url_for('stock_in') }}" method="POST">
+<!-- Modal: Stock IN ... -->
+<div class="modal fade" id="stockInModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form action="{{ url_for('inventory.stock_in') }}" method="POST">
+            <div class="modal-content bg-theme-card border-theme-soft shadow-lg rounded-4">
+                <div class="modal-header border-bottom border-theme-soft p-4">
+                    <h5 class="modal-title text-success fw-bold d-flex align-items-center">
+                        <i class="bi bi-plus-circle-fill me-2"></i> Add Restock Items
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
                 <div class="modal-body p-4">
-                    <div class="mb-3">
-                        <label class="form-label">Select Item</label>
-                        <select name="item_id" class="form-select bg-black text-light border-secondary" required>
+                    <div class="mb-4">
+                        <label class="form-label text-theme-muted small text-uppercase fw-bold ls-1">Select Item to Restock</label>
+                        <!-- Removed bg-dark -->
+                        <select name="item_id" class="form-select text-theme-main p-3" required>
                             <option value="" disabled selected>Choose product...</option>
                             {% for item in items %}
                             <option value="{{ item._id }}">{{ item.name }} (Available: {{ item.stock }})</option>
                             {% endfor %}
                         </select>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Quantity to Add</label>
-                        <input type="number" name="qty" class="form-control bg-black text-light border-secondary" min="1" required>
+                    <div class="mb-2">
+                        <label class="form-label text-theme-muted small text-uppercase fw-bold ls-1">Quality Added (Qty)</label>
+                        <!-- Removed bg-dark -->
+                        <input type="number" name="qty" class="form-control text-theme-main p-3" min="1" placeholder="Enter quantity to add" required>
+                    </div>
+                    <div class="p-3 bg-success bg-opacity-10 border border-success border-opacity-25 rounded-3 mt-4">
+                        <div class="d-flex align-items-start gap-2">
+                            <i class="bi bi-check-circle-fill text-success mt-1"></i>
+                            <p class="text-success small mb-0">Confirming this will increase your inventory stock quality and reflect the investment on the dashboard.</p>
+                        </div>
                     </div>
                 </div>
-                <div class="modal-footer border-secondary">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-success px-4">Record Stock IN</button>
+                <div class="modal-footer border-top border-theme-soft p-4">
+                    <button type="button" class="btn btn-link text-theme-muted text-decoration-none" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success px-4 py-2 rounded-3 fw-bold">Add to Inventory</button>
                 </div>
-            </form>
-        </div>
+            </div>
+        </form>
     </div>
 </div>
+
+<script>
+    function filterRestocks() {
+        const input = document.getElementById('restockSearch');
+        const filter = input.value.toLowerCase();
+        const rows = document.querySelectorAll('.restock-row');
+        let visibleCount = 0;
+
+        rows.forEach(row => {
+            const text = row.innerText.toLowerCase();
+            if (text.includes(filter)) {
+                row.classList.remove('d-none');
+                visibleCount++;
+            } else {
+                row.classList.add('d-none');
+            }
+        });
+
+        document.getElementById('noResults').classList.toggle('d-none', visibleCount > 0);
+    }
+
+    let currentSort = { col: -1, asc: true };
+    function sortTable(n, type) {
+        const table = document.getElementById("restockTable");
+        const rows = Array.from(table.querySelectorAll(".restock-row"));
+        const headers = table.querySelectorAll("th");
+        
+        headers.forEach(h => h.classList.remove('sort-active'));
+        headers[n].classList.add('sort-active');
+
+        if (currentSort.col === n) currentSort.asc = !currentSort.asc;
+        else { currentSort.col = n; currentSort.asc = true; }
+
+        const sortedRows = rows.sort((a, b) => {
+            let x = a.getElementsByTagName("td")[n];
+            let y = b.getElementsByTagName("td")[n];
+            
+            let v1 = x.getAttribute('data-sort') || x.innerText;
+            let v2 = y.getAttribute('data-sort') || y.innerText;
+
+            if (type === 'float' || type === 'int') {
+                v1 = parseFloat(v1.replace(/[^\d.-]/g, '')) || 0;
+                v2 = parseFloat(v2.replace(/[^\d.-]/g, '')) || 0;
+            } else if (type === 'date') {
+                v1 = new Date(v1);
+                v2 = new Date(v2);
+            } else {
+                v1 = v1.toLowerCase();
+                v2 = v2.toLowerCase();
+            }
+
+            if (v1 < v2) return currentSort.asc ? -1 : 1;
+            if (v1 > v2) return currentSort.asc ? 1 : -1;
+            return 0;
+        });
+
+        const tbody = document.getElementById("restockTableBody");
+        sortedRows.forEach(row => tbody.appendChild(row));
+    }
+</script>
 {% endblock %}

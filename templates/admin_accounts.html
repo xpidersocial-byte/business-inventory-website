@@ -5,8 +5,8 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <h2 class="text-light mb-1"><i class="bi bi-people-fill me-2 text-info"></i>User Accounts</h2>
-        <p class="text-muted small mb-0">Manage system access, create cashier accounts, and control permissions.</p>
+        <h2 class="text-theme-main mb-1"><i class="bi bi-people-fill me-2 text-info"></i>User Accounts</h2>
+        <p class="text-theme-muted small mb-0">Manage system access, create cashier accounts, and control permissions.</p>
     </div>
     <button type="button" class="btn btn-success fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#addUserModal">
         <i class="bi bi-person-plus-fill me-2"></i>CREATE NEW ACCOUNT
@@ -20,42 +20,42 @@
                 <span class="small fw-bold text-uppercase text-info"><i class="bi bi-shield-lock-fill me-2"></i>Cashier Access Control (Permissions)</span>
             </div>
             <div class="card-body p-4">
-                <form action="{{ url_for('update_permissions') }}" method="POST">
-                    <p class="text-muted small mb-4">Toggle the switches below to control what <strong>Cashier</strong> accounts can see and access. Owners always have full access.</p>
+                <form action="{{ url_for('admin.update_permissions') }}" method="POST">
+                    <p class="text-theme-muted small mb-4">Toggle the switches below to control what <strong>Cashier</strong> accounts can see and access. Owners always have full access.</p>
                     
                     <div class="row g-4">
                         <!-- Main Menus -->
                         <div class="col-md-4">
-                            <h6 class="text-light small fw-bold text-uppercase border-bottom border-secondary pb-2 mb-3">Main Navigation</h6>
+                            <h6 class="text-theme-main small fw-bold text-uppercase border-bottom border-secondary pb-2 mb-3">Main Navigation</h6>
                             <div class="form-check form-switch mb-2">
                                 <input class="form-check-input" type="checkbox" name="dashboard" id="p_dash" {{ 'checked' if perms.dashboard }}>
-                                <label class="form-check-label small text-muted" for="p_dash">Dashboard</label>
+                                <label class="form-check-label small text-theme-muted" for="p_dash">Dashboard</label>
                             </div>
                             <div class="form-check form-switch mb-2">
                                 <input class="form-check-input" type="checkbox" name="items_master" id="p_items" {{ 'checked' if perms.items_master }}>
-                                <label class="form-check-label small text-muted" for="p_items">Items Master</label>
+                                <label class="form-check-label small text-theme-muted" for="p_items">Items Master</label>
                             </div>
                             <div class="form-check form-switch mb-2">
                                 <input class="form-check-input" type="checkbox" name="sales_ledger" id="p_ledger" {{ 'checked' if perms.sales_ledger }}>
-                                <label class="form-check-label small text-muted" for="p_ledger">Sales Ledger</label>
+                                <label class="form-check-label small text-theme-muted" for="p_ledger">Sales Ledger</label>
                             </div>
                             <div class="form-check form-switch mb-2">
                                 <input class="form-check-input" type="checkbox" name="sales_summary" id="p_summary" {{ 'checked' if perms.sales_summary }}>
-                                <label class="form-check-label small text-muted" for="p_summary">Sales Summary</label>
+                                <label class="form-check-label small text-theme-muted" for="p_summary">Sales Summary</label>
                             </div>
                             <div class="form-check form-switch mb-2">
                                 <input class="form-check-input" type="checkbox" name="restock" id="p_io" {{ 'checked' if perms.restock }}>
-                                <label class="form-check-label small text-muted" for="p_io">Restock</label>
+                                <label class="form-check-label small text-theme-muted" for="p_io">Restock</label>
                             </div>
                             <div class="form-check form-switch">
                                 <input class="form-check-input" type="checkbox" name="bulletin_board" id="p_bulletin" {{ 'checked' if perms.bulletin_board }}>
-                                <label class="form-check-label small text-muted" for="p_bulletin">Bulletin Board</label>
+                                <label class="form-check-label small text-theme-muted" for="p_bulletin">Bulletin Board</label>
                             </div>
                         </div>
 
                         <!-- Settings Groups -->
                         <div class="col-md-4">
-                            <h6 class="text-light small fw-bold text-uppercase border-bottom border-secondary pb-2 mb-3">System Groups</h6>
+                            <h6 class="text-theme-main small fw-bold text-uppercase border-bottom border-secondary pb-2 mb-3">System Groups</h6>
                             <div class="form-check form-switch mb-2">
                                 <input class="form-check-input" type="checkbox" name="developer_portal" id="p_dev" {{ 'checked' if perms.developer_portal }}>
                                 <label class="form-check-label small text-warning" for="p_dev">Developer Portal</label>
@@ -70,56 +70,56 @@
                             </div>
                             <div class="form-check form-switch mb-2">
                                 <input class="form-check-input" type="checkbox" name="admin_accounts" id="p_acc" {{ 'checked' if perms.admin_accounts }}>
-                                <label class="form-check-label small text-muted" for="p_acc">User Accounts Management</label>
+                                <label class="form-check-label small text-theme-muted" for="p_acc">User Accounts Management</label>
                             </div>
                             <div class="form-check form-switch mb-2">
                                 <input class="form-check-input" type="checkbox" name="general_setup" id="p_setup" {{ 'checked' if perms.general_setup }}>
-                                <label class="form-check-label small text-muted" for="p_setup">General Setup Page</label>
+                                <label class="form-check-label small text-theme-muted" for="p_setup">General Setup Page</label>
                             </div>
                             <div class="form-check form-switch">
                                 <input class="form-check-input" type="checkbox" name="system_logs" id="p_logs" {{ 'checked' if perms.system_logs }}>
-                                <label class="form-check-label small text-muted" for="p_logs">System Audit Logs</label>
+                                <label class="form-check-label small text-theme-muted" for="p_logs">System Audit Logs</label>
                             </div>
                         </div>
 
                         <!-- General Setup Tabs -->
                         <div class="col-md-4">
-                            <h6 class="text-light small fw-bold text-uppercase border-bottom border-secondary pb-2 mb-3">General Setup Sections</h6>
+                            <h6 class="text-theme-main small fw-bold text-uppercase border-bottom border-secondary pb-2 mb-3">General Setup Sections</h6>
                             <div class="form-check form-switch mb-2">
                                 <input class="form-check-input" type="checkbox" name="setup_identity" id="ps_id" {{ 'checked' if perms.setup_identity }}>
-                                <label class="form-check-label x-small text-muted" for="ps_id">Identity (Business Name/Logo)</label>
+                                <label class="form-check-label x-small text-theme-muted" for="ps_id">Identity (Business Name/Logo)</label>
                             </div>
                             <div class="form-check form-switch mb-2">
                                 <input class="form-check-input" type="checkbox" name="setup_localization" id="ps_loc" {{ 'checked' if perms.setup_localization }}>
-                                <label class="form-check-label x-small text-muted" for="ps_loc">Localization (Timezone/Formats)</label>
+                                <label class="form-check-label x-small text-theme-muted" for="ps_loc">Localization (Timezone/Formats)</label>
                             </div>
                             <div class="form-check form-switch mb-2">
                                 <input class="form-check-input" type="checkbox" name="setup_logic" id="ps_log" {{ 'checked' if perms.setup_logic }}>
-                                <label class="form-check-label x-small text-muted" for="ps_log">System Logic (Maintenance/Threshold)</label>
+                                <label class="form-check-label x-small text-theme-muted" for="ps_log">System Logic (Maintenance/Threshold)</label>
                             </div>
                             <div class="form-check form-switch mb-2">
                                 <input class="form-check-input" type="checkbox" name="setup_notifications" id="ps_notif" {{ 'checked' if perms.setup_notifications }}>
-                                <label class="form-check-label x-small text-muted" for="ps_notif">Notification Alerts (Email Toggles)</label>
+                                <label class="form-check-label x-small text-theme-muted" for="ps_notif">Notification Alerts (Email Toggles)</label>
                             </div>
                             <div class="form-check form-switch mb-2">
                                 <input class="form-check-input" type="checkbox" name="setup_smtp" id="ps_smtp" {{ 'checked' if perms.setup_smtp }}>
-                                <label class="form-check-label x-small text-muted" for="ps_smtp">SMTP Settings (Server Config)</label>
+                                <label class="form-check-label x-small text-theme-muted" for="ps_smtp">SMTP Settings (Server Config)</label>
                             </div>
                             <div class="form-check form-switch mb-2">
                                 <input class="form-check-input" type="checkbox" name="setup_categories" id="ps_cat" {{ 'checked' if perms.setup_categories }}>
-                                <label class="form-check-label x-small text-muted" for="ps_cat">Categories Management</label>
+                                <label class="form-check-label x-small text-theme-muted" for="ps_cat">Categories Management</label>
                             </div>
                             <div class="form-check form-switch mb-2">
                                 <input class="form-check-input" type="checkbox" name="setup_themes" id="ps_theme" {{ 'checked' if perms.setup_themes }}>
-                                <label class="form-check-label x-small text-muted" for="ps_theme">Personalized Themes</label>
+                                <label class="form-check-label x-small text-theme-muted" for="ps_theme">Personalized Themes</label>
                             </div>
                             <div class="form-check form-switch mb-2">
                                 <input class="form-check-input" type="checkbox" name="setup_assets" id="ps_ast" {{ 'checked' if perms.setup_assets }}>
-                                <label class="form-check-label x-small text-muted" for="ps_ast">Asset Management (Favicon/BG)</label>
+                                <label class="form-check-label x-small text-theme-muted" for="ps_ast">Asset Management (Favicon/BG)</label>
                             </div>
                             <div class="form-check form-switch mb-2">
                                 <input class="form-check-input" type="checkbox" name="setup_backup" id="ps_bak" {{ 'checked' if perms.setup_backup }}>
-                                <label class="form-check-label x-small text-muted" for="ps_bak">System Backup & Recovery</label>
+                                <label class="form-check-label x-small text-theme-muted" for="ps_bak">System Backup & Recovery</label>
                             </div>
                             <div class="form-check form-switch">
                                 <input class="form-check-input" type="checkbox" name="setup_danger_zone" id="ps_dang" {{ 'checked' if perms.setup_danger_zone }}>
@@ -147,7 +147,7 @@
                 <div class="table-responsive">
                     <table class="table table-dark table-hover align-middle mb-0">
                         <thead class="bg-black bg-opacity-25">
-                            <tr class="text-muted small text-uppercase">
+                            <tr class="text-theme-muted small text-uppercase">
                                 <th class="ps-4">User Identity</th>
                                 <th>Access Level</th>
                                 <th>Account Status</th>
@@ -163,8 +163,8 @@
                                             {{ user.email[0]|upper }}
                                         </div>
                                         <div>
-                                            <div class="fw-bold text-light">{{ user.email }}</div>
-                                            <div class="text-muted x-small">ID: {{ user._id }}</div>
+                                            <div class="fw-bold text-theme-main">{{ user.email }}</div>
+                                            <div class="text-theme-muted x-small">ID: {{ user._id }}</div>
                                         </div>
                                     </div>
                                 </td>
@@ -188,7 +188,7 @@
                                         <i class="bi bi-trash3-fill me-1"></i> REVOKE
                                     </button>
                                     {% else %}
-                                    <span class="badge bg-dark border border-secondary text-muted px-3">PROTECTED</span>
+                                    <span class="badge bg-dark border border-secondary text-theme-muted px-3">PROTECTED</span>
                                     {% endif %}
                                 </td>
                             </tr>
@@ -206,34 +206,34 @@
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content bg-card border-secondary shadow-lg" style="border-radius: 16px;">
             <div class="modal-header border-bottom border-secondary p-4">
-                <h5 class="modal-title text-light fw-bold"><i class="bi bi-person-plus me-2 text-success"></i>Create System Account</h5>
+                <h5 class="modal-title text-theme-main fw-bold"><i class="bi bi-person-plus me-2 text-success"></i>Create System Account</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <form action="{{ url_for('add_user') }}" method="POST">
+            <form action="{{ url_for('admin.add_user') }}" method="POST">
                 <div class="modal-body p-4">
                     <div class="mb-4">
-                        <label class="form-label small text-muted text-uppercase fw-bold">Email Address</label>
+                        <label for="addUserEmail" class="form-label small text-theme-muted text-uppercase fw-bold">Email Address</label>
                         <div class="input-group">
-                            <span class="input-group-text bg-dark border-secondary text-muted"><i class="bi bi-envelope"></i></span>
-                            <input type="email" name="email" class="form-control bg-dark border-secondary text-light" placeholder="user@business.com" required>
+                            <span class="input-group-text bg-dark border-secondary text-theme-muted"><i class="bi bi-envelope"></i></span>
+                            <input type="email" id="addUserEmail" name="email" class="form-control bg-dark border-secondary text-theme-main" placeholder="user@business.com" required autocomplete="email">
                         </div>
                     </div>
                     <div class="mb-4">
-                        <label class="form-label small text-muted text-uppercase fw-bold">Secure Password</label>
+                        <label for="newPass" class="form-label small text-theme-muted text-uppercase fw-bold">Secure Password</label>
                         <div class="input-group">
-                            <span class="input-group-text bg-dark border-secondary text-muted"><i class="bi bi-shield-lock"></i></span>
-                            <input type="password" name="password" id="newPass" class="form-control bg-dark border-secondary text-light" placeholder="Min 8 characters" required>
+                            <span class="input-group-text bg-dark border-secondary text-theme-muted"><i class="bi bi-shield-lock"></i></span>
+                            <input type="password" name="password" id="newPass" autocomplete="new-password" class="form-control bg-dark border-secondary text-theme-main" placeholder="Min 8 characters" required>
                             <button class="btn btn-outline-secondary border-secondary" type="button" onclick="togglePass('newPass')"><i class="bi bi-eye"></i></button>
                         </div>
                     </div>
                     <div class="mb-2">
-                        <label class="form-label small text-muted text-uppercase fw-bold">Access Role</label>
-                        <select name="role" class="form-select bg-dark border-secondary text-light">
+                        <label for="addUserRole" class="form-label small text-theme-muted text-uppercase fw-bold">Access Role</label>
+                        <select id="addUserRole" name="role" class="form-select bg-dark border-secondary text-theme-main" autocomplete="off">
                             <option value="cashier" selected>Cashier (Standard Access)</option>
                             <option value="owner">Owner (Full Admin Access)</option>
                         </select>
                     </div>
-                    <div class="mt-2 x-small text-muted italic">
+                    <div class="mt-2 x-small text-theme-muted italic">
                         <i class="bi bi-info-circle me-1"></i> Cashiers can record sales and manage inventory but have restricted access to system logic.
                     </div>
                 </div>
@@ -250,22 +250,22 @@
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content bg-card border-secondary shadow-lg" style="border-radius: 16px;">
             <div class="modal-header border-bottom border-secondary p-4">
-                <h5 class="modal-title text-light fw-bold"><i class="bi bi-pencil-square me-2 text-info"></i>Edit System Account</h5>
+                <h5 class="modal-title text-theme-main fw-bold"><i class="bi bi-pencil-square me-2 text-info"></i>Edit System Account</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <form id="editUserForm" method="POST">
                 <div class="modal-body p-4">
                     <div class="mb-4">
-                        <label class="form-label small text-muted text-uppercase fw-bold">Email Address</label>
-                        <input type="email" name="email" id="editEmail" class="form-control bg-dark border-secondary text-light" required>
+                        <label for="addUserEmail" class="form-label small text-theme-muted text-uppercase fw-bold">Email Address</label>
+                        <input type="email" name="email" id="editEmail" autocomplete="email" class="form-control bg-dark border-secondary text-theme-main" required>
                     </div>
                     <div class="mb-4">
-                        <label class="form-label small text-muted text-uppercase fw-bold">Update Password</label>
-                        <input type="password" name="password" id="editPass" class="form-control bg-dark border-secondary text-light" placeholder="Leave blank to keep current">
+                        <label for="editPass" class="form-label small text-theme-muted text-uppercase fw-bold">Update Password</label>
+                        <input type="password" name="password" id="editPass" autocomplete="new-password" class="form-control bg-dark border-secondary text-theme-main" placeholder="Leave blank to keep current">
                     </div>
                     <div class="mb-4">
-                        <label class="form-label small text-muted text-uppercase fw-bold">Access Role</label>
-                        <select name="role" id="editRole" class="form-select bg-dark border-secondary text-light" onchange="toggleSecurityField(this.value)">
+                        <label for="addUserRole" class="form-label small text-theme-muted text-uppercase fw-bold">Access Role</label>
+                        <select name="role" id="editRole" autocomplete="off" class="form-select bg-dark border-secondary text-theme-main" onchange="toggleSecurityField(this.value)">
                             <option value="cashier">Cashier</option>
                             <option value="owner">Owner</option>
                         </select>
@@ -275,17 +275,17 @@
                     <div id="securityVerification" style="display: none;">
                         <hr class="border-secondary border-opacity-25 my-4">
                         <div class="p-3 rounded bg-danger bg-opacity-10 border border-danger border-opacity-25">
-                            <label class="form-label small text-danger text-uppercase fw-bold"><i class="bi bi-shield-lock-fill me-2"></i>Security Authorization Code</label>
+                            <label for="verificationCodeInput" class="form-label small text-danger text-uppercase fw-bold"><i class="bi bi-shield-lock-fill me-2"></i>Security Authorization Code</label>
                             
                             <div class="input-group mb-2">
-                                <input type="text" name="verification_code" id="verificationCodeInput" class="form-control border-danger bg-dark text-light" placeholder="Enter 6-digit code">
+                                <input type="text" name="verification_code" id="verificationCodeInput" autocomplete="one-time-code" class="form-control border-danger bg-dark text-theme-main" placeholder="Enter 6-digit code">
                                 <button class="btn btn-danger fw-bold" type="button" id="sendCodeBtn" onclick="sendAuthCode()">
                                     <i class="bi bi-envelope-check me-1"></i> SEND CODE
                                 </button>
                             </div>
                             
-                            <div id="codeStatus" class="x-small text-muted mb-2"></div>
-                            <div class="x-small text-muted mt-2">Required when modifying an Owner account or granting Owner permissions. Code will be sent to the master administrator email (bejasadhev@gmail.com).</div>
+                            <div id="codeStatus" class="x-small text-theme-muted mb-2"></div>
+                            <div class="x-small text-theme-muted mt-2">Required when modifying an Owner account or granting Owner permissions. Code will be sent to the master administrator email (bejasadhev@gmail.com).</div>
                         </div>
                     </div>
                 </div>

@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en" data-bs-theme="dark">
+<html lang="en" data-theme="{{ g.theme or 'default' }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Inventory Manager</title>
+    <title>Login - {{ site_config.business_name }}</title>
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
@@ -12,12 +12,30 @@
     <meta name="theme-color" content="#252a37">
     <style>
         :root {
-            --bg-body: #1e222d;
-            --bg-card: rgba(37, 42, 55, 0.85); /* Translucent */
-            --text-main: #ffffff;
-            --border-soft: rgba(255, 255, 255, 0.1);
-            --primary-soft: #7c9df2;
+            --sidebar-width: 280px;
+            --primary-gradient: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%);
+            --glass-bg: rgba(255, 255, 255, 0.03);
+            --card-bg: #1e293b;
+            --sidebar-bg: #0f172a;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --primary-soft: #60a5fa;
+            --border-soft: rgba(255, 255, 255, 0.05);
         }
+
+        [data-theme="light"] {
+            --sidebar-bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --glass-bg: rgba(0, 0, 0, 0.02);
+            --primary-soft: #3b82f6;
+            --border-soft: rgba(0, 0, 0, 0.05);
+        }
+
+        /* Essential themes for login visibility */
+        [data-theme="oled"] { --sidebar-bg: #000; --card-bg: #000; --text-main: #fff; --text-muted: #888; --border-soft: #333; }
+
         body { 
             background: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url("{{ url_for('static', filename=site_config.login_background) }}");
             background-size: cover;
@@ -28,12 +46,13 @@
             align-items: center;
             justify-content: center;
             color: var(--text-main);
-            font-family: 'Segoe UI', sans-serif;
+            background-color: var(--sidebar-bg);
+            font-family: 'Plus Jakarta Sans', sans-serif;
             margin: 0;
         }
         .login-container { width: 92%; max-width: 420px; padding: 10px; }
         .card { 
-            background-color: var(--bg-card); 
+            background-color: var(--card-bg); 
             backdrop-filter: blur(12px); 
             border: 1px solid var(--border-soft);
             border-radius: 20px;
@@ -45,19 +64,20 @@
             h2 { font-size: 1.5rem; }
         }
         .form-control {
-            background-color: rgba(0, 0, 0, 0.3);
+            background-color: rgba(0, 0, 0, 0.1);
             border: 1px solid var(--border-soft);
-            color: white !important;
+            color: var(--text-main) !important;
             padding: 12px;
             border-radius: 10px;
         }
         .form-control:focus {
-            background-color: rgba(0, 0, 0, 0.5);
+            background-color: rgba(0, 0, 0, 0.2);
             border-color: var(--primary-soft);
+            color: var(--text-main) !important;
             box-shadow: none;
         }
         .btn-primary {
-            background-color: var(--primary-soft);
+            background: var(--primary-gradient);
             border: none;
             padding: 12px;
             font-weight: 600;
@@ -66,21 +86,21 @@
         }
         .btn-primary:hover {
             transform: translateY(-2px);
-            background-color: #5d82e8;
+            opacity: 0.9;
         }
-        .x-small { font-size: 0.7rem; }
-        .social-links a:hover { opacity: 1 !important; transform: scale(1.1); transition: all 0.2s; }
+        .text-theme-main { color: var(--text-main) !important; }
+        .text-theme-muted { color: var(--text-muted) !important; }
     </style>
 </head>
 <body>
 
     <div class="login-container">
         <div class="card border-0">
-            <div class="card-body p-5">
+            <div class="card-body">
                 <div class="text-center mb-4">
                     <i class="bi {{ site_config.business_icon or 'bi-box-seam' }} text-primary mb-3" style="font-size: 3rem;"></i>
-                    <h2 class="fw-bold text-white mb-1">{{ site_config.business_name }}</h2>
-                    <p class="text-light opacity-75 small">Sign in to your secure portal</p>
+                    <h2 class="fw-bold text-theme-main mb-1">{{ site_config.business_name }}</h2>
+                    <p class="text-theme-muted small">Sign in to your secure portal</p>
                 </div>
                 
                 {% with messages = get_flashed_messages(with_categories=true) %}
@@ -93,13 +113,13 @@
 
                 <form action="/login" method="POST">
                     <div class="mb-3">
-                        <label for="email" class="form-label small fw-bold">Email Address</label>
-                        <input type="email" name="email" class="form-control" id="email" placeholder="name@example.com" required>
+                        <label for="email" class="form-label small fw-bold text-theme-main">Email Address</label>
+                        <input type="email" name="email" class="form-control" id="email" placeholder="name@example.com" required autocomplete="username">
                     </div>
                     <div class="mb-4">
-                        <label for="password" class="form-label small fw-bold">Password</label>
+                        <label for="password" class="form-label small fw-bold text-theme-main">Password</label>
                         <div class="input-group">
-                            <input type="password" name="password" class="form-control" id="password" placeholder="Enter password" required>
+                            <input type="password" name="password" class="form-control" id="password" placeholder="Enter password" required autocomplete="current-password">
                             <button class="btn btn-outline-secondary border-soft" type="button" id="togglePassword" style="border-left: none;">
                                 <i class="bi bi-eye-slash" id="eyeIcon"></i>
                             </button>
@@ -111,20 +131,20 @@
                 </form>
 
                 <div class="mt-4 text-center">
-                    <p class="text-muted mb-0" style="font-size: 0.75rem;">{{ site_config.footer_text }}</p>
+                    <p class="text-theme-muted mb-0" style="font-size: 0.75rem;">{{ site_config.footer_text }}</p>
                 </div>
                 {% if site_config.contact_address or site_config.contact_phone or site_config.contact_email or site_config.social_facebook or site_config.social_twitter or site_config.social_instagram %}
                 <div class="mt-4 pt-4 border-top border-secondary border-opacity-25">
                     {% if site_config.contact_address %}
-                    <p class="x-small text-muted text-center mb-3"><i class="bi bi-geo-alt-fill me-1"></i>{{ site_config.contact_address }}</p>
+                    <p class="small text-theme-muted text-center mb-3"><i class="bi bi-geo-alt-fill me-1"></i>{{ site_config.contact_address }}</p>
                     {% endif %}
                     
                     <div class="d-flex justify-content-center gap-3 mb-3">
                         {% if site_config.contact_phone %}
-                        <a href="tel:{{ site_config.contact_phone }}" class="text-muted small text-decoration-none" title="Call Us"><i class="bi bi-telephone-fill"></i></a>
+                        <a href="tel:{{ site_config.contact_phone }}" class="text-theme-muted small text-decoration-none" title="Call Us"><i class="bi bi-telephone-fill"></i></a>
                         {% endif %}
                         {% if site_config.contact_email %}
-                        <a href="mailto:{{ site_config.contact_email }}" class="text-muted small text-decoration-none" title="Email Us"><i class="bi bi-envelope-fill"></i></a>
+                        <a href="mailto:{{ site_config.contact_email }}" class="text-theme-muted small text-decoration-none" title="Email Us"><i class="bi bi-envelope-fill"></i></a>
                         {% endif %}
                     </div>
 
@@ -153,25 +173,11 @@
         const eyeIcon = document.querySelector('#eyeIcon');
 
         togglePassword.addEventListener('click', function (e) {
-            // toggle the type attribute
             const type = password.getAttribute('type') === 'password' ? 'text' : 'password';
             password.setAttribute('type', type);
-            // toggle the eye icon
             eyeIcon.classList.toggle('bi-eye');
             eyeIcon.classList.toggle('bi-eye-slash');
         });
-
-        // PWA Service Worker Registration
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register("/sw.js?v=2.5")
-                    .then(reg => {
-                        console.log('Service Worker Registered');
-                        reg.update();
-                    })
-                    .catch(err => console.log('Service Worker Failed', err));
-            });
-        }
     </script>
 </body>
 </html>

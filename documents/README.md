@@ -5,20 +5,6 @@ A high-performance, real-time inventory management system and POS ledger built w
 ## 🚀 Overview
 The **fbihm team Inventory Engine** is designed for modern businesses that require more than just a spreadsheet. It features real-time telemetry, a self-healing backend architecture, and a highly granular permission system.
 
-## 💎 Project Valuation
-Based on technical complexity, feature set, and market demand, this software asset is valued as follows:
-
-
-
-### **Why is it worth this much?**
-1.  **Dynamic Permission Matrix:** Owners can toggle visibility for every single menu and setup tab for Cashiers. This level of granular control is a "Premium" feature in commercial SaaS.
-2.  **Self-Healing Architecture:** Includes a background watchdog daemon that monitors system health and auto-restarts the engine upon failure, ensuring 24/7 uptime.
-3.  **Real-Time Sync:** Built on WebSockets (Socket.io) for live user tracking and instant system notifications.
-4.  **Advanced Audit Trail:** Every action is logged with proxy-aware IP address tracking, providing high-level accountability.
-5.  **Smart Data Logic:** CSV restoration logic that auto-detects categories, cleans currency symbols (₱), and handles complex data types automatically.
-6.  **Aesthetic Branding:** A custom CSS engine with 16+ high-contrast themes (Cyberpunk, Neon, OLED) and full white-label branding (Logo/Name) via General Setup.
-7.  **Proactive Notifications:** Integrated Web Push (VAPID) and SMTP Email alerting for critical stock movements and low-inventory triggers.
-
 ---
 
 ## 🗺️ Website Structure & Functions
@@ -90,4 +76,4 @@ ROOT (/)
 Refer to [DOCUMENTATION.md](DOCUMENTATION.md) for full server setup and deployment instructions.
 
 ---
-*Created and Maintained by fbihm team*
+*Created and Maintained by fbihm team | v2.5.1 Stable Core*

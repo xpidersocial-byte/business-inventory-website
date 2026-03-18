@@ -3,7 +3,6 @@
 {% block title %}Developer Portal{% endblock %}
 
 {% block extra_css %}
-<style>
     .status-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 8px; background-color: #3fb950; box-shadow: 0 0 8px #3fb950; }
     .dev-card { border-radius: 12px; transition: all 0.3s ease; border: 1px solid rgba(255,255,255,0.05); }
     .dev-card:hover { border-color: var(--primary-soft); transform: translateY(-2px); }
@@ -18,54 +17,69 @@
         background: linear-gradient(135deg, rgba(37, 42, 55, 0.8) 0%, rgba(20, 24, 33, 0.9) 100%);
         border: 1px solid rgba(255,255,255,0.05);
     }
-</style>
 {% endblock %}
 
 {% block content %}
 <!-- Header & Global Status -->
 <div class="row mb-4 align-items-end">
     <div class="col-md-8">
-        <h2 class="text-light mb-1"><i class="bi bi-cpu-fill me-3 text-info"></i>Core Kernel Controller</h2>
-        <p class="text-muted small mb-0">Hardware telemetry and low-level system orchestration</p>
+        <h2 class="text-theme-main mb-1"><i class="bi bi-cpu-fill me-3 text-info"></i>Core Kernel Controller</h2>
+        <p class="text-theme-muted small mb-0">Hardware telemetry and low-level system orchestration</p>
     </div>
     <div class="col-md-4 text-md-end mt-3 mt-md-0">
         <div class="d-inline-flex align-items-center bg-dark p-2 px-3 rounded-pill border border-secondary border-opacity-25 shadow-sm">
             <span class="status-dot"></span>
             <span class="small fw-bold text-success me-3">KERNEL ONLINE</span>
-            <span class="text-muted small border-start border-secondary ps-3">v2.4.0-stable</span>
+            <span class="text-theme-muted small border-start border-secondary ps-3">v2.4.0-stable</span>
         </div>
     </div>
 </div>
 
 <!-- Primary Navigation & Quick Actions -->
 <div class="row mb-4 g-3">
-    <div class="col-md-4">
-        <a href="{{ url_for('live_debug') }}" class="card dev-card quick-link-card text-decoration-none h-100">
+    <div class="col-md-3">
+        <a href="{{ url_for('developer.live_debug') }}" class="card dev-card quick-link-card text-decoration-none h-100">
             <div class="card-body p-3 d-flex align-items-center">
                 <div class="bg-primary bg-opacity-10 p-3 rounded-3 me-3">
                     <i class="bi bi-terminal-fill text-primary fs-4"></i>
                 </div>
                 <div>
-                    <h6 class="text-light mb-0">Live Debug</h6>
-                    <small class="text-muted x-small">Kernel stream & logs</small>
+                    <h6 class="text-theme-main mb-0">Live Debug</h6>
+                    <small class="text-theme-muted x-small">Kernel stream & logs</small>
                 </div>
             </div>
         </a>
     </div>
-    <div class="col-md-4">
-        <a href="{{ url_for('developer_backup') }}" class="card dev-card quick-link-card text-decoration-none h-100">
+    <div class="col-md-3">
+        <a href="{{ url_for('developer.developer_backup') }}" class="card dev-card quick-link-card text-decoration-none h-100">
             <div class="card-body p-3 d-flex align-items-center">
                 <div class="bg-success bg-opacity-10 p-3 rounded-3 me-3">
                     <i class="bi bi-cloud-download-fill text-success fs-4"></i>
                 </div>
                 <div>
-                    <h6 class="text-light mb-0">Export JSON</h6>
-                    <small class="text-muted x-small">Complete DB dump</small>
+                    <h6 class="text-theme-main mb-0">Export JSON</h6>
+                    <small class="text-theme-muted x-small">Complete DB dump</small>
                 </div>
             </div>
         </a>
     </div>
-    <div class="col-md-4">
+    <div class="col-md-3">
+        <div class="card dev-card quick-link-card h-100">
+            <div class="card-body p-3 d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center">
+                    <div class="bg-warning bg-opacity-10 p-3 rounded-3 me-3">
+                        <i class="bi bi-database-fill-add text-warning fs-4"></i>
+                    </div>
+                    <div>
+                        <h6 class="text-theme-main mb-0">Seed Data</h6>
+                        <small class="text-theme-muted x-small">Inject test records</small>
+                    </div>
+                </div>
+                <button onclick="seedTestData(this)" class="btn btn-sm btn-outline-warning control-btn">SEED</button>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
         <div class="card dev-card quick-link-card h-100">
             <div class="card-body p-3 d-flex align-items-center justify-content-between">
                 <div class="d-flex align-items-center">
@@ -73,8 +87,8 @@
                         <i class="bi bi-power text-danger fs-4"></i>
                     </div>
                     <div>
-                        <h6 class="text-light mb-0">Reboot</h6>
-                        <small class="text-muted x-small">Soft restart</small>
+                        <h6 class="text-theme-main mb-0">Reboot</h6>
+                        <small class="text-theme-muted x-small">Soft restart</small>
                     </div>
                 </div>
                 <button onclick="toggleDebug()" class="btn btn-sm btn-outline-danger control-btn">RESTART</button>
@@ -91,7 +105,7 @@
             <div class="col-md-4">
                 <div class="card bg-card border-secondary shadow-sm p-3">
                     <div class="d-flex justify-content-between align-items-center mb-2">
-                        <span class="small fw-bold text-muted text-uppercase">CPU Load</span>
+                        <span class="small fw-bold text-theme-muted text-uppercase">CPU Load</span>
                         <span id="cpuVal" class="text-info fw-bold">0%</span>
                     </div>
                     <div class="progress bg-dark bg-opacity-50" style="height: 6px;">
@@ -102,7 +116,7 @@
             <div class="col-md-4">
                 <div class="card bg-card border-secondary shadow-sm p-3">
                     <div class="d-flex justify-content-between align-items-center mb-2">
-                        <span class="small fw-bold text-muted text-uppercase">RAM Usage</span>
+                        <span class="small fw-bold text-theme-muted text-uppercase">RAM Usage</span>
                         <span id="ramVal" class="text-primary fw-bold">0%</span>
                     </div>
                     <div class="progress bg-dark bg-opacity-50" style="height: 6px;">
@@ -113,7 +127,7 @@
             <div class="col-md-4">
                 <div class="card bg-card border-secondary shadow-sm p-3">
                     <div class="d-flex justify-content-between align-items-center mb-2">
-                        <span class="small fw-bold text-muted text-uppercase">Storage</span>
+                        <span class="small fw-bold text-theme-muted text-uppercase">Storage</span>
                         <span id="diskFree" class="text-success fw-bold">0GB</span>
                     </div>
                     <div class="progress bg-dark bg-opacity-50" style="height: 6px;">
@@ -127,14 +141,14 @@
         <div class="card bg-card border-secondary shadow-lg">
             <div class="card-header bg-transparent border-bottom border-secondary p-3 d-flex justify-content-between align-items-center">
                 <span class="small fw-bold text-uppercase opacity-75"><i class="bi bi-journal-code me-2 text-warning"></i>Project Changelog</span>
-                <span class="badge bg-dark text-muted">{{ dev_updates|length }} entries</span>
+                <span class="badge bg-dark text-theme-muted">{{ dev_updates|length }} entries</span>
             </div>
             <div class="card-body p-0">
                 <div class="p-4 border-bottom border-secondary border-opacity-25 bg-black bg-opacity-10">
-                    <form action="{{ url_for('add_dev_update') }}" method="POST">
+                    <form action="{{ url_for('developer.add_dev_update') }}" method="POST">
                         <div class="row g-2">
                             <div class="col-md-3">
-                                <select name="tag" class="form-select bg-dark border-secondary text-warning small">
+                                <label for="devTag" class="visually-hidden">Update Tag</label><select id="devTag" name="tag" class="form-select bg-dark border-secondary text-warning small" autocomplete="off">
                                     <option value="UPDATE">UPDATE</option>
                                     <option value="FEATURE">FEATURE</option>
                                     <option value="BUG">BUG</option>
@@ -142,7 +156,7 @@
                                 </select>
                             </div>
                             <div class="col-md-7">
-                                <input type="text" name="content" class="form-control bg-dark border-secondary text-light" placeholder="Synchronize system changes..." required>
+                                <label for="devContent" class="visually-hidden">Update Content</label><input id="devContent" type="text" name="content" class="form-control bg-dark border-secondary text-theme-main" placeholder="Synchronize system changes..." required autocomplete="off">
                             </div>
                             <div class="col-md-2">
                                 <button class="btn btn-warning w-100 control-btn py-2" type="submit">POST</button>
@@ -164,11 +178,11 @@
                                         {{ update.tag }}
                                     </span>
                                     <div>
-                                        <p class="text-light small mb-1">{{ update.content }}</p>
-                                        <div class="text-muted x-small"><i class="bi bi-clock me-1"></i>{{ update.timestamp|format_datetime }}</div>
+                                        <p class="text-theme-main small mb-1">{{ update.content }}</p>
+                                        <div class="text-theme-muted x-small"><i class="bi bi-clock me-1"></i>{{ update.timestamp|format_datetime }}</div>
                                     </div>
                                 </div>
-                                <button onclick="deleteUpdate('{{ update._id }}')" class="btn btn-link text-muted btn-sm p-0 hover-danger">
+                                <button onclick="deleteUpdate('{{ update._id }}')" class="btn btn-link text-theme-muted btn-sm p-0 hover-danger">
                                     <i class="bi bi-trash"></i>
                                 </button>
                             </div>
@@ -188,7 +202,7 @@
                 <h6 class="text-warning mb-3 small fw-bold text-uppercase"><i class="bi bi-shield-shaded me-2"></i>Self-Healing Engine</h6>
                 <div class="p-3 rounded-3 bg-dark bg-opacity-50 border border-secondary border-opacity-25 mb-3">
                     <div class="d-flex justify-content-between align-items-center mb-3">
-                        <span class="small text-muted">Watchdog Protocol</span>
+                        <span class="small text-theme-muted">Watchdog Protocol</span>
                         <span class="badge bg-{% if watchdog_active %}success{% else %}danger{% endif %} rounded-pill">
                             {% if watchdog_active %}ACTIVE{% else %}INACTIVE{% endif %}
                         </span>
@@ -202,7 +216,7 @@
                     </div>
                 </div>
                 <div class="d-flex justify-content-between align-items-center">
-                    <span class="small text-muted">Debug Environment</span>
+                    <span class="small text-theme-muted">Debug Environment</span>
                     <div class="form-check form-switch">
                         <input class="form-check-input" type="checkbox" role="switch" id="debugSwitch" {% if flask_debug %}checked{% endif %} onchange="toggleDebug()">
                     </div>
@@ -218,7 +232,7 @@
             </div>
             <div class="card-body p-0">
                 <div id="online_users_list" class="list-group list-group-flush bg-transparent overflow-auto" style="max-height: 200px;">
-                    <div class="text-muted small p-4 text-center">Awaiting data...</div>
+                    <div class="text-theme-muted small p-4 text-center">Awaiting data...</div>
                 </div>
             </div>
         </div>
@@ -242,7 +256,7 @@
                 <div class="row g-2">
                     {% for lang, percent in lang_stats.items() %}
                     <div class="col-6">
-                        <div class="x-small text-muted d-flex align-items-center">
+                        <div class="x-small text-theme-muted d-flex align-items-center">
                             <span class="lang-dot 
                                 {% if lang == 'Python' %}bg-primary
                                 {% elif lang == 'HTML/Jinja' %}bg-success
@@ -261,6 +275,32 @@
 
 {% block scripts %}
 <script>
+    function seedTestData(btn) {
+        if (!confirm('This will WIPE all existing inventory and sales data and replace it with 50+ test items. Continue?')) return;
+        
+        const originalText = btn.innerText;
+        btn.disabled = true;
+        btn.innerText = 'SEEDING...';
+
+        fetch('/developer/seed-data', { method: 'POST' })
+            .then(r => {
+                if (!r.ok) throw new Error('HTTP status ' + r.status);
+                return r.json();
+            })
+            .then(data => {
+                alert(data.message);
+                if (data.success) window.location.reload();
+            })
+            .catch(err => {
+                alert('Error seeding data: ' + err);
+                console.error(err);
+            })
+            .finally(() => {
+                btn.disabled = false;
+                btn.innerText = originalText;
+            });
+    }
+
     function controlWatchdog(action) {
         if (!confirm(`${action === 'start' ? 'Initialize' : 'Terminate'} core watchdog protocol?`)) return;
         fetch(`/developer/watchdog/${action}`, { method: 'POST' })
@@ -282,13 +322,13 @@
             document.getElementById('online_count').innerText = data.count;
             const list = document.getElementById('online_users_list');
             list.innerHTML = '';
-            if (data.users.length === 0) { list.innerHTML = '<div class="text-muted small py-4 text-center">No active connections</div>'; return; }
+            if (data.users.length === 0) { list.innerHTML = '<div class="text-theme-muted small py-4 text-center">No active connections</div>'; return; }
             data.users.forEach(user => {
                 const item = document.createElement('div');
                 item.className = 'list-group-item bg-transparent border-secondary border-opacity-10 px-4 py-3';
                 item.innerHTML = `<div class="d-flex justify-content-between align-items-center">
-                    <div><div class="text-light small fw-bold">${user.email}</div><div class="text-muted x-small">${user.since}</div></div>
-                    <span class="badge bg-dark border border-secondary text-muted x-small">${user.role}</span>
+                    <div><div class="text-theme-main small fw-bold">${user.email}</div><div class="text-theme-muted x-small">${user.since}</div></div>
+                    <span class="badge bg-dark border border-secondary text-theme-muted x-small">${user.role}</span>
                 </div>`;
                 list.appendChild(item);
             });

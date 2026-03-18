@@ -5,7 +5,7 @@
 {% block content %}
 <div class="row">
     <div class="col-md-12 mb-4 d-flex justify-content-between align-items-center">
-        <h2 class="text-light">Settings & Preferences</h2>
+        <h2 class="text-theme-main">Settings & Preferences</h2>
         <span class="badge {{ 'bg-danger' if role == 'owner' else 'bg-info text-dark' }} p-2 fs-6">{{ role|upper }} ACCESS</span>
     </div>
 
@@ -13,9 +13,9 @@
         <!-- Category Management (Visible to Both) -->
         <div class="card shadow-lg p-4 mb-4">
             <h5 class="card-title text-success mb-4"><i class="bi bi-tags-fill me-2"></i>Category Management</h5>
-            <form action="{{ url_for('add_category') }}" method="POST" class="mb-4">
+            <form action="{{ url_for('admin.add_category') }}" method="POST" class="mb-4">
                 <div class="input-group">
-                    <input type="text" name="name" class="form-control bg-dark border-secondary text-light" placeholder="New category name..." required>
+                    <input type="text" name="name" class="form-control bg-dark border-secondary text-theme-main" placeholder="New category name..." required>
                     <button class="btn btn-success" type="submit">Add Category</button>
                 </div>
             </form>
@@ -23,7 +23,7 @@
             <div class="table-responsive">
                 <table class="table table-dark table-sm align-middle">
                     <thead>
-                        <tr class="text-muted">
+                        <tr class="text-theme-muted">
                             <th>Category Name</th>
                             {% if role == 'owner' %}
                             <th class="text-end">Action</th>
@@ -55,7 +55,7 @@
             <div class="table-responsive">
                 <table class="table table-dark table-hover align-middle">
                     <thead>
-                        <tr class="text-muted">
+                        <tr class="text-theme-muted">
                             <th>Email Address</th>
                             <th>Role</th>
                             <th class="text-end">Action</th>
@@ -76,7 +76,7 @@
                                     <i class="bi bi-trash"></i>
                                 </button>
                                 {% else %}
-                                <span class="text-muted small">Protected</span>
+                                <span class="text-theme-muted small">Protected</span>
                                 {% endif %}
                             </td>
                         </tr>
@@ -89,8 +89,19 @@
         <!-- Danger Zone (Owner Only) -->
         <div class="card shadow-lg p-4 mb-4 border-danger border-opacity-50" style="background: rgba(220, 53, 69, 0.05);">
             <h5 class="card-title text-danger mb-3"><i class="bi bi-exclamation-octagon-fill me-2"></i>Danger Zone</h5>
-            <p class="small text-muted mb-4">Wiping the database is permanent and cannot be undone. This will delete all items, sales, and logs.</p>
-            <form action="{{ url_for('clear_all_data') }}" method="POST" onsubmit="return confirm('CRITICAL WARNING: Are you absolutely sure you want to PERMANENTLY DELETE all items, sales history, and logs? This action cannot be reversed.')">
+            <p class="small text-theme-muted mb-4">Wiping the database is permanent and cannot be undone. This will delete all items, sales, and logs.</p>
+            
+            <form action="{{ url_for('admin.clear_all_data') }}" method="POST" onsubmit="return confirm('CRITICAL WARNING: Are you absolutely sure you want to PERMANENTLY DELETE all items, sales history, and logs? This action cannot be reversed.')">
+                <div class="mb-3">
+                    <label class="form-label small text-danger text-uppercase fw-bold">Security Authorization Code</label>
+                    <div class="input-group">
+                        <input type="text" name="verification_code" class="form-control border-danger bg-dark text-theme-main" placeholder="Enter 6-digit code" required>
+                        <button class="btn btn-danger fw-bold" type="button" onclick="sendAuthCodeForSettings()">
+                            SEND CODE
+                        </button>
+                    </div>
+                    <div id="codeStatusSettings" class="x-small text-theme-muted mt-2"></div>
+                </div>
                 <button type="submit" class="btn btn-outline-danger">
                     <i class="bi bi-trash3-fill me-2"></i>Wipe All Business Records
                 </button>
@@ -104,15 +115,15 @@
         <!-- Add New User (Owner Only) -->
         <div class="card shadow-lg p-4">
             <h5 class="card-title text-success mb-4">Add New Account</h5>
-            <form action="{{ url_for('add_user') }}" method="POST">
+            <form action="{{ url_for('admin.add_user') }}" method="POST">
                 <div class="mb-3">
                     <label class="form-label">Email Address</label>
-                    <input type="email" name="email" class="form-control bg-dark border-secondary text-light" placeholder="user@example.com" required>
+                    <input type="email" name="email" class="form-control bg-dark border-secondary text-theme-main" placeholder="user@example.com" required>
                 </div>
                 <div class="mb-3">
                     <label class="form-label">Password</label>
                     <div class="input-group">
-                        <input type="password" name="password" id="newUserPassword" class="form-control bg-dark border-secondary text-light" required>
+                        <input type="password" name="password" id="newUserPassword" class="form-control bg-dark border-secondary text-theme-main" required>
                         <button class="btn btn-outline-secondary border-secondary" type="button" id="toggleNewPassword">
                             <i class="bi bi-eye-slash" id="newEyeIcon"></i>
                         </button>
@@ -120,7 +131,7 @@
                 </div>
                 <div class="mb-3">
                     <label class="form-label">Access Level</label>
-                    <select name="role" class="form-select bg-dark border-secondary text-light">
+                    <select name="role" class="form-select bg-dark border-secondary text-theme-main">
                         <option value="cashier">Cashier (Standard Access)</option>
                         <option value="owner">Owner (Full Admin Access)</option>
                     </select>
@@ -132,7 +143,7 @@
         <!-- Cashier Info Card -->
         <div class="card shadow-lg p-4 border-info">
             <h6 class="text-info mb-2"><i class="bi bi-info-circle me-2"></i>Cashier Access</h6>
-            <p class="small text-muted mb-0">You have permission to add new items to the master list and create new categories to organize the inventory.</p>
+            <p class="small text-theme-muted mb-0">You have permission to add new items to the master list and create new categories to organize the inventory.</p>
         </div>
         {% endif %}
 
@@ -166,7 +177,7 @@
                         <button class="btn btn-outline-secondary btn-sm w-100 theme-btn" data-theme="nord" onclick="setTheme('nord')" style="color: #88c0d0; border-color: #88c0d0;">Nord</button>
                     </div>
                 </div>
-                <p class="x-small text-muted mt-3 mb-0"><i class="bi bi-info-circle me-1"></i> Themes are saved to your account profile.</p>
+                <p class="x-small text-theme-muted mt-3 mb-0"><i class="bi bi-info-circle me-1"></i> Themes are saved to your account profile.</p>
             </div>
         </div>
     </div>
@@ -175,6 +186,27 @@
 
 {% block scripts %}
 <script>
+    function sendAuthCodeForSettings() {
+        const status = document.getElementById('codeStatusSettings');
+        status.innerHTML = '<span class="text-info">Sending code to master email...</span>';
+
+        fetch('/admin/send-auth-code', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                status.innerHTML = `<span class="text-success fw-bold">${data.message}</span>`;
+            } else {
+                status.innerHTML = `<span class="text-danger fw-bold">${data.message}</span>`;
+            }
+        })
+        .catch(error => {
+            status.innerHTML = `<span class="text-danger fw-bold">Network error.</span>`;
+        });
+    }
+
     function setTheme(theme) {
         document.documentElement.setAttribute('data-theme', theme);
         localStorage.setItem('xpider-theme', theme);

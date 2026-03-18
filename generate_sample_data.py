@@ -14,7 +14,9 @@ from pymongo import MongoClient
 from dotenv import load_dotenv
 from bson.objectid import ObjectId
 
-load_dotenv(dotenv_path='/home/eujyrn/Desktop/flask_mongo_app/.env')
+# Use relative path for .env
+env_path = os.path.join(os.path.dirname(__file__), '.env')
+load_dotenv(dotenv_path=env_path)
 
 client = MongoClient(os.getenv("MONGO_URI", "mongodb://localhost:27017/flask_todo_db"))
 db = client.get_database()

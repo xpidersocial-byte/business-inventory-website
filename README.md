@@ -34,7 +34,7 @@ graph TD
 
     %% Intelligence & Automation
     subgraph "Intelligence & Background"
-        Logic -->|Data Feed| AIEngine["AI Engine / Analytics"]
+        Logic -->|Data Feed| AIEngine["XPIDER AI Engine / Analytics"]
         AIEngine -->|Insights| User
         
         Watchdog["Watchdog Daemon"] -->|Monitor PID| WebServer
@@ -108,10 +108,6 @@ The fbihm team Inventory Engine is an ideal learning platform for students explo
 - **NoSQL Learning:** Students can explore data relationships without the steep learning curve of complex SQL joins.
 - **JSON-Native:** Seamless data flow between the frontend (JS) and backend (Python).
 
-### 3. **Real-World Patterns**
-- **WebSockets:** Teaches real-time bi-directional communication.
-- **Reliability:** Introduces concepts of system monitoring and process auto-recovery.
-
 ---
 
 ## 🛠️ Technical Components
@@ -131,4 +127,24 @@ The fbihm team Inventory Engine is an ideal learning platform for students explo
 - **Maintenance Mode:** Owner-controlled lock for updates and data restoration.
 
 ---
-*Created on 2026-03-12 | fbihm team Technical Documentation*
+
+## 🚀 Migration Phase (Next-Gen)
+We are currently in the process of migrating the **fbihm team Inventory Engine** to a modern **Next.js** and **Cloudflare** architecture.
+
+- **Frontend:** Transitioning to React/Next.js (App Router) with TailwindCSS.
+- **Database:** Migrating from MongoDB (NoSQL) to **Cloudflare D1 (SQL)** for edge performance.
+- **Status:** **Active Development**. The current Flask version remains the stable production baseline (v2.5.1).
+
+---
+## 📝 Recent Updates & Fixes (2026-03-17)
+
+### **System Maintenance & Security**
+- **Issue:** Standardized the security headers and CSP to allow seamless integration with Google Fonts and Socket.io origins across various deployment environments.
+- **Issue:** Fixed an initialization bug in the `watchdog.sh` script to prevent duplicate process forking during rapid restarts.
+
+### **Font Loading & Theming Enhancements**
+- **Issue:** Resolved `net::ERR_FAILED` errors related to external font loading by migrating from Bunny Fonts to Google Fonts, and subsequently to a system font stack within `templates/base.html` to ensure universal compatibility.
+- **Issue:** Fixed a JSON parsing error in the theme toggling functionality. The `fetch` call in `templates/base.html` now correctly handles server responses.
+
+---
+*Last Updated: 2026-03-17 | fbihm team Technical Documentation*
