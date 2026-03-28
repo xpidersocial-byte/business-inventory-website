@@ -1,13 +1,12 @@
 /**
- * FBIHM Service Worker v6.0 (Ultra Offline-First)
- * Handles precaching, background sync, and UI notifications.
+ * FBIHM Service Worker v6.1 (Fail-Safe Offline Mode)
+ * Ensures no "Stuck in Loading" by implementing global timeouts and error catches.
  */
 
-const CACHE_NAME = 'fbihm-v6.0';
+const CACHE_NAME = 'fbihm-v6.1';
 const OFFLINE_URL = '/offline';
 const SYNC_CHANNEL = new BroadcastChannel('offline_sync_status');
 
-// Core assets for the "App Shell"
 const ASSETS_TO_CACHE = [
     '/',
     '/login',
@@ -60,30 +59,52 @@ self.addEventListener('activate', (event) => {
 });
 
 /**
- * Background Sync Implementation
+ * Robust Fetch with Timeout
  */
-self.addEventListener('sync', (event) => {
-    if (event.tag === 'fbihm-sync') {
-        console.log('[SW] Background Sync Triggered');
-        // The actual sync logic is in offline-manager.js, but the SW 
-        // keeps the process alive and can trigger a BroadcastChannel message.
-        SYNC_CHANNEL.postMessage({ type: 'SYNC_STARTED' });
+async function fetchWithTimeout(request, timeout = 3000) {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeout);
+    try {
+        const response = await fetch(request, { signal: controller.signal });
+        clearTimeout(id);
+        return response;
+    } catch (err) {
+        clearTimeout(id);
+        throw err;
     }
-});
+}
 
-/**
- * Fetch interception with Network-First strategy for pages
- */
 self.addEventListener('fetch', (event) => {
     if (event.request.method !== 'GET') return;
 
     const url = new URL(event.request.url);
     if (url.pathname.includes('socket.io') || url.pathname.startsWith('/health')) return;
 
-    // Navigation (HTML Pages)
+    // STRATEGY: Navigation (HTML Pages)
     if (event.request.mode === 'navigate') {
         event.respondWith(
-            fetch(event.request)
+            fetchWithTimeout(event.request, 4000)
+                .then((networkResponse) => {
+                    if (networkResponse.status === 200) {
+                        const cacheCopy = networkResponse.clone();
+                        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, cacheCopy));
+                    }
+                    return networkResponse;
+                })
+                .catch(() => {
+                    // Fail to cache or offline page
+                    return caches.match(event.request).then((cached) => cached || caches.match(OFFLINE_URL));
+                })
+        );
+        return;
+    }
+
+    // STRATEGY: Static Assets & API (Cache-First with Fail-Safe)
+    event.respondWith(
+        caches.match(event.request).then((cachedResponse) => {
+            if (cachedResponse) return cachedResponse;
+
+            return fetch(event.request)
                 .then((networkResponse) => {
                     if (networkResponse && networkResponse.status === 200) {
                         const cacheCopy = networkResponse.clone();
@@ -91,24 +112,21 @@ self.addEventListener('fetch', (event) => {
                     }
                     return networkResponse;
                 })
-                .catch(() => {
-                    return caches.match(event.request).then((cached) => cached || caches.match(OFFLINE_URL));
-                })
-        );
-        return;
-    }
-
-    // Static Assets (Cache-First)
-    event.respondWith(
-        caches.match(event.request).then((cachedResponse) => {
-            if (cachedResponse) return cachedResponse;
-            return fetch(event.request).then((networkResponse) => {
-                if (networkResponse && networkResponse.status === 200) {
-                    const cacheCopy = networkResponse.clone();
-                    caches.open(CACHE_NAME).then((cache) => cache.put(event.request, cacheCopy));
-                }
-                return networkResponse;
-            });
+                .catch((err) => {
+                    // CRITICAL FIX: Return a null response or local placeholder instead of crashing
+                    console.log(`[SW] Fetch failed for ${url.pathname}, device likely offline.`);
+                    if (event.request.destination === 'image') {
+                        // Optionally return a tiny transparent pixel or placeholder
+                        return new Response('', { status: 404, statusText: 'Offline' });
+                    }
+                    return null; // Let the browser handle the missing resource gracefully
+                });
         })
     );
+});
+
+self.addEventListener('sync', (event) => {
+    if (event.tag === 'fbihm-sync') {
+        SYNC_CHANNEL.postMessage({ type: 'SYNC_STARTED' });
+    }
 });
