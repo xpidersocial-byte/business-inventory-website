@@ -451,8 +451,15 @@
             if (res.offline) {
                 // Handle offline case
                 checkoutModal.hide();
-                alert("You are offline. Transaction queued and will sync when reconnected.");
-                resetPOS();
+                Swal.fire({
+                    icon: "success",
+                    title: "Transaction Queued",
+                    text: "You are offline. This sale will be synced to the server automatically when you reconnect.",
+                    confirmButtonColor: "#1877f2"
+                });
+                cart = [];
+                updateCartUI();
+                document.getElementById("cashTendered").value = "";
             } else {
                 // Online response
                 const data = await res.json();

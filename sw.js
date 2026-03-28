@@ -1,9 +1,9 @@
 /**
- * FBIHM Service Worker v4.1 (Universal Offline Mode)
- * Implements Stale-While-Revalidate for ALL pages and assets.
+ * FBIHM Service Worker v4.6 (Universal Offline Mode)
+ * Implements Stale-While-Revalidate for ALL core pages and assets.
  */
 
-const CACHE_NAME = 'fbihm-v4.1';
+const CACHE_NAME = 'fbihm-v4.6';
 const OFFLINE_URL = '/offline';
 
 // Core assets to precache during 'install' phase
@@ -11,8 +11,11 @@ const ASSETS_TO_CACHE = [
     '/',
     '/login',
     '/dashboard',
-    '/inventory/items',
-    '/pos', '/sales-summary',
+    '/items',
+    '/sales',
+    '/sales-summary',
+    '/pos',
+    '/bulletin',
     OFFLINE_URL,
     '/static/manifest.json',
     '/favicon.ico',
@@ -25,9 +28,21 @@ const ASSETS_TO_CACHE = [
 self.addEventListener('install', (event) => {
     self.skipWaiting();
     event.waitUntil(
-        caches.open(CACHE_NAME).then((cache) => {
+        caches.open(CACHE_NAME).then(async (cache) => {
             console.log('[SW] Precaching universal assets');
-            return cache.addAll(ASSETS_TO_CACHE);
+            // Try adding all at once, but with a fallback to individual adds if it fails
+            try {
+                return await cache.addAll(ASSETS_TO_CACHE);
+            } catch (err) {
+                console.error('[SW] cache.addAll failed, falling back to individual adds:', err);
+                for (const url of ASSETS_TO_CACHE) {
+                    try {
+                        await cache.add(new Request(url, { cache: 'reload' }));
+                    } catch (e) {
+                        console.error(`[SW] Failed to cache: ${url}`, e);
+                    }
+                }
+            }
         })
     );
 });
@@ -39,6 +54,7 @@ self.addEventListener('activate', (event) => {
             return Promise.all(
                 cacheNames.map((cacheName) => {
                     if (cacheName !== CACHE_NAME) {
+                        console.log('[SW] Deleting old cache:', cacheName);
                         return caches.delete(cacheName);
                     }
                 })
@@ -60,8 +76,7 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // Network-First strategy for Navigation to ensure fresh data when online,
-    // but fallback to cache or Offline Page when offline.
+    // Network-First strategy for Navigation
     if (event.request.mode === 'navigate') {
         event.respondWith(
             fetch(event.request).then((networkResponse) => {
@@ -79,7 +94,7 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // Stale-While-Revalidate for everything else (CSS, JS, Images, API)
+    // Stale-While-Revalidate for everything else
     event.respondWith(
         caches.match(event.request).then((cachedResponse) => {
             const fetchPromise = fetch(event.request).then((networkResponse) => {

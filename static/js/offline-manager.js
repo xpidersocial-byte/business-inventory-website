@@ -1,5 +1,5 @@
 /**
- * FBIHM Offline Sync Manager v1.1
+ * FBIHM Offline Sync Manager v1.2
  * Handles IndexedDB storage for offline actions and automatic synchronization.
  */
 
@@ -10,6 +10,7 @@ const STORE_NAME = 'pending_syncs';
 class OfflineManager {
     constructor() {
         this.db = null;
+        this.syncing = false;
         this.initDB();
         this.setupEventListeners();
     }
@@ -36,21 +37,14 @@ class OfflineManager {
     setupEventListeners() {
         window.addEventListener('online', () => {
             console.log('[OfflineManager] Back online. Triggering sync...');
-            this.updateStatusUI(true);
+            if (typeof updateConnectivityUI === 'function') updateConnectivityUI();
             this.syncAll();
         });
 
         window.addEventListener('offline', () => {
             console.log('[OfflineManager] System is offline.');
-            this.updateStatusUI(false);
+            if (typeof updateConnectivityUI === 'function') updateConnectivityUI();
         });
-    }
-
-    updateStatusUI(isOnline) {
-        // This is now handled by templates/base.html updateConnectivityUI()
-        if (typeof updateConnectivityUI === 'function') {
-            updateConnectivityUI();
-        }
     }
 
     async queueAction(url, method, body) {
@@ -59,7 +53,6 @@ class OfflineManager {
             const transaction = this.db.transaction([STORE_NAME], 'readwrite');
             const store = transaction.objectStore(STORE_NAME);
             
-            // Check if body is FormData
             let serializedBody = body;
             let isFormData = false;
             
@@ -88,11 +81,8 @@ class OfflineManager {
     serializeFormData(formData) {
         const obj = {};
         formData.forEach((value, key) => {
-            // Handle multiple values for same key if any
             if (obj[key] !== undefined) {
-                if (!Array.isArray(obj[key])) {
-                    obj[key] = [obj[key]];
-                }
+                if (!Array.isArray(obj[key])) obj[key] = [obj[key]];
                 obj[key].push(value);
             } else {
                 obj[key] = value;
@@ -102,31 +92,47 @@ class OfflineManager {
     }
 
     async syncAll() {
-        if (!navigator.onLine || !this.db) return;
-
-        const transaction = this.db.transaction([STORE_NAME], 'readwrite');
+        if (!navigator.onLine || !this.db || this.syncing) return;
+        
+        const transaction = this.db.transaction([STORE_NAME], 'readonly');
         const store = transaction.objectStore(STORE_NAME);
-        const request = store.getAll();
+        const countRequest = store.count();
 
-        request.onsuccess = async () => {
-            const actions = request.result;
-            if (actions.length === 0) return;
-
-            console.log(`[OfflineManager] Syncing ${actions.length} actions...`);
+        countRequest.onsuccess = async () => {
+            if (countRequest.result === 0) return;
             
-            for (const action of actions) {
-                try {
-                    const success = await this.executeAction(action);
-                    if (success) {
-                        const delTx = this.db.transaction([STORE_NAME], 'readwrite');
-                        delTx.objectStore(STORE_NAME).delete(action.id);
+            this.syncing = true;
+            console.log(`[OfflineManager] Syncing ${countRequest.result} actions...`);
+            
+            const getAllRequest = this.db.transaction([STORE_NAME], 'readonly').objectStore(STORE_NAME).getAll();
+            
+            getAllRequest.onsuccess = async () => {
+                const actions = getAllRequest.result;
+                let successCount = 0;
+
+                for (const action of actions) {
+                    try {
+                        const success = await this.executeAction(action);
+                        if (success) {
+                            const delTx = this.db.transaction([STORE_NAME], 'readwrite');
+                            await new Promise((res) => {
+                                const delReq = delTx.objectStore(STORE_NAME).delete(action.id);
+                                delReq.onsuccess = res;
+                            });
+                            successCount++;
+                        }
+                    } catch (e) {
+                        console.error('[OfflineManager] Sync failed for item:', action.id, e);
                     }
-                } catch (e) {
-                    console.error('[OfflineManager] Sync failed for item:', action.id, e);
                 }
-            }
-            
-            this.showSyncToast(actions.length);
+                
+                if (successCount > 0) {
+                    this.showSyncToast(successCount);
+                    // Reload the page after sync to show fresh data from server
+                    setTimeout(() => window.location.reload(), 3000);
+                }
+                this.syncing = false;
+            };
         };
     }
 
@@ -137,7 +143,6 @@ class OfflineManager {
         };
 
         if (action.isFormData) {
-            // Reconstruct FormData for Multipart/form-data support on backend
             const formData = new FormData();
             for (const key in action.body) {
                 if (Array.isArray(action.body[key])) {
@@ -147,7 +152,6 @@ class OfflineManager {
                 }
             }
             options.body = formData;
-            // Note: browser sets correct Content-Type with boundary for FormData
         } else {
             options.headers['Content-Type'] = 'application/json';
             options.body = JSON.stringify(action.body);
@@ -157,7 +161,6 @@ class OfflineManager {
             const response = await fetch(action.url, options);
             return response.ok;
         } catch (e) {
-            console.error("[OfflineManager] Fetch failed during sync:", e);
             return false;
         }
     }
@@ -168,8 +171,8 @@ class OfflineManager {
                 toast: true,
                 position: 'bottom-end',
                 icon: 'warning',
-                title: 'Action Queued',
-                text: 'System is offline. Your changes will sync automatically when reconnected.',
+                title: 'Offline Action Queued',
+                text: 'Changes will sync when online.',
                 showConfirmButton: false,
                 timer: 4000
             });
@@ -182,8 +185,8 @@ class OfflineManager {
                 toast: true,
                 position: 'bottom-end',
                 icon: 'success',
-                title: 'Sync Complete',
-                text: `Successfully updated ${count} actions to the server.`,
+                title: 'Data Synchronized',
+                text: `Successfully synced ${count} pending actions.`,
                 showConfirmButton: false,
                 timer: 3000
             });
@@ -191,17 +194,21 @@ class OfflineManager {
     }
 }
 
-// Global instance
 const xpiderSync = new OfflineManager();
 
-/**
- * Global fallback for form submissions and fetch calls
- */
-async function offlineSafePost(url, formData) {
+async function offlineSafePost(url, data) {
     if (!navigator.onLine) {
-        console.log("[OfflineSafePost] Offline detected. Queuing action for:", url);
-        await xpiderSync.queueAction(url, 'POST', formData);
+        await xpiderSync.queueAction(url, 'POST', data);
         return { success: true, offline: true };
     }
-    return fetch(url, { method: 'POST', body: formData });
+    
+    const options = { method: 'POST' };
+    if (data instanceof FormData) {
+        options.body = data;
+    } else {
+        options.headers = { 'Content-Type': 'application/json' };
+        options.body = JSON.stringify(data);
+    }
+    
+    return fetch(url, options);
 }
