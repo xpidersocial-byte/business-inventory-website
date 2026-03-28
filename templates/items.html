@@ -3,6 +3,46 @@
 {% block title %}Items - Inventory Manager
     
 
+
+    // --- PERSISTENT OFFLINE DISPLAY ---
+    async function hydrateOfflineData() {
+        console.log("🌊 [UI] Checking for offline data...");
+        if (typeof xpiderSync === "undefined") {
+            console.error("❌ [UI] xpiderSync not found!");
+            return;
+        }
+        try {
+            const pending = await xpiderSync.getPendingActions("/items/add");
+            const tbody = document.querySelector("#itemsTable tbody");
+            if (!tbody || !pending.length) {
+                console.log("ℹ️ [UI] No pending items found.");
+                return;
+            }
+            
+            pending.forEach(action => {
+                const data = action.body;
+                const newRow = document.createElement("tr");
+                newRow.className = "item-row bg-warning bg-opacity-10 offline-temp-row";
+                newRow.innerHTML = `
+                    <td class="fw-bold text-theme-main">${data.name} <small class="badge bg-warning text-dark">Sync Pending</small></td>
+                    <td class="hide-mobile">--</td>
+                    <td class="hide-mobile"><span class="badge bg-secondary">${data.category || "--"}</span></td>
+                    <td class="hide-mobile">₱${parseFloat(data.cost_price || 0).toFixed(2)}</td>
+                    <td class="hide-mobile">₱${parseFloat(data.retail_price || 0).toFixed(2)}</td>
+                    <td class="hide-mobile">--</td>
+                    <td>0 <span class="badge bg-warning small">Offline</span></td>
+                    <td class="hide-mobile">0</td>
+                    <td class="hide-mobile">₱0.00</td>
+                    <td class="hide-mobile">₱0.00</td>
+                    <td class="text-center"><i class="bi bi-cloud-slash text-warning"></i></td>
+                `;
+                tbody.prepend(newRow);
+            });
+            console.log("✅ [UI] Injected " + pending.length + " offline items.");
+        } catch (e) { console.error("Hydration Failed:", e); }
+    }
+    window.addEventListener("DOMContentLoaded", hydrateOfflineData);
+
 {% endblock %}
 
 {% block extra_css %}
@@ -176,6 +216,46 @@
 </style>
 
     
+
+
+    // --- PERSISTENT OFFLINE DISPLAY ---
+    async function hydrateOfflineData() {
+        console.log("🌊 [UI] Checking for offline data...");
+        if (typeof xpiderSync === "undefined") {
+            console.error("❌ [UI] xpiderSync not found!");
+            return;
+        }
+        try {
+            const pending = await xpiderSync.getPendingActions("/items/add");
+            const tbody = document.querySelector("#itemsTable tbody");
+            if (!tbody || !pending.length) {
+                console.log("ℹ️ [UI] No pending items found.");
+                return;
+            }
+            
+            pending.forEach(action => {
+                const data = action.body;
+                const newRow = document.createElement("tr");
+                newRow.className = "item-row bg-warning bg-opacity-10 offline-temp-row";
+                newRow.innerHTML = `
+                    <td class="fw-bold text-theme-main">${data.name} <small class="badge bg-warning text-dark">Sync Pending</small></td>
+                    <td class="hide-mobile">--</td>
+                    <td class="hide-mobile"><span class="badge bg-secondary">${data.category || "--"}</span></td>
+                    <td class="hide-mobile">₱${parseFloat(data.cost_price || 0).toFixed(2)}</td>
+                    <td class="hide-mobile">₱${parseFloat(data.retail_price || 0).toFixed(2)}</td>
+                    <td class="hide-mobile">--</td>
+                    <td>0 <span class="badge bg-warning small">Offline</span></td>
+                    <td class="hide-mobile">0</td>
+                    <td class="hide-mobile">₱0.00</td>
+                    <td class="hide-mobile">₱0.00</td>
+                    <td class="text-center"><i class="bi bi-cloud-slash text-warning"></i></td>
+                `;
+                tbody.prepend(newRow);
+            });
+            console.log("✅ [UI] Injected " + pending.length + " offline items.");
+        } catch (e) { console.error("Hydration Failed:", e); }
+    }
+    window.addEventListener("DOMContentLoaded", hydrateOfflineData);
 
 {% endblock %}
 
@@ -949,8 +1029,7 @@
     }
 
     
-    // --- PERSISTENT OFFLINE DISPLAY ---
-    async function hydrateOfflineData() {
+    {
         console.log("🌊 [UI] Checking for offline data...");
         try {
             const pending = await xpiderSync.getPendingActions("/items/add");
@@ -986,5 +1065,45 @@
 </script>
 
     
+
+
+    // --- PERSISTENT OFFLINE DISPLAY ---
+    async function hydrateOfflineData() {
+        console.log("🌊 [UI] Checking for offline data...");
+        if (typeof xpiderSync === "undefined") {
+            console.error("❌ [UI] xpiderSync not found!");
+            return;
+        }
+        try {
+            const pending = await xpiderSync.getPendingActions("/items/add");
+            const tbody = document.querySelector("#itemsTable tbody");
+            if (!tbody || !pending.length) {
+                console.log("ℹ️ [UI] No pending items found.");
+                return;
+            }
+            
+            pending.forEach(action => {
+                const data = action.body;
+                const newRow = document.createElement("tr");
+                newRow.className = "item-row bg-warning bg-opacity-10 offline-temp-row";
+                newRow.innerHTML = `
+                    <td class="fw-bold text-theme-main">${data.name} <small class="badge bg-warning text-dark">Sync Pending</small></td>
+                    <td class="hide-mobile">--</td>
+                    <td class="hide-mobile"><span class="badge bg-secondary">${data.category || "--"}</span></td>
+                    <td class="hide-mobile">₱${parseFloat(data.cost_price || 0).toFixed(2)}</td>
+                    <td class="hide-mobile">₱${parseFloat(data.retail_price || 0).toFixed(2)}</td>
+                    <td class="hide-mobile">--</td>
+                    <td>0 <span class="badge bg-warning small">Offline</span></td>
+                    <td class="hide-mobile">0</td>
+                    <td class="hide-mobile">₱0.00</td>
+                    <td class="hide-mobile">₱0.00</td>
+                    <td class="text-center"><i class="bi bi-cloud-slash text-warning"></i></td>
+                `;
+                tbody.prepend(newRow);
+            });
+            console.log("✅ [UI] Injected " + pending.length + " offline items.");
+        } catch (e) { console.error("Hydration Failed:", e); }
+    }
+    window.addEventListener("DOMContentLoaded", hydrateOfflineData);
 
 {% endblock %}
