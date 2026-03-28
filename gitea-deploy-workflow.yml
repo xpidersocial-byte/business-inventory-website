@@ -1,29 +1,29 @@
-name: Gitea Auto Deploy
+name: Gitea Direct Stack Deploy
 
 on:
   push:
     branches: [ "v2" ]
 
 jobs:
-  build-and-deploy:
-    runs-on: ubuntu-latest # Adjust this to your runner label if different
+  direct-deploy:
+    runs-on: self-hosted # This MUST run on your server where the runner is installed
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Login to Docker Hub
-        run: echo "${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}" | docker login -u bejasadhev --password-stdin
-
-      - name: Build and Push Docker Image
+      - name: Build Local Image
         run: |
-          docker build -t bejasadhev/fbihm-inventory:latest .
-          docker push bejasadhev/fbihm-inventory:latest
+          docker build -t fbihm-local:latest .
 
-      - name: Pull and Restart on Server
+      - name: Initialize Swarm (If not already)
         run: |
-          # Assuming the runner is on the same server where you want to deploy
-          # or has SSH access. If the runner IS the server:
-          cd /home/eujyrn/Desktop/flask_mongo_app
-          docker-compose pull
-          docker-compose up -d
+          docker swarm init || true
+
+      - name: Deploy Stack
+        run: |
+          # This deploys the stack using the locally built image
+          docker stack deploy -c stack.yml fbihm_stack
+          
+      - name: Cleanup
+        run: |
           docker system prune -f
