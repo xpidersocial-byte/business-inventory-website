@@ -25,12 +25,21 @@ jobs:
           
           mkdir -p "$TARGET_DIR"
           
-          # Using rsync is better for manual deploy as it only copies changed files
+          # Sync files
           rsync -av --delete --exclude 'venv/' --exclude 'data/' --exclude '.git/' ./ "$TARGET_DIR/"
           
           cd "$TARGET_DIR"
           
-          # Setup Virtual Environment
+          # Recreate VENV if it is too old (Python < 3.10)
+          if [ -d "venv" ]; then
+            PYTHON_VERSION=$(venv/bin/python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
+            echo "Current VENV Python version: $PYTHON_VERSION"
+            if [ "$(echo "$PYTHON_VERSION < 3.10" | bc -l)" -eq 1 ]; then
+              echo "⚠️ VENV is too old. Recreating with latest Python..."
+              rm -rf venv
+            fi
+          fi
+
           if [ ! -d "venv" ]; then
             python3 -m venv venv
           fi
