@@ -21,7 +21,6 @@ jobs:
           echo "🚀 Refreshing code from local Gitea..."
           git config --global --add safe.directory "*"
           git fetch origin
-          # Get branch name from GITHUB_REF (e.g. refs/heads/v2 -> v2)
           BRANCH=$(echo ${GITHUB_REF} | sed 's|refs/heads/||')
           git checkout $BRANCH
           git reset --hard origin/$BRANCH
@@ -34,29 +33,28 @@ jobs:
           REMOTE_HOST="74.208.174.70"
           TARGET_DIR="/home/eujyrn/Desktop/flask_mongo_app"
           
-          echo "🚀 Preparing server..."
-          sshpass -p "$SSH_PASS" ssh -o StrictHostKeyChecking=no $REMOTE_USER@$REMOTE_HOST \
-            "find $TARGET_DIR -maxdepth 1 -type f -not -name 'app.log' -not -name '.env' -delete"
+          echo "🚀 Syncing to $REMOTE_HOST..."
           
-          echo "🚀 Syncing new files..."
+          sshpass -p "$SSH_PASS" ssh -o StrictHostKeyChecking=no $REMOTE_USER@$REMOTE_HOST "rm -f $TARGET_DIR/app.py"
+          
           sshpass -p "$SSH_PASS" rsync -avzc -e "ssh -o StrictHostKeyChecking=no" \
             --exclude 'venv/' --exclude 'data/' --exclude '.git/' \
             ./ $REMOTE_USER@$REMOTE_HOST:$TARGET_DIR/
           
-          sshpass -p "$SSH_PASS" ssh -o StrictHostKeyChecking=no $REMOTE_USER@$REMOTE_HOST << 'REMOTECMD'
-            cd /home/eujyrn/Desktop/flask_mongo_app
-            if [ ! -d "venv" ]; then python3 -m venv venv; fi
-            source venv/bin/activate
-            pip install -r requirements.txt
-            echo "🔄 Restarting Application..."
-            fuser -k 5000/tcp || true
-            pkill -f "app.py" || true
-            nohup venv/bin/python3 app.py > app.log 2>&1 < /dev/null &
-            sleep 5
-            if pgrep -f "venv/bin/python3 app.py" > /dev/null; then
-              echo "✅ App is running."
+          sshpass -p "$SSH_PASS" ssh -o StrictHostKeyChecking=no $REMOTE_USER@$REMOTE_HOST "
+            cd /home/eujyrn/Desktop/flask_mongo_app && \
+            if [ ! -d 'venv' ]; then python3 -m venv venv; fi && \
+            source venv/bin/activate && \
+            pip install -r requirements.txt && \
+            echo '🔄 Restarting Application...' && \
+            fuser -k 5000/tcp || true && \
+            pkill -f 'app.py' || true && \
+            nohup venv/bin/python3 app.py > app.log 2>&1 < /dev/null & \
+            sleep 5 && \
+            if pgrep -f 'venv/bin/python3 app.py' > /dev/null; then
+              echo '✅ App is running.'
             else
-              echo "❌ Failed."
+              echo '❌ Failed.'
               exit 1
             fi
-REMOTECMD
+          "
