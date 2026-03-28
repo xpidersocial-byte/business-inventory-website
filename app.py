@@ -286,6 +286,15 @@ def favicon():
     from flask import send_from_directory
     return send_from_directory(os.path.join(app.root_path, 'static'), 'favicon.ico', mimetype='image/vnd.microsoft.icon')
 
+
+@app.errorhandler(404)
+def not_found_error(error):
+    return render_template("offline.html"), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    return render_template("offline.html"), 500
+
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
     print(f"DEBUG: STARTING ON PORT {port}")
