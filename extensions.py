@@ -2,4 +2,4 @@ from flask_pymongo import PyMongo
 from flask_socketio import SocketIO
 
 mongo = PyMongo()
-socketio = SocketIO(cors_allowed_origins="*", async_mode='eventlet')
+socketio = SocketIO(cors_allowed_origins="*", async_mode='gevent')

@@ -1,5 +1,5 @@
-import eventlet
-eventlet.monkey_patch()
+from gevent import monkey
+monkey.patch_all()
 
 import os
 import socket
@@ -287,4 +287,5 @@ if __name__ == "__main__":
     print(f"DEBUG: STARTING ON PORT {port}")
     send_deployment_telemetry()
     # Enabled reloader to pick up blueprint changes
-    socketio.run(app, host="0.0.0.0", port=port, debug=os.getenv("FLASK_DEBUG", "false").lower() == "true", use_reloader=True)
+    debug_mode = os.getenv("FLASK_DEBUG", "false").lower() == "true"
+    socketio.run(app, host="0.0.0.0", port=port, debug=debug_mode, use_reloader=debug_mode)
