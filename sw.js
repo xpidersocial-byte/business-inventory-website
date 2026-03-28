@@ -3,7 +3,7 @@
  * Implements Stale-While-Revalidate for ALL core pages and assets.
  */
 
-const CACHE_NAME = 'fbihm-v4.7';
+const CACHE_NAME = 'fbihm-v4.8';
 const OFFLINE_URL = '/offline';
 
 // Core assets to precache during 'install' phase

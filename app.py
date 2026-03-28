@@ -1,5 +1,5 @@
-from gevent import monkey
-monkey.patch_all()
+import eventlet
+eventlet.monkey_patch()
 
 import os
 import socket
@@ -36,7 +36,7 @@ app.config["MONGO_URI"] = os.getenv("MONGO_URI", "mongodb://127.0.0.1:27017/data
 mongo.init_app(app)
 
 # SocketIO Initialization
-socketio.init_app(app, cors_allowed_origins="*", async_mode='gevent')
+socketio.init_app(app, cors_allowed_origins="*", async_mode='eventlet')
 init_socket_handlers()
 
 # Register Blueprints

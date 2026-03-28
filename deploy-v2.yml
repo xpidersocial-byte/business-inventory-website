@@ -11,13 +11,20 @@ jobs:
     runs-on: [ubuntu-latest, ubuntu-22.04]
 
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
       - name: Install Deployment Tools
         run: |
           apt-get update
-          apt-get install -y sshpass rsync
+          apt-get install -y sshpass rsync git
+
+      - name: Manual Checkout
+        run: |
+          echo "🚀 Refreshing workspace..."
+          git init
+          git remote add origin https://thesis.fbihm.online/bejasadhev/FBIHM.git
+          BRANCH=$(echo ${GITHUB_REF} | sed 's|refs/heads/||')
+          git -c http.sslVerify=false fetch origin $BRANCH
+          git checkout -f $BRANCH
+          git reset --hard FETCH_HEAD
 
       - name: Deploy to Remote Server via SSH
         env:
@@ -27,35 +34,40 @@ jobs:
           REMOTE_HOST="74.208.174.70"
           TARGET_DIR="/home/eujyrn/Desktop/flask_mongo_app"
           
-          echo "🚀 Preparing server..."
-          # Delete code files but PROTECT .env and app.log
-          sshpass -p "$SSH_PASS" ssh -o StrictHostKeyChecking=no $REMOTE_USER@$REMOTE_HOST \
-            "find $TARGET_DIR -maxdepth 1 -type f -not -name 'app.log' -not -name '.env' -delete"
+          echo "🚀 Syncing to $REMOTE_HOST..."
+          sshpass -p "$SSH_PASS" ssh -o StrictHostKeyChecking=no $REMOTE_USER@$REMOTE_HOST "rm -f $TARGET_DIR/app.py"
           
-          echo "🚀 Syncing new files..."
           sshpass -p "$SSH_PASS" rsync -avzc -e "ssh -o StrictHostKeyChecking=no" \
             --exclude 'venv/' --exclude 'data/' --exclude '.git/' \
             ./ $REMOTE_USER@$REMOTE_HOST:$TARGET_DIR/
           
-          sshpass -p "$SSH_PASS" ssh -o StrictHostKeyChecking=no $REMOTE_USER@$REMOTE_HOST << 'REMOTECMD'
+          sshpass -p "$SSH_PASS" ssh -o StrictHostKeyChecking=no $REMOTE_USER@$REMOTE_HOST "
             cd /home/eujyrn/Desktop/flask_mongo_app
-            echo "--- Verifying Config ---"
-            grep "MONGO_URI" .env
+            echo '--- DEBUG: Current Directory ---'
+            pwd
             
-            if [ ! -d "venv" ]; then python3 -m venv venv; fi
+            if [ ! -d 'venv' ]; then python3 -m venv venv; fi
             source venv/bin/activate
             pip install -r requirements.txt
             
-            echo "🔄 Restarting Application..."
-            fuser -k 5000/tcp || true
-            pkill -f "app.py" || true
-            nohup venv/bin/python3 app.py > app.log 2>&1 < /dev/null &
+            echo '--- DEBUG: Checking MongoDB Connection ---'
+            grep 'MONGO_URI' .env || grep 'MONGO_URI' app.py
             
-            sleep 5
-            if pgrep -f "venv/bin/python3 app.py" > /dev/null; then
-              echo "✅ App is running with correct configuration."
+            echo '🔄 Restarting Application...'
+            fuser -k 5000/tcp || true
+            pkill -f 'app.py' || true
+            
+            # Start and capture PID
+            nohup venv/bin/python3 app.py > app.log 2>&1 < /dev/null &
+            sleep 7
+            
+            if pgrep -f 'venv/bin/python3 app.py' > /dev/null; then
+              echo '✅ SUCCESS: App is running on port 5000.'
+              echo '--- Recent Logs ---'
+              tail -n 10 app.log
             else
-              echo "❌ Failed. Check app.log"
+              echo '❌ ERROR: App failed to start. CRITICAL DEBUG LOGS BELOW:'
+              cat app.log
               exit 1
             fi
-REMOTECMD
+          "
