@@ -68,6 +68,10 @@ def maintenance_mode_check():
 @app.errorhandler(Exception)
 def handle_db_error(e):
     """Global handler: if MongoDB drops, redirect to /offline instead of 500."""
+    from werkzeug.exceptions import HTTPException
+    if isinstance(e, HTTPException):
+        return e
+
     from pymongo.errors import ServerSelectionTimeoutError, ConnectionFailure, AutoReconnect
     if isinstance(e, (ServerSelectionTimeoutError, ConnectionFailure, AutoReconnect)):
         if request.path == '/health':
