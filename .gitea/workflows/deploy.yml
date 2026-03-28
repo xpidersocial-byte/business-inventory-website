@@ -27,42 +27,39 @@ jobs:
           REMOTE_HOST="74.208.174.70"
           TARGET_DIR="/home/eujyrn/Desktop/flask_mongo_app"
           
-          echo "🚀 Starting Deployment to $REMOTE_HOST..."
+          echo "🚀 Preparing server for fresh deployment..."
+          # Wipe old code files (excluding venv and data) to ensure 100% update
+          sshpass -p "$SSH_PASS" ssh -o StrictHostKeyChecking=no $REMOTE_USER@$REMOTE_HOST \
+            "find $TARGET_DIR -maxdepth 1 -type f -not -name 'app.log' -delete"
           
-          # 1. Clean up old files on remote to prevent "stale code" issues
-          sshpass -p "$SSH_PASS" ssh -o StrictHostKeyChecking=no $REMOTE_USER@$REMOTE_HOST "rm -f $TARGET_DIR/app.py"
-          
-          # 2. Sync files with checksum verification
+          echo "🚀 Syncing new files..."
           sshpass -p "$SSH_PASS" rsync -avzc -e "ssh -o StrictHostKeyChecking=no" \
             --exclude 'venv/' --exclude 'data/' --exclude '.git/' \
             ./ $REMOTE_USER@$REMOTE_HOST:$TARGET_DIR/
           
-          # 3. Remote Execution
           sshpass -p "$SSH_PASS" ssh -o StrictHostKeyChecking=no $REMOTE_USER@$REMOTE_HOST << 'REMOTECMD'
             cd /home/eujyrn/Desktop/flask_mongo_app
             
-            # Verify the sync worked
-            echo "--- Verifying Code Sync ---"
-            grep "MONGO_URI" app.py
+            echo "--- Verifying Config Lock (.env) ---"
+            if [ -f ".env" ]; then echo "✅ .env file exists."; else echo "❌ .env MISSING"; fi
+            grep "MONGO_URI" .env
             
-            # Environment Setup
+            # Setup
             if [ ! -d "venv" ]; then python3 -m venv venv; fi
             source venv/bin/activate
-            pip install --upgrade pip
             pip install -r requirements.txt
             
-            echo "🔄 Restarting Application..."
+            echo "🔄 Starting Application..."
             fuser -k 5000/tcp || true
             pkill -f "app.py" || true
             
-            # Start and fully detach
             nohup venv/bin/python3 app.py > app.log 2>&1 < /dev/null &
             
             sleep 5
             if pgrep -f "venv/bin/python3 app.py" > /dev/null; then
-              echo "✅ DEPLOYMENT SUCCESSFUL."
+              echo "✅ App is successfully running with LOCKED config."
             else
-              echo "❌ DEPLOYMENT FAILED. Showing last 20 lines of app.log:"
+              echo "❌ Failed. Showing app.log:"
               tail -n 20 app.log
               exit 1
             fi
