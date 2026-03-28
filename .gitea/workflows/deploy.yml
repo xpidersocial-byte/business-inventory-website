@@ -1,0 +1,64 @@
+name: Remote SSH Deploy
+
+on:
+  push:
+    branches:
+      - v2
+
+jobs:
+  deploy:
+    runs-on: [ubuntu-latest, ubuntu-22.04]
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install Deployment Tools
+        run: |
+          apt-get update
+          apt-get install -y sshpass rsync
+
+      - name: Deploy to Remote Server via SSH
+        env:
+          SSH_PASS: ${{ secrets.SERVER_PASSWORD }}
+        run: |
+          REMOTE_USER="root"
+          REMOTE_HOST="74.208.174.70"
+          TARGET_DIR="/home/eujyrn/Desktop/flask_mongo_app"
+          
+          echo "🚀 Syncing files to $REMOTE_HOST..."
+          
+          # 1. Sync files
+          sshpass -p "$SSH_PASS" rsync -avz -e "ssh -o StrictHostKeyChecking=no" \
+            --exclude 'venv/' --exclude 'data/' --exclude '.git/' --exclude 'temp_update/' \
+            ./ $REMOTE_USER@$REMOTE_HOST:$TARGET_DIR/
+          
+          # 2. Remote execution: Setup and Restart
+          # We use a single line for the background process to ensure it detaches correctly
+          sshpass -p "$SSH_PASS" ssh -o StrictHostKeyChecking=no $REMOTE_USER@$REMOTE_HOST << 'EOF'
+            cd /home/eujyrn/Desktop/flask_mongo_app
+            
+            if [ ! -d "venv" ]; then
+              python3 -m venv venv
+            fi
+            
+            source venv/bin/activate
+            pip install -r requirements.txt
+            
+            echo "🔄 Restarting Flask Application..."
+            # Force kill any process on 5000
+            fuser -k 5000/tcp || true
+            
+            # Start the app and fully detach
+            # Redirecting stdin (< /dev/null) is the key to preventing SSH hangs
+            nohup venv/bin/python3 app.py > app.log 2>&1 < /dev/null &
+            
+            # Brief wait to ensure it didn't immediate crash
+            sleep 3
+            if pgrep -f "venv/bin/python3 app.py" > /dev/null; then
+              echo "✅ App is successfully running in background."
+            else
+              echo "❌ App failed to start. Check app.log."
+              exit 1
+            fi
+EOF
