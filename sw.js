@@ -1,9 +1,9 @@
 /**
- * FBIHM Service Worker v8.0 (Ultra-Stable)
- * Ensures zero crashes and guaranteed responses for all requests.
+ * FBIHM Service Worker v9.0 (PouchDB-Ready)
+ * Optimized for performance with Stale-While-Revalidate API caching.
  */
 
-const CACHE_NAME = 'fbihm-v8.0';
+const CACHE_NAME = 'fbihm-v9.0';
 const OFFLINE_URL = '/offline';
 const SYNC_CHANNEL = new BroadcastChannel('offline_sync_status');
 
@@ -14,6 +14,7 @@ const ASSETS_TO_CACHE = [
     '/favicon.ico',
     '/static/sounds/notification.mp3',
     '/static/js/offline-manager.js',
+    'https://cdn.jsdelivr.net/npm/pouchdb@8.0.1/dist/pouchdb.min.js',
     'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css',
     'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css',
     'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js',
@@ -53,7 +54,24 @@ self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
     if (url.pathname.includes('socket.io') || url.pathname.startsWith('/health')) return;
 
-    // 1. Navigation
+    // 1. API Synchronization Cache (Stale-While-Revalidate)
+    if (url.pathname.startsWith('/api/')) {
+        event.respondWith(
+            caches.open(CACHE_NAME).then(async (cache) => {
+                const cachedRes = await cache.match(event.request);
+                const fetchPromise = fetch(event.request).then((networkRes) => {
+                    if (networkRes.ok) {
+                        cache.put(event.request, networkRes.clone());
+                    }
+                    return networkRes;
+                });
+                return cachedRes || fetchPromise;
+            })
+        );
+        return;
+    }
+
+    // 2. Navigation
     if (event.request.mode === 'navigate') {
         event.respondWith(
             fetch(event.request).then(res => {
@@ -67,7 +85,7 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // 2. Static Assets
+    // 3. Static Assets (Cache-First)
     event.respondWith(
         caches.match(event.request).then(cached => {
             if (cached) return cached;

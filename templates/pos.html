@@ -232,20 +232,11 @@
                 <h5 id="viewTitle" class="mb-0 fw-bold text-theme-main small text-uppercase ls-1">Items</h5>
             </div>
             <div class="items-grid" id="itemsGrid">
-                {% for item in items %}
-                <div class="item-card pos-item" 
-                     data-id="{{ item._id }}" 
-                     data-name="{{ item.name }}" 
-                     data-price="{{ item.retail_price }}" 
-                     data-stock="{{ item.stock }}" 
-                     data-category="{{ item.category }}"
-                     data-menu="{{ item.menu or 'None' }}" 
-                     onclick="handlePosClick(this)">
-                    <span class="item-stock">Stock: {{ item.stock }}</span>
-                    <div class="fw-bold text-theme-main small mb-2" style="height: 2.5rem; overflow: hidden; line-height: 1.2;">{{ item.name }}</div>
-                    <div class="fw-bold text-primary">{{ site_config.currency_symbol }}{{ "%.2f"|format(item.retail_price) }}</div>
+                <!-- Items will be rendered here by JavaScript via PouchDB -->
+                <div class="text-center py-5 w-100 opacity-50">
+                    <div class="spinner-border spinner-border-sm mb-2"></div>
+                    <div class="small fw-bold text-uppercase">Loading Inventory...</div>
                 </div>
-                {% endfor %}
             </div>
         </div>
     </div>
@@ -360,16 +351,61 @@
         filterItems();
     }
 
+    let allItems = []; // Local cache of PouchDB items
+
+    async function loadItems() {
+        try {
+            allItems = await xpiderSync.getAllItems();
+            if (allItems.length === 0 && navigator.onLine) {
+                // If DB empty, wait for sync or force it
+                await xpiderSync.syncItems();
+                allItems = await xpiderSync.getAllItems();
+            }
+            renderItems(allItems);
+        } catch (e) {
+            console.error('Failed to load items from PouchDB:', e);
+        }
+    }
+
+    function renderItems(itemsToRender) {
+        const grid = document.getElementById('itemsGrid');
+        if (itemsToRender.length === 0) {
+            grid.innerHTML = '<div class="text-center py-5 w-100 opacity-50"><i class="bi bi-box-seam display-4 d-block mb-3"></i>No items found.</div>';
+            return;
+        }
+        
+        grid.innerHTML = itemsToRender.map(item => `
+            <div class="item-card pos-item" 
+                 data-id="${item._id}" 
+                 data-name="${item.name}" 
+                 data-price="${item.retail_price}" 
+                 data-stock="${item.stock}" 
+                 data-category="${item.category}"
+                 data-menu="${item.menu || 'None'}" 
+                 onclick="handlePosClick(this)">
+                <span class="item-stock">Stock: ${item.stock}</span>
+                <div class="fw-bold text-theme-main small mb-2" style="height: 2.5rem; overflow: hidden; line-height: 1.2;">${item.name}</div>
+                <div class="fw-bold text-primary">{{ site_config.currency_symbol }}${item.retail_price.toFixed(2)}</div>
+            </div>
+        `).join('');
+    }
+
+    // Initial Load
+    document.addEventListener('DOMContentLoaded', loadItems);
+    // Listen for background sync updates
+    window.addEventListener('items_synced', loadItems);
+
     function filterItems() {
         const q = document.getElementById('itemSearch').value.toLowerCase();
-        const cards = document.querySelectorAll('.pos-item');
-        cards.forEach(card => {
-            let match = false;
-            if (filterType === 'SEARCH') match = card.getAttribute('data-name').toLowerCase().includes(q);
-            else if (filterType === 'MENU') match = card.getAttribute('data-menu') === filterValue;
-            else if (filterType === 'CATEGORY') match = card.getAttribute('data-category') === filterValue;
-            card.style.display = match ? 'block' : 'none';
+        
+        const filtered = allItems.filter(item => {
+            if (filterType === 'SEARCH') return item.name.toLowerCase().includes(q);
+            if (filterType === 'MENU') return item.menu === filterValue;
+            if (filterType === 'CATEGORY') return item.category === filterValue;
+            return true;
         });
+        
+        renderItems(filtered);
     }
 
     function addToCart(id, name, price, maxStock) {

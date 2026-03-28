@@ -1,72 +1,90 @@
 /**
- * FBIHM Offline Sync Manager v3.0 (Ultra-Sync)
- * Implements persistent UI memory and cross-tab synchronization.
+ * FBIHM Offline Sync Manager v4.0 (PouchDB Edition)
+ * Uses PouchDB for robust synchronization and fast local data access.
  */
-
-const DB_NAME = 'fbihm_offline_v3';
-const DB_VERSION = 1;
-const STORE_NAME = 'pending_actions';
 
 class OfflineSyncManager {
     constructor() {
-        this.db = null;
+        // Initialize PouchDB databases
+        this.itemsDB = new PouchDB('fbihm_items');
+        this.syncDB = new PouchDB('fbihm_sync_queue');
+        
         this.isSyncing = false;
-        this.initPromise = this.initDB();
+        this.init();
     }
 
-    async initDB() {
-        return new Promise((resolve, reject) => {
-            const request = indexedDB.open(DB_NAME, DB_VERSION);
-            request.onupgradeneeded = (e) => {
-                const db = e.target.result;
-                if (!db.objectStoreNames.contains(STORE_NAME)) {
-                    db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
-                }
-            };
-            request.onsuccess = (e) => {
-                this.db = e.target.result;
-                console.log('✅ [OfflineManager] Database Ready');
-                resolve(this.db);
-            };
-            request.onerror = (e) => reject(e);
+    async init() {
+        console.log('✅ [OfflineManager] PouchDB Initialized');
+        // Initial sync of items if online
+        if (navigator.onLine) {
+            this.syncItems();
+            this.forceSync();
+        }
+        
+        // Listen for online event to trigger sync
+        window.addEventListener('online', () => {
+            this.syncItems();
+            this.forceSync();
         });
     }
 
-    async queueAction(url, method, body) {
-        await this.initPromise;
-        return new Promise((resolve, reject) => {
-            const tx = this.db.transaction([STORE_NAME], 'readwrite');
-            const store = tx.objectStore(STORE_NAME);
+    /**
+     * Fetches items from the server and updates the local PouchDB cache.
+     */
+    async syncItems() {
+        if (!navigator.onLine) return;
+        
+        try {
+            console.log('🔄 [OfflineManager] Syncing items from server...');
+            const res = await fetch('/api/items/sync');
+            if (!res.ok) throw new Error('Sync fetch failed');
             
-            const action = {
-                url, method,
-                body: body instanceof FormData ? this.serializeForm(body) : body,
-                isFormData: body instanceof FormData,
-                timestamp: Date.now()
-            };
-
-            const req = store.add(action);
-            req.onsuccess = () => {
-                console.log('📦 [OfflineManager] Action Queued:', url);
-                this.notifyUI('ACTION_QUEUED');
-                resolve();
-            };
-            req.onerror = () => reject('Queue Failed');
-        });
+            const items = await res.json();
+            
+            // Basic bulk update: in a real app, we'd use _rev and proper syncing,
+            // but for a simple local cache, we'll just upsert.
+            for (const item of items) {
+                try {
+                    const existing = await this.itemsDB.get(item._id);
+                    item._rev = existing._rev;
+                    await this.itemsDB.put(item);
+                } catch (e) {
+                    if (e.status === 404) {
+                        await this.itemsDB.put(item);
+                    } else {
+                        console.error('Error syncing item:', item._id, e);
+                    }
+                }
+            }
+            console.log(`✅ [OfflineManager] ${items.length} items synced to local storage.`);
+            
+            // Notify UI if needed
+            window.dispatchEvent(new CustomEvent('items_synced'));
+        } catch (e) {
+            console.warn('[OfflineManager] Item sync failed:', e);
+        }
     }
 
-    async getPendingActions(urlFilter = '') {
-        await this.initPromise;
-        return new Promise((resolve) => {
-            const tx = this.db.transaction([STORE_NAME], 'readonly');
-            const store = tx.objectStore(STORE_NAME);
-            const req = store.getAll();
-            req.onsuccess = () => {
-                const results = req.result.filter(a => a.url.includes(urlFilter));
-                console.log(`🔍 [OfflineManager] Found ${results.length} pending items for ${urlFilter}`);
-                resolve(results);
-            };
-        });
+    /**
+     * Queues an action for later synchronization.
+     */
+    async queueAction(url, method, body) {
+        const action = {
+            _id: new Date().toJSON(), // Use timestamp as ID for ordering
+            url,
+            method,
+            body: body instanceof FormData ? this.serializeForm(body) : body,
+            isFormData: body instanceof FormData,
+            timestamp: Date.now()
+        };
+
+        try {
+            await this.syncDB.put(action);
+            console.log('📦 [OfflineManager] Action Queued:', url);
+            this.notifyUI('ACTION_QUEUED');
+        } catch (e) {
+            console.error('Queue Failed', e);
+        }
     }
 
     serializeForm(fd) {
@@ -80,40 +98,57 @@ class OfflineSyncManager {
         return obj;
     }
 
+    /**
+     * Processes the sync queue.
+     */
     async forceSync() {
         if (!navigator.onLine || this.isSyncing) return;
         this.isSyncing = true;
-        console.log('🚀 [OfflineManager] Starting Fast Sync...');
         
-        const actions = await this.getPendingActions();
-        if (actions.length === 0) {
-            this.isSyncing = false;
-            return;
-        }
+        try {
+            const result = await this.syncDB.allDocs({ include_docs: true });
+            const actions = result.rows.map(row => row.doc);
+            
+            if (actions.length === 0) {
+                this.isSyncing = false;
+                return;
+            }
 
-        let successCount = 0;
-        for (const action of actions) {
-            try {
-                const ok = await this.executeRemote(action);
-                if (ok) {
-                    const tx = this.db.transaction([STORE_NAME], 'readwrite');
-                    tx.objectStore(STORE_NAME).delete(action.id);
-                    successCount++;
+            console.log(`🚀 [OfflineManager] Syncing ${actions.length} pending actions...`);
+            let successCount = 0;
+
+            for (const action of actions) {
+                try {
+                    const ok = await this.executeRemote(action);
+                    if (ok) {
+                        await this.syncDB.remove(action);
+                        successCount++;
+                    }
+                } catch (e) {
+                    console.error('Sync Error for action:', action._id, e);
+                    break; // Stop syncing to preserve order if failure occurs
                 }
-            } catch (e) { console.error('Sync Error:', e); }
-        }
+            }
 
-        if (successCount > 0) {
-            console.log(`✅ [OfflineManager] Successfully synced ${successCount} items.`);
-            this.notifyUI('SYNC_COMPLETE', successCount);
-            // Refresh to get official IDs from MongoDB
-            setTimeout(() => window.location.reload(), 1500);
+            if (successCount > 0) {
+                console.log(`✅ [OfflineManager] Successfully synced ${successCount} items.`);
+                this.notifyUI('SYNC_COMPLETE', successCount);
+                // Refresh occasionally to ensure UI is in sync with server IDs
+                setTimeout(() => window.location.reload(), 2000);
+            }
+        } catch (e) {
+            console.error('[OfflineManager] Sync process error:', e);
+        } finally {
+            this.isSyncing = false;
         }
-        this.isSyncing = false;
     }
 
     async executeRemote(action) {
-        const options = { method: action.method, headers: {} };
+        const options = { 
+            method: action.method, 
+            headers: { 'X-Offline-Sync': 'true' } 
+        };
+        
         if (action.isFormData) {
             const fd = new FormData();
             Object.keys(action.body).forEach(k => {
@@ -125,6 +160,7 @@ class OfflineSyncManager {
             options.headers['Content-Type'] = 'application/json';
             options.body = JSON.stringify(action.body);
         }
+        
         const res = await fetch(action.url, options);
         return res.ok;
     }
@@ -133,33 +169,45 @@ class OfflineSyncManager {
         if (typeof Swal !== 'undefined') {
             const config = type === 'SYNC_COMPLETE' 
                 ? { icon: 'success', title: 'Sync Complete', text: `Uploaded ${count} pending actions.` }
-                : { icon: 'info', title: 'Saved Offline', text: 'Data will sync when connection returns.' };
+                : { icon: 'info', title: 'Saved Offline', text: 'Changes will sync when connection returns.' };
             
             Swal.fire({ toast: true, position: 'bottom-end', showConfirmButton: false, timer: 3000, ...config });
         }
     }
+
+    /**
+     * Helper for CSR to get all items from local DB
+     */
+    async getAllItems() {
+        const result = await this.itemsDB.allDocs({ include_docs: true });
+        return result.rows.map(row => row.doc);
+    }
 }
 
+// Global instance
 const xpiderSync = new OfflineSyncManager();
 
+/**
+ * Universal helper for POST requests that handles offline queueing.
+ */
 async function offlineSafePost(url, data) {
     if (!navigator.onLine) {
         await xpiderSync.queueAction(url, 'POST', data);
         return { success: true, offline: true };
     }
+    
     try {
         const res = await fetch(url, { 
             method: 'POST', 
             body: data instanceof FormData ? data : JSON.stringify(data),
             headers: data instanceof FormData ? {} : { 'Content-Type': 'application/json' }
         });
-        if (!res.ok) throw new Error();
+        
+        if (!res.ok) throw new Error('Server returned ' + res.status);
         return res;
     } catch (e) {
+        console.warn('[OfflineManager] Network call failed, queueing action:', e);
         await xpiderSync.queueAction(url, 'POST', data);
         return { success: true, offline: true };
     }
 }
-
-// Sync whenever connection returns
-window.addEventListener('online', () => xpiderSync.forceSync());

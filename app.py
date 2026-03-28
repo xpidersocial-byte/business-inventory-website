@@ -6,6 +6,7 @@ import socket
 import platform
 import requests
 from flask import Flask, render_template, request, session, g, jsonify, redirect, url_for
+from flask_compress import Compress
 from datetime import datetime
 from dotenv import load_dotenv
 
@@ -34,6 +35,9 @@ app.json = MongoJSONProvider(app)
 # MongoDB Configuration
 app.config["MONGO_URI"] = os.getenv("MONGO_URI", "mongodb://127.0.0.1:27017/database?directConnection=true&serverSelectionTimeoutMS=2000&appName=mongosh+2.8.1")
 mongo.init_app(app)
+
+# Enable Compression
+Compress(app)
 
 # SocketIO Initialization
 socketio.init_app(app, cors_allowed_origins="*", async_mode='eventlet')

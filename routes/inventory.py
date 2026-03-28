@@ -340,6 +340,24 @@ def stock_in():
             flash(Markup(f"Stock IN recorded! <a href='{undo_url}' class='alert-link fw-bold ms-2 text-decoration-underline'>Undo</a>"), "success")
     return redirect(url_for('inventory.restock'))
 
+@inventory_bp.route('/api/items/sync')
+@login_required
+def api_sync_items():
+    items_collection = get_items_collection()
+    # Fetch all active items, only return minimal fields to save bandwidth
+    raw_items = list(items_collection.find({"active": {"$ne": False}}, {
+        "name": 1, "category": 1, "menu": 1, "retail_price": 1, "stock": 1, "sold": 1
+    }))
+    
+    # Process them to ensure they have a string _id for PouchDB
+    processed = []
+    for item in raw_items:
+        item['_id'] = str(item['_id'])
+        processed.append(item)
+        
+    return jsonify(processed)
+
+
 @inventory_bp.route('/inventory/stock-out', methods=['POST'])
 @login_required
 def stock_out():
