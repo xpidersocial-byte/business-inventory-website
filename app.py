@@ -32,7 +32,7 @@ app.secret_key = os.getenv("SECRET_KEY", "supersecretkey")
 app.json = MongoJSONProvider(app)
 
 # MongoDB Configuration
-app.config["MONGO_URI"] = os.getenv("MONGO_URI", "mongodb://127.0.0.1:27017/inventory_db?directConnection=true&serverSelectionTimeoutMS=2000&appName=mongosh+2.8.1")
+app.config["MONGO_URI"] = os.getenv("MONGO_URI", "mongodb://127.0.0.1:27017/database?directConnection=true&serverSelectionTimeoutMS=2000&appName=mongosh+2.8.1")
 mongo.init_app(app)
 
 # SocketIO Initialization
