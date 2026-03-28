@@ -1,6 +1,6 @@
 /**
- * FBIHM Offline Sync Manager v2.1 (Ultra Intelligence)
- * Fixed: Automatic fallback to queuing if fetch fails despite navigator.onLine being true.
+ * FBIHM Offline Sync Manager v2.2 (Persistent UI)
+ * Added: Methods to retrieve pending data for persistent offline display.
  */
 
 const DB_NAME = 'xpider_offline_db';
@@ -48,6 +48,22 @@ class OfflineManager {
                 document.dispatchEvent(new CustomEvent('dataSynced', { detail: event.data }));
             }
         };
+    }
+
+    /**
+     * Retrieve all pending actions for a specific page/URL
+     */
+    async getPendingByUrl(urlPart) {
+        if (!this.db) await this.initDB();
+        return new Promise((resolve) => {
+            const tx = this.db.transaction([STORE_NAME], 'readonly');
+            const store = tx.objectStore(STORE_NAME);
+            const request = store.getAll();
+            request.onsuccess = () => {
+                const results = request.result.filter(action => action.url.includes(urlPart));
+                resolve(results);
+            };
+        });
     }
 
     async queueAction(url, method, body) {
@@ -98,8 +114,9 @@ class OfflineManager {
     async syncAll() {
         if (!navigator.onLine || !this.db || this.syncing) return;
         this.syncing = true;
-        const tx = this.db.transaction([STORE_NAME], 'readonly');
+        
         const actions = await new Promise(r => {
+            const tx = this.db.transaction([STORE_NAME], 'readonly');
             tx.objectStore(STORE_NAME).getAll().onsuccess = (e) => r(e.target.result);
         });
 
@@ -113,7 +130,11 @@ class OfflineManager {
                     successCount++;
                 }
             }
-            if (successCount > 0) this.showSyncToast(successCount);
+            if (successCount > 0) {
+                this.showSyncToast(successCount);
+                // Important: reload after sync to get official IDs from server
+                setTimeout(() => window.location.reload(), 2000);
+            }
         }
         this.syncing = false;
     }
@@ -141,7 +162,7 @@ class OfflineManager {
         if (typeof Swal !== 'undefined') {
             Swal.fire({
                 toast: true, position: 'bottom-end', icon: 'info',
-                title: 'Saved Offline', text: 'Will sync when connection returns.',
+                title: 'Saved Locally', text: 'Data is safe and will sync later.',
                 showConfirmButton: false, timer: 3000
             });
         }
@@ -151,7 +172,7 @@ class OfflineManager {
         if (typeof Swal !== 'undefined') {
             Swal.fire({
                 toast: true, position: 'bottom-end', icon: 'success',
-                title: 'Sync Complete', text: `Uploaded ${count} actions.`,
+                title: 'Sync Success', text: `${count} actions uploaded.`,
                 showConfirmButton: false, timer: 3000
             });
         }
@@ -160,18 +181,11 @@ class OfflineManager {
 
 const xpiderSync = new OfflineManager();
 
-/**
- * FIXED: Global safe post with automatic error catching for network loss
- */
 async function offlineSafePost(url, data) {
-    // If browser definitely knows it is offline, queue immediately
     if (!navigator.onLine) {
-        console.log("[OfflineSafePost] navigator.onLine is false. Queuing.");
         await xpiderSync.queueAction(url, 'POST', data);
         return { success: true, offline: true };
     }
-    
-    // If browser thinks it is online, try the fetch but catch network errors
     try {
         const options = { method: 'POST' };
         if (data instanceof FormData) options.body = data;
@@ -179,13 +193,10 @@ async function offlineSafePost(url, data) {
             options.headers = { 'Content-Type': 'application/json' };
             options.body = JSON.stringify(data);
         }
-        
         const response = await fetch(url, options);
-        if (!response.ok) throw new Error("Server responded with error");
+        if (!response.ok) throw new Error("Server Error");
         return response;
     } catch (err) {
-        // This block catches ERR_NAME_NOT_RESOLVED or timeouts
-        console.warn("[OfflineSafePost] Network error detected despite being 'online'. Falling back to queue.", err);
         await xpiderSync.queueAction(url, 'POST', data);
         return { success: true, offline: true };
     }
