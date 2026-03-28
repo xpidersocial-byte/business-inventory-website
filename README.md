@@ -104,3 +104,8 @@ The FBIHM project serves as a model for modern full-stack development methodolog
 
 ---
 *Last Updated: March 2026 | FBIHM Team Technical Documentation*
+
+## Automated Deployment Enabled
+- **Target Server:** 74.208.174.70
+- **Method:** SSH + rsync
+- **Last Deploy Triggered:** Sat Mar 28 10:33:52 AM CDT 2026
