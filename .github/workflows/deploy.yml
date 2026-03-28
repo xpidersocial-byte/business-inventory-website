@@ -25,22 +25,24 @@ jobs:
           
           mkdir -p "$TARGET_DIR"
           
-          # Sync files
-          rsync -av --delete --exclude 'venv/' --exclude 'data/' --exclude '.git/' ./ "$TARGET_DIR/"
+          # Sync files, excluding unnecessary directories
+          rsync -av --delete --exclude 'venv/' --exclude 'data/' --exclude '.git/' --exclude 'temp_update/' ./ "$TARGET_DIR/"
           
           cd "$TARGET_DIR"
           
           # Recreate VENV if it is too old (Python < 3.10)
           if [ -d "venv" ]; then
-            PYTHON_VERSION=$(venv/bin/python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
-            echo "Current VENV Python version: $PYTHON_VERSION"
-            if [ "$(echo "$PYTHON_VERSION < 3.10" | bc -l)" -eq 1 ]; then
-              echo "⚠️ VENV is too old. Recreating with latest Python..."
+            # Check version using Python directly (more reliable than bc)
+            if ! venv/bin/python3 -c 'import sys; exit(0 if sys.version_info >= (3, 10) else 1)'; then
+              echo "⚠️ VENV is too old (Python < 3.10). Recreating..."
               rm -rf venv
+            else
+              echo "✅ VENV version is compatible."
             fi
           fi
 
           if [ ! -d "venv" ]; then
+            echo "📦 Creating fresh Virtual Environment..."
             python3 -m venv venv
           fi
           
