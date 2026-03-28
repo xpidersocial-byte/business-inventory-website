@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - v2
+      - main
 
 jobs:
   deploy:
@@ -28,37 +29,20 @@ jobs:
           
           echo "🚀 Syncing files to $REMOTE_HOST..."
           
-          # 1. Sync files
+          sshpass -p "$SSH_PASS" ssh -o StrictHostKeyChecking=no $REMOTE_USER@$REMOTE_HOST "mkdir -p $TARGET_DIR"
+          
           sshpass -p "$SSH_PASS" rsync -avz -e "ssh -o StrictHostKeyChecking=no" \
             --exclude 'venv/' --exclude 'data/' --exclude '.git/' --exclude 'temp_update/' \
             ./ $REMOTE_USER@$REMOTE_HOST:$TARGET_DIR/
           
-          # 2. Remote execution: Setup and Restart
-          # We use a single line for the background process to ensure it detaches correctly
-          sshpass -p "$SSH_PASS" ssh -o StrictHostKeyChecking=no $REMOTE_USER@$REMOTE_HOST << 'EOF'
+          sshpass -p "$SSH_PASS" ssh -o StrictHostKeyChecking=no $REMOTE_USER@$REMOTE_HOST << 'REMOTECMD'
             cd /home/eujyrn/Desktop/flask_mongo_app
-            
-            if [ ! -d "venv" ]; then
-              python3 -m venv venv
-            fi
-            
+            if [ ! -d "venv" ]; then python3 -m venv venv; fi
             source venv/bin/activate
             pip install -r requirements.txt
-            
             echo "🔄 Restarting Flask Application..."
-            # Force kill any process on 5000
             fuser -k 5000/tcp || true
-            
-            # Start the app and fully detach
-            # Redirecting stdin (< /dev/null) is the key to preventing SSH hangs
             nohup venv/bin/python3 app.py > app.log 2>&1 < /dev/null &
-            
-            # Brief wait to ensure it didn't immediate crash
-            sleep 3
-            if pgrep -f "venv/bin/python3 app.py" > /dev/null; then
-              echo "✅ App is successfully running in background."
-            else
-              echo "❌ App failed to start. Check app.log."
-              exit 1
-            fi
-EOF
+            sleep 5
+            pgrep -f "venv/bin/python3 app.py" && echo "✅ App is running." || (echo "❌ Failed" && exit 1)
+REMOTECMD
