@@ -455,19 +455,19 @@
     setInterval(updateCountdowns, 60000);
     updateCountdowns();
 
+    
     // --- PERSISTENT OFFLINE DISPLAY ---
     async function hydrateOfflineData() {
-        if (typeof xpiderSync === "undefined") return;
-        const pending = await xpiderSync.getPendingByUrl("/bulletin/add");
-        if (pending && pending.length > 0) {
+        console.log("🌊 [UI] Checking for offline notes...");
+        try {
+            const pending = await xpiderSync.getPendingActions("/bulletin/add");
             const container = document.querySelector(".row.g-4");
-            if (!container) return;
+            if (!container || !pending.length) return;
             
             pending.forEach(action => {
                 const data = action.body;
-                
                 const col = document.createElement("div");
-                col.className = "col-xl-4 col-md-6";
+                col.className = "col-xl-4 col-md-6 offline-temp-note";
                 col.innerHTML = `
                     <div class="bulletin-card h-100 border-${data.color || "blue"}">
                         <div class="card-body p-4">
@@ -483,16 +483,12 @@
                     </div>
                 `;
                 container.prepend(col);
-
             });
-        }
+            console.log("✅ [UI] Injected " + pending.length + " offline notes.");
+        } catch (e) { console.error("Hydration Failed:", e); }
     }
-    // Ensure hydration happens after the initial DOM load
-    if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", hydrateOfflineData);
-    } else {
-        hydrateOfflineData();
-    }
+    window.addEventListener("load", hydrateOfflineData);
+
     
 </script>
 

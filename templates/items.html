@@ -948,19 +948,19 @@
         }
     }
 
+    
     // --- PERSISTENT OFFLINE DISPLAY ---
     async function hydrateOfflineData() {
-        if (typeof xpiderSync === "undefined") return;
-        const pending = await xpiderSync.getPendingByUrl("/items/add");
-        if (pending && pending.length > 0) {
-            const container = document.querySelector("#itemsTable tbody");
-            if (!container) return;
+        console.log("🌊 [UI] Checking for offline data...");
+        try {
+            const pending = await xpiderSync.getPendingActions("/items/add");
+            const tbody = document.querySelector("#itemsTable tbody");
+            if (!tbody || !pending.length) return;
             
             pending.forEach(action => {
                 const data = action.body;
-                
                 const newRow = document.createElement("tr");
-                newRow.className = "item-row bg-warning bg-opacity-10";
+                newRow.className = "item-row bg-warning bg-opacity-10 offline-temp-row";
                 newRow.innerHTML = `
                     <td class="fw-bold text-theme-main">${data.name} <small class="badge bg-warning text-dark">Sync Pending</small></td>
                     <td class="hide-mobile">--</td>
@@ -974,17 +974,14 @@
                     <td class="hide-mobile">₱0.00</td>
                     <td class="text-center"><i class="bi bi-cloud-slash text-warning"></i></td>
                 `;
-                container.prepend(newRow);
-
+                tbody.prepend(newRow);
             });
-        }
+            console.log("✅ [UI] Injected " + pending.length + " offline items.");
+        } catch (e) { console.error("Hydration Failed:", e); }
     }
-    // Ensure hydration happens after the initial DOM load
-    if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", hydrateOfflineData);
-    } else {
-        hydrateOfflineData();
-    }
+    // Standard initialization
+    window.addEventListener("load", hydrateOfflineData);
+
     
 </script>
 
