@@ -20,6 +20,6 @@ EXPOSE 5000
 ENV FLASK_ENV=production
 ENV FLASK_APP=app.py
 
-# Run app.py when the container launches using gunicorn (or keep python app.py if using eventlet/socketio directly)
-# Since you are using socketio with eventlet, it's best to run it the same way you do locally
+# Run app.py when the container launches using gunicorn (or keep python app.py if using gevent/socketio directly)
+# Since you are using socketio with gevent, it's best to run it the same way you do locally
 CMD ["python", "app.py"]

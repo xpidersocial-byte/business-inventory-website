@@ -213,7 +213,7 @@ def server_restart():
     log_action("SERVER_RESTART", "Developer triggered remote server restart.")
     import sys
     import time
-    import eventlet
+    import gevent
     
     def perform_restart():
         time.sleep(1)
@@ -225,7 +225,7 @@ def server_restart():
         subprocess.Popen(['/bin/bash', '-c', cmd], cwd=cwd, start_new_session=True)
         os._exit(0)
     
-    eventlet.spawn_after(0.5, perform_restart)
+    gevent.spawn_later(0.5, perform_restart)
     return jsonify({"success": True, "message": "Server rebooting... reconnecting in 5s."})
 
 @developer_bp.route('/developer/server/toggle-debug', methods=['POST'])

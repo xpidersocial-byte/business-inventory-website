@@ -36,7 +36,7 @@ app.config["MONGO_URI"] = os.getenv("MONGO_URI", "mongodb://localhost:27017/inve
 mongo.init_app(app)
 
 # SocketIO Initialization
-socketio.init_app(app, cors_allowed_origins="*", async_mode='eventlet')
+socketio.init_app(app, cors_allowed_origins="*", async_mode='gevent')
 init_socket_handlers()
 
 # Register Blueprints
