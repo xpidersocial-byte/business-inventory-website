@@ -439,60 +439,36 @@
 {% block scripts %}
 
 <script>
-    // --- RENDER ENGINE ---
     async function refreshNotes() {
-        console.log("🌊 [UI] Refreshing Notes from PouchDB...");
         if (typeof xpiderSync === "undefined") return;
-        
         try {
             const pending = await xpiderSync.getPendingActions("/bulletin/add");
             const container = document.querySelector(".row.g-4");
             if (!container) return;
-            container.innerHTML = ""; // Clear for re-render
-
-            // 1. Render Pending (Queued) notes first
+            container.innerHTML = "";
             pending.forEach(action => {
-                renderNote(container, action.body, true);
+                const data = action.body;
+                const col = document.createElement("div");
+                col.className = "col-xl-4 col-md-6";
+                col.innerHTML = `
+                    <div class="bulletin-card h-100 border-${data.color || "blue"}">
+                        <div class="card-body p-4">
+                            <div class="d-flex justify-content-between mb-3"><span class="badge bg-warning text-dark">SYNC PENDING</span></div>
+                            <p class="text-theme-main">${data.content}</p>
+                            <div class="mt-auto pt-3 border-top"><span class="small text-theme-muted">Just now</span></div>
+                        </div>
+                    </div>`;
+                container.prepend(col);
             });
-
-            // 2. Fetch already synced notes from server or local cache (for now we rely on precached HTML or we could use notesDB)
-            // Since we want this fast, let s just handle the optimistic ones here.
-            // Full CSR for notes would require an /api/notes/sync endpoint.
-            console.log(`✅ [UI] Handled ${pending.length} pending notes.`);
-        } catch (e) { console.error("Notes Refresh Failed:", e); }
-    }
-
-    function renderNote(container, data, isPending) {
-        const col = document.createElement("div");
-        col.className = "col-xl-4 col-md-6";
-        col.innerHTML = `
-            <div class="bulletin-card h-100 border-${data.color || "blue"}">
-                <div class="card-body p-4">
-                    <div class="d-flex justify-content-between align-items-start mb-3">
-                        <span class="badge rounded-pill bg-warning text-dark small uppercase ls-1">
-                            ${isPending ? "SYNC PENDING" : "ACTIVE"}
-                        </span>
-                    </div>
-                    <p class="bulletin-content mb-4 text-theme-main">${data.content}</p>
-                    <div class="d-flex justify-content-between align-items-center mt-auto pt-3 border-top border-secondary border-opacity-10">
-                        <span class="small text-theme-muted"><i class="bi bi-clock me-1"></i>Offline Saved</span>
-                        <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 px-2 py-1">${data.tag || "Normal"}</span>
-                    </div>
-                </div>
-            </div>
-        `;
-        container.prepend(col);
+        } catch (e) { console.error(e); }
     }
 
     async function handleBulletinSubmit(event) {
         event.preventDefault();
-        const form = event.target;
-        const formData = new FormData(form);
         const url = "{{ url_for("bulletin.add_bulletin") }}";
-        
-        await offlineSafePost(url, formData);
-        bootstrap.Modal.getInstance(form.closest(".modal")).hide();
-        form.reset();
+        await offlineSafePost(url, new FormData(event.target));
+        bootstrap.Modal.getInstance(event.target.closest(".modal")).hide();
+        event.target.reset();
         refreshNotes();
     }
 

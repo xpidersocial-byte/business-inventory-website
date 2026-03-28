@@ -1064,66 +1064,7 @@
     
 
 
-    // --- OFFLINE POWER PACK v8.0 ---
-    (function() {
-        async function hydrate() {
-            console.log("🌊 [Offline] Hydrating /items/add...");
-            if (typeof xpiderSync === "undefined") return;
-            const pending = await xpiderSync.getPendingActions("/items/add");
-            const container = document.querySelector("#itemsTable tbody");
-            if (!container || !pending.length) return;
-            pending.forEach(action => {
-                const data = action.body;
-                
-                const row = document.createElement("tr");
-                row.className = "item-row bg-warning bg-opacity-10 offline-temp-row";
-                row.innerHTML = `
-                    <td class="fw-bold text-theme-main">${data.name} <small class="badge bg-warning text-dark">Sync Pending</small></td>
-                    <td class="hide-mobile">--</td>
-                    <td class="hide-mobile"><span class="badge bg-secondary">${data.category || "--"}</span></td>
-                    <td class="hide-mobile">₱${parseFloat(data.cost_price || 0).toFixed(2)}</td>
-                    <td class="hide-mobile">₱${parseFloat(data.retail_price || 0).toFixed(2)}</td>
-                    <td class="hide-mobile">--</td>
-                    <td>0 <span class="badge bg-warning small">Offline</span></td>
-                    <td class="hide-mobile">0</td>
-                    <td class="hide-mobile">₱0.00</td>
-                    <td class="hide-mobile">₱0.00</td>
-                    <td class="text-center"><i class="bi bi-cloud-slash text-warning"></i></td>
-                `;
-                container.prepend(row);
-
-            });
-        }
-
-        document.addEventListener("offlineActionQueued", (e) => {
-            if (e.detail.url.includes("/items/add")) {
-                const container = document.querySelector("#itemsTable tbody");
-                if (!container) return;
-                const data = e.detail.body;
-                
-                const row = document.createElement("tr");
-                row.className = "item-row bg-warning bg-opacity-10 offline-temp-row";
-                row.innerHTML = `
-                    <td class="fw-bold text-theme-main">${data.name} <small class="badge bg-warning text-dark">Sync Pending</small></td>
-                    <td class="hide-mobile">--</td>
-                    <td class="hide-mobile"><span class="badge bg-secondary">${data.category || "--"}</span></td>
-                    <td class="hide-mobile">₱${parseFloat(data.cost_price || 0).toFixed(2)}</td>
-                    <td class="hide-mobile">₱${parseFloat(data.retail_price || 0).toFixed(2)}</td>
-                    <td class="hide-mobile">--</td>
-                    <td>0 <span class="badge bg-warning small">Offline</span></td>
-                    <td class="hide-mobile">0</td>
-                    <td class="hide-mobile">₱0.00</td>
-                    <td class="hide-mobile">₱0.00</td>
-                    <td class="text-center"><i class="bi bi-cloud-slash text-warning"></i></td>
-                `;
-                container.prepend(row);
-
-            }
-        });
-
-        if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", hydrate);
-        else hydrate();
-    })();
+    
     
 </script>
 
