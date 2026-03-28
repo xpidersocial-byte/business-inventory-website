@@ -29,14 +29,18 @@ jobs:
 
       - name: Deploy to Swarm Stack
         run: |
-          # Use the stack.yml to deploy on port 5000
           docker stack deploy -c stack.yml fbihm_stack
 
-      - name: Verify Deployment
+      - name: Verify and Show Logs
         run: |
-          echo "Waiting for service to start..."
-          sleep 10
-          docker service ls | grep fbihm_stack
+          echo "Waiting 15 seconds for containers to initialize..."
+          sleep 15
+          echo "--- Service Status ---"
+          docker service ls
+          echo "--- Task Status ---"
+          docker service ps fbihm_stack_web
+          echo "--- Container Logs (Last 50 lines) ---"
+          docker service logs --tail 50 fbihm_stack_web
           
       - name: Cleanup Old Images
         run: |
