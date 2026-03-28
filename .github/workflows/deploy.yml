@@ -13,45 +13,42 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Install System Dependencies
+        run: |
+          apt-get update
+          apt-get install -y python3-venv python3-pip rsync
+
       - name: Deploy to Local Directory
         run: |
-          # Define the target directory on your runner server
           TARGET_DIR="/home/eujyrn/Desktop/flask_mongo_app"
-          
           echo "🚀 Deploying to: $TARGET_DIR"
           
-          # 1. Create target directory
           mkdir -p "$TARGET_DIR"
           
-          # 2. Sync all source files (excluding large/unnecessary folders)
-          # We use /usr/bin/cp because rsync might not be in the CI container
-          cp -R . "$TARGET_DIR/"
+          # Using rsync is better for manual deploy as it only copies changed files
+          rsync -av --delete --exclude 'venv/' --exclude 'data/' --exclude '.git/' ./ "$TARGET_DIR/"
           
           cd "$TARGET_DIR"
           
-          # 3. Setup Virtual Environment
+          # Setup Virtual Environment
           if [ ! -d "venv" ]; then
             python3 -m venv venv
           fi
           
-          # 4. Install Requirements
+          # Install Requirements
           source venv/bin/activate
           pip install --upgrade pip
           pip install -r requirements.txt
           
-          # 5. Restart the Application
+          # Restart the Application
           echo "🔄 Restarting Flask Application..."
-          # Kill existing process running from this specific path
           pkill -f "$TARGET_DIR/venv/bin/python3 app.py" || true
-          
-          # Start in background with gevent/eventlet support
-          # We set MONGO_URI explicitly if needed, or rely on .env
           nohup venv/bin/python3 app.py > app.log 2>&1 &
           
-          # 6. Verify
+          # Verify
           sleep 10
           if pgrep -f "$TARGET_DIR/venv/bin/python3 app.py" > /dev/null; then
-            echo "✅ Manual Deployment Successful! App is running."
+            echo "✅ Manual Deployment Successful!"
           else
             echo "❌ Application failed to start. Last 20 lines of app.log:"
             tail -n 20 app.log
