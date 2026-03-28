@@ -1,4 +1,4 @@
-name: Remote SSH Deploy
+name: Remote SSH Deploy (Watchdog Enabled)
 
 on:
   push:
@@ -35,7 +35,9 @@ jobs:
           TARGET_DIR="/home/eujyrn/Desktop/flask_mongo_app"
           
           echo "🚀 Syncing to $REMOTE_HOST..."
-          sshpass -p "$SSH_PASS" ssh -o StrictHostKeyChecking=no $REMOTE_USER@$REMOTE_HOST "rm -f $TARGET_DIR/app.py"
+          # Protect .env and logs, but clear old code
+          sshpass -p "$SSH_PASS" ssh -o StrictHostKeyChecking=no $REMOTE_USER@$REMOTE_HOST \
+            "find $TARGET_DIR -maxdepth 1 -type f -not -name 'app.log' -not -name '.env' -not -name 'watchdog.log' -delete"
           
           sshpass -p "$SSH_PASS" rsync -avzc -e "ssh -o StrictHostKeyChecking=no" \
             --exclude 'venv/' --exclude 'data/' --exclude '.git/' \
@@ -43,31 +45,31 @@ jobs:
           
           sshpass -p "$SSH_PASS" ssh -o StrictHostKeyChecking=no $REMOTE_USER@$REMOTE_HOST "
             cd /home/eujyrn/Desktop/flask_mongo_app
-            echo '--- DEBUG: Current Directory ---'
-            pwd
+            
+            # Kill existing watchdog and app to ensure fresh start
+            pkill -f 'watchdog.sh' || true
+            pkill -f 'app.py' || true
+            fuser -k 5000/tcp || true
             
             if [ ! -d 'venv' ]; then python3 -m venv venv; fi
             source venv/bin/activate
             pip install -r requirements.txt
             
-            echo '--- DEBUG: Checking MongoDB Connection ---'
-            grep 'MONGO_URI' .env || grep 'MONGO_URI' app.py
+            echo '🔄 Starting System Watchdog...'
+            chmod +x watchdog.sh
+            # Start watchdog in background, fully detached
+            nohup ./watchdog.sh > watchdog.log 2>&1 < /dev/null &
             
-            echo '🔄 Restarting Application...'
-            fuser -k 5000/tcp || true
-            pkill -f 'app.py' || true
-            
-            # Start and capture PID
-            nohup venv/bin/python3 app.py > app.log 2>&1 < /dev/null &
-            sleep 7
+            echo '⌛ Waiting for watchdog to start the app...'
+            sleep 15
             
             if pgrep -f 'venv/bin/python3 app.py' > /dev/null; then
-              echo '✅ SUCCESS: App is running on port 5000.'
-              echo '--- Recent Logs ---'
+              echo '✅ SUCCESS: Watchdog has started the App.'
+              echo '--- Recent app.log ---'
               tail -n 10 app.log
             else
-              echo '❌ ERROR: App failed to start. CRITICAL DEBUG LOGS BELOW:'
-              cat app.log
+              echo '❌ ERROR: App not started yet. Check watchdog.log:'
+              tail -n 20 watchdog.log
               exit 1
             fi
           "
