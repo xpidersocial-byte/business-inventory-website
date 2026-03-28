@@ -415,6 +415,7 @@
         }
     </script>
     {{ site_config.custom_head_scripts | safe }}
+    <script src="/static/js/offline-manager.js"></script>
 </head>
 <body>
     {{ site_config.custom_body_scripts | safe }}
@@ -877,7 +878,7 @@
 
     
     <!-- PWA / Offline Scripts -->
-    <script src="/static/js/offline-manager.js"></script>
+    
     <script>
         // SERVICE WORKER REGISTRATION (Faster registration on DOMContentLoaded)
         if ('serviceWorker' in navigator) {
