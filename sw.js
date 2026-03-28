@@ -12,7 +12,7 @@ const ASSETS_TO_CACHE = [
     '/login',
     '/dashboard',
     '/inventory/items',
-    '/pos', '/sales/summary',
+    '/pos', '/sales-summary',
     OFFLINE_URL,
     '/static/manifest.json',
     '/favicon.ico',
