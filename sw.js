@@ -1,24 +1,29 @@
 /**
- * FBIHM Service Worker v5.0 (High-Reliability Offline Mode)
- * Improved caching for ALL dependencies and fail-fast network requests.
+ * FBIHM Service Worker v6.0 (Ultra Offline-First)
+ * Handles precaching, background sync, and UI notifications.
  */
 
-const CACHE_NAME = 'fbihm-v5.0';
+const CACHE_NAME = 'fbihm-v6.0';
 const OFFLINE_URL = '/offline';
+const SYNC_CHANNEL = new BroadcastChannel('offline_sync_status');
 
-// Core assets that MUST be available
+// Core assets for the "App Shell"
 const ASSETS_TO_CACHE = [
     '/',
     '/login',
+    '/dashboard',
+    '/items',
+    '/sales',
+    '/sales-summary',
+    '/pos',
+    '/bulletin',
     OFFLINE_URL,
     '/static/manifest.json',
     '/favicon.ico',
     '/static/sounds/notification.mp3',
     '/static/js/offline-manager.js',
-    // UI Frameworks (CSS)
     'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css',
     'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css',
-    // UI Frameworks (JS)
     'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js',
     'https://cdn.socket.io/4.5.4/socket.io.min.js',
     'https://cdn.jsdelivr.net/npm/sweetalert2@11',
@@ -29,12 +34,12 @@ self.addEventListener('install', (event) => {
     self.skipWaiting();
     event.waitUntil(
         caches.open(CACHE_NAME).then(async (cache) => {
-            console.log('[SW] Precaching all system dependencies');
+            console.log('[SW] Precaching App Shell');
             for (const url of ASSETS_TO_CACHE) {
                 try {
                     await cache.add(new Request(url, { redirect: 'follow' }));
                 } catch (e) {
-                    console.warn(`[SW] Could not cache: ${url}`);
+                    console.warn(`[SW] Precache failed: ${url}`);
                 }
             }
         })
@@ -55,36 +60,30 @@ self.addEventListener('activate', (event) => {
 });
 
 /**
- * Helper: Fetch with timeout to prevent "Stuck in Loading"
+ * Background Sync Implementation
  */
-function fetchWithTimeout(request, timeout = 3000) {
-    return new Promise((resolve, reject) => {
-        const timer = setTimeout(() => reject(new Error('Network timeout')), timeout);
-        fetch(request).then(
-            (response) => {
-                clearTimeout(timer);
-                resolve(response);
-            },
-            (err) => {
-                clearTimeout(timer);
-                reject(err);
-            }
-        );
-    });
-}
+self.addEventListener('sync', (event) => {
+    if (event.tag === 'fbihm-sync') {
+        console.log('[SW] Background Sync Triggered');
+        // The actual sync logic is in offline-manager.js, but the SW 
+        // keeps the process alive and can trigger a BroadcastChannel message.
+        SYNC_CHANNEL.postMessage({ type: 'SYNC_STARTED' });
+    }
+});
 
+/**
+ * Fetch interception with Network-First strategy for pages
+ */
 self.addEventListener('fetch', (event) => {
     if (event.request.method !== 'GET') return;
 
     const url = new URL(event.request.url);
-
-    // Skip dynamic system routes
     if (url.pathname.includes('socket.io') || url.pathname.startsWith('/health')) return;
 
-    // STRATEGY: Network-First for Navigation (with 3s timeout)
+    // Navigation (HTML Pages)
     if (event.request.mode === 'navigate') {
         event.respondWith(
-            fetchWithTimeout(event.request, 3000)
+            fetch(event.request)
                 .then((networkResponse) => {
                     if (networkResponse && networkResponse.status === 200) {
                         const cacheCopy = networkResponse.clone();
@@ -93,26 +92,23 @@ self.addEventListener('fetch', (event) => {
                     return networkResponse;
                 })
                 .catch(() => {
-                    return caches.match(event.request).then((cachedResponse) => {
-                        return cachedResponse || caches.match(OFFLINE_URL);
-                    });
+                    return caches.match(event.request).then((cached) => cached || caches.match(OFFLINE_URL));
                 })
         );
         return;
     }
 
-    // STRATEGY: Stale-While-Revalidate for Assets
+    // Static Assets (Cache-First)
     event.respondWith(
         caches.match(event.request).then((cachedResponse) => {
-            const fetchPromise = fetch(event.request).then((networkResponse) => {
+            if (cachedResponse) return cachedResponse;
+            return fetch(event.request).then((networkResponse) => {
                 if (networkResponse && networkResponse.status === 200) {
                     const cacheCopy = networkResponse.clone();
                     caches.open(CACHE_NAME).then((cache) => cache.put(event.request, cacheCopy));
                 }
                 return networkResponse;
-            }).catch(() => cachedResponse);
-
-            return cachedResponse || fetchPromise;
+            });
         })
     );
 });

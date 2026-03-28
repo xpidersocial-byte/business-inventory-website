@@ -1,11 +1,12 @@
 /**
- * FBIHM Offline Sync Manager v1.2
- * Handles IndexedDB storage for offline actions and automatic synchronization.
+ * FBIHM Offline Sync Manager v2.0 (Ultra Reliability)
+ * Handles IndexedDB, Background Sync API, and UI Communication via BroadcastChannel.
  */
 
 const DB_NAME = 'xpider_offline_db';
 const DB_VERSION = 1;
 const STORE_NAME = 'pending_syncs';
+const SYNC_CHANNEL = new BroadcastChannel('offline_sync_status');
 
 class OfflineManager {
     constructor() {
@@ -22,7 +23,6 @@ class OfflineManager {
             request.onsuccess = (e) => {
                 this.db = e.target.result;
                 resolve(this.db);
-                // Check for sync on load if online
                 if (navigator.onLine) this.syncAll();
             };
             request.onupgradeneeded = (e) => {
@@ -35,16 +35,26 @@ class OfflineManager {
     }
 
     setupEventListeners() {
+        // Listen for browser online event
         window.addEventListener('online', () => {
-            console.log('[OfflineManager] Back online. Triggering sync...');
+            console.log('[OfflineManager] Back online. Attempting fast sync...');
             if (typeof updateConnectivityUI === 'function') updateConnectivityUI();
             this.syncAll();
         });
 
         window.addEventListener('offline', () => {
-            console.log('[OfflineManager] System is offline.');
+            console.log('[OfflineManager] Device is offline.');
             if (typeof updateConnectivityUI === 'function') updateConnectivityUI();
         });
+
+        // Listen for messages from the Service Worker
+        SYNC_CHANNEL.onmessage = (event) => {
+            if (event.data.type === 'SYNC_COMPLETE') {
+                this.showSyncToast(event.data.count);
+                // Optionally refresh parts of the page without reload
+                if (typeof onSyncComplete === 'function') onSyncComplete(event.data);
+            }
+        };
     }
 
     async queueAction(url, method, body) {
@@ -72,10 +82,24 @@ class OfflineManager {
             const request = store.add(action);
             request.onsuccess = () => {
                 this.showOfflineToast();
+                // Attempt Background Sync registration
+                this.registerBackgroundSync();
                 resolve();
             };
             request.onerror = () => reject('Failed to queue action');
         });
+    }
+
+    async registerBackgroundSync() {
+        if ('serviceWorker' in navigator && 'SyncManager' in window) {
+            try {
+                const registration = await navigator.serviceWorker.ready;
+                await registration.sync.register('fbihm-sync');
+                console.log('[OfflineManager] Background Sync registered');
+            } catch (err) {
+                console.warn('[OfflineManager] Background Sync registration failed:', err);
+            }
+        }
     }
 
     serializeFormData(formData) {
@@ -102,8 +126,6 @@ class OfflineManager {
             if (countRequest.result === 0) return;
             
             this.syncing = true;
-            console.log(`[OfflineManager] Syncing ${countRequest.result} actions...`);
-            
             const getAllRequest = this.db.transaction([STORE_NAME], 'readonly').objectStore(STORE_NAME).getAll();
             
             getAllRequest.onsuccess = async () => {
@@ -122,14 +144,14 @@ class OfflineManager {
                             successCount++;
                         }
                     } catch (e) {
-                        console.error('[OfflineManager] Sync failed for item:', action.id, e);
+                        console.error('[OfflineManager] Sync failed for item:', action.id);
                     }
                 }
                 
                 if (successCount > 0) {
                     this.showSyncToast(successCount);
-                    // Reload the page after sync to show fresh data from server
-                    setTimeout(() => window.location.reload(), 3000);
+                    // Emit local event so page can update data without reload
+                    document.dispatchEvent(new CustomEvent('dataSynced', { detail: { count: successCount } }));
                 }
                 this.syncing = false;
             };
@@ -168,13 +190,10 @@ class OfflineManager {
     showOfflineToast() {
         if (typeof Swal !== 'undefined') {
             Swal.fire({
-                toast: true,
-                position: 'bottom-end',
-                icon: 'warning',
-                title: 'Offline Action Queued',
-                text: 'Changes will sync when online.',
-                showConfirmButton: false,
-                timer: 4000
+                toast: true, position: 'bottom-end', icon: 'info',
+                title: 'Working Offline',
+                text: 'Your action was saved locally and will sync automatically.',
+                showConfirmButton: false, timer: 4000
             });
         }
     }
@@ -182,13 +201,10 @@ class OfflineManager {
     showSyncToast(count) {
         if (typeof Swal !== 'undefined') {
             Swal.fire({
-                toast: true,
-                position: 'bottom-end',
-                icon: 'success',
-                title: 'Data Synchronized',
-                text: `Successfully synced ${count} pending actions.`,
-                showConfirmButton: false,
-                timer: 3000
+                toast: true, position: 'bottom-end', icon: 'success',
+                title: 'Fast Sync Complete',
+                text: `Successfully synchronized ${count} actions.`,
+                showConfirmButton: false, timer: 3000
             });
         }
     }

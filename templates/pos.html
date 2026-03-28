@@ -494,6 +494,6 @@
             <div style="text-align:center;margin-top:20px;font-size:0.7rem">THANK YOU!</div>`;
     }
 
-    function resetPOS() { window.location.reload(); }
+    function resetPOS() { cart = []; updateCartUI(); document.getElementById("cashTendered").value = ""; }
 </script>
 {% endblock %}

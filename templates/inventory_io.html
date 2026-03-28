@@ -285,7 +285,7 @@
                 form.reset();
             } else {
                 // Online success
-                window.location.reload();
+                if (!res.offline) window.location.reload();
             }
         } catch (err) {
             console.error('Submission error:', err);
