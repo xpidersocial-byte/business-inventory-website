@@ -1,0 +1,67 @@
+name: Manual Server Deploy
+
+on:
+  push:
+    branches:
+      - v2
+
+jobs:
+  deploy:
+    runs-on: [ubuntu-latest, ubuntu-22.04]
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install System Dependencies
+        run: |
+          apt-get update
+          apt-get install -y python3-venv python3-pip rsync
+
+      - name: Deploy to Local Directory
+        run: |
+          TARGET_DIR="/home/eujyrn/Desktop/flask_mongo_app"
+          echo "🚀 Deploying to: $TARGET_DIR"
+          
+          mkdir -p "$TARGET_DIR"
+          
+          # Sync files, excluding unnecessary directories
+          rsync -av --delete --exclude 'venv/' --exclude 'data/' --exclude '.git/' --exclude 'temp_update/' ./ "$TARGET_DIR/"
+          
+          cd "$TARGET_DIR"
+          
+          # Recreate VENV if it is too old (Python < 3.10)
+          if [ -d "venv" ]; then
+            # Check version using Python directly (more reliable than bc)
+            if ! venv/bin/python3 -c 'import sys; exit(0 if sys.version_info >= (3, 10) else 1)'; then
+              echo "⚠️ VENV is too old (Python < 3.10). Recreating..."
+              rm -rf venv
+            else
+              echo "✅ VENV version is compatible."
+            fi
+          fi
+
+          if [ ! -d "venv" ]; then
+            echo "📦 Creating fresh Virtual Environment..."
+            python3 -m venv venv
+          fi
+          
+          # Install Requirements
+          source venv/bin/activate
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          
+          # Restart the Application
+          echo "🔄 Restarting Flask Application..."
+          pkill -f "$TARGET_DIR/venv/bin/python3 app.py" || true
+          nohup venv/bin/python3 app.py > app.log 2>&1 &
+          
+          # Verify
+          sleep 10
+          if pgrep -f "$TARGET_DIR/venv/bin/python3 app.py" > /dev/null; then
+            echo "✅ Manual Deployment Successful!"
+          else
+            echo "❌ Application failed to start. Last 20 lines of app.log:"
+            tail -n 20 app.log
+            exit 1
+          fi

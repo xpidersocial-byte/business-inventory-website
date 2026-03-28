@@ -1,0 +1,47 @@
+name: Docker Stack Auto Deploy
+
+on:
+  push:
+    branches:
+      - v2
+
+jobs:
+  deploy:
+    runs-on: [ubuntu-latest, ubuntu-22.04]
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install Docker CLI
+        run: |
+          if ! command -v docker &> /dev/null; then
+            apt-get update && apt-get install -y docker.io
+          fi
+
+      - name: Build Local Docker Image
+        run: |
+          docker build -t fbihm-local:latest .
+
+      - name: Initialize Swarm (If not already)
+        run: |
+          docker swarm init || true
+
+      - name: Deploy to Swarm Stack
+        run: |
+          docker stack deploy -c stack.yml fbihm_stack
+
+      - name: Verify and Show Logs
+        run: |
+          echo "Waiting 15 seconds for containers to initialize..."
+          sleep 15
+          echo "--- Service Status ---"
+          docker service ls
+          echo "--- Task Status ---"
+          docker service ps fbihm_stack_web
+          echo "--- Container Logs (Last 50 lines) ---"
+          docker service logs --tail 50 fbihm_stack_web
+          
+      - name: Cleanup Old Images
+        run: |
+          docker system prune -f
