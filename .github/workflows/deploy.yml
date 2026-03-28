@@ -1,62 +1,29 @@
-name: Deploy to Local Server (Self-Hosted Runner)
+name: Docker Stack Auto Deploy
 
 on:
   push:
     branches:
-      - main
+      - v2
 
 jobs:
   deploy:
-    runs-on: [self-hosted, ubuntu, X64]
+    runs-on: self-hosted
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Deploy to Local Directory
+      - name: Build Local Docker Image
         run: |
-          # Use $HOME to identify the correct home directory
-          TARGET_DIR="$HOME/Desktop/flask_mongo_app"
-          
-          echo "Deploying to: $TARGET_DIR"
-          echo "Current user: $(whoami)"
-          echo "Home directory: $HOME"
-          
-          # Create target directory if it doesn't exist
-          mkdir -p "$TARGET_DIR"
-          
-          # Sync the checked-out code to the app directory
-          rsync -av --delete --exclude 'venv/' --exclude '*.log' --exclude 'data/' ./ "$TARGET_DIR/"
-          
-          cd "$TARGET_DIR"
-          
-          # Ensure venv exists
-          if [ ! -d "venv" ]; then
-            python3 -m venv venv
-          fi
-          
-          source venv/bin/activate
-          pip install -r requirements.txt
-          
-          # Ensure MongoDB is running
-          echo "Checking MongoDB status..."
-          sudo systemctl start mongod || echo "MongoDB already running or manual start required"
-          
-          echo "Restarting application..."
-          # Kill existing process if running
-          pkill -f "venv/bin/python3 app.py" || echo "App was not running"
-          
-          # Start the app in the background on 0.0.0.0:5000
-          nohup venv/bin/python3 app.py > app.log 2>&1 &
-          
-          # Wait a few seconds and check if it's still running
-          sleep 5
-          if pgrep -f "venv/bin/python3 app.py" > /dev/null; then
-            echo "✅ Flask app is running."
-          else
-            echo "❌ Flask app failed to start. Last 20 lines of app.log:"
-            tail -n 20 app.log
-            exit 1
-          fi
-          
-          echo "Deployment successful! App is running on 0.0.0.0:5000."
+          docker build -t fbihm-local:latest .
+
+      - name: Deploy to Swarm Stack
+        run: |
+          # Ensure Swarm is initialized
+          docker swarm init || true
+          # Deploy the stack using our stack.yml
+          docker stack deploy -c stack.yml fbihm_stack
+
+      - name: Cleanup Old Images
+        run: |
+          docker system prune -f
