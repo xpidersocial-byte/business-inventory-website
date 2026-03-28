@@ -27,35 +27,43 @@ jobs:
           REMOTE_HOST="74.208.174.70"
           TARGET_DIR="/home/eujyrn/Desktop/flask_mongo_app"
           
-          echo "🚀 Preparing server..."
-          # Delete code files but PROTECT .env and app.log
-          sshpass -p "$SSH_PASS" ssh -o StrictHostKeyChecking=no $REMOTE_USER@$REMOTE_HOST \
-            "find $TARGET_DIR -maxdepth 1 -type f -not -name 'app.log' -not -name '.env' -delete"
+          echo "🚀 Starting Deployment to $REMOTE_HOST..."
           
-          echo "🚀 Syncing new files..."
+          # 1. Clean up old files on remote to prevent "stale code" issues
+          sshpass -p "$SSH_PASS" ssh -o StrictHostKeyChecking=no $REMOTE_USER@$REMOTE_HOST "rm -f $TARGET_DIR/app.py"
+          
+          # 2. Sync files with checksum verification
           sshpass -p "$SSH_PASS" rsync -avzc -e "ssh -o StrictHostKeyChecking=no" \
             --exclude 'venv/' --exclude 'data/' --exclude '.git/' \
             ./ $REMOTE_USER@$REMOTE_HOST:$TARGET_DIR/
           
+          # 3. Remote Execution
           sshpass -p "$SSH_PASS" ssh -o StrictHostKeyChecking=no $REMOTE_USER@$REMOTE_HOST << 'REMOTECMD'
             cd /home/eujyrn/Desktop/flask_mongo_app
-            echo "--- Verifying Config ---"
-            grep "MONGO_URI" .env
             
+            # Verify the sync worked
+            echo "--- Verifying Code Sync ---"
+            grep "MONGO_URI" app.py
+            
+            # Environment Setup
             if [ ! -d "venv" ]; then python3 -m venv venv; fi
             source venv/bin/activate
+            pip install --upgrade pip
             pip install -r requirements.txt
             
             echo "🔄 Restarting Application..."
             fuser -k 5000/tcp || true
             pkill -f "app.py" || true
+            
+            # Start and fully detach
             nohup venv/bin/python3 app.py > app.log 2>&1 < /dev/null &
             
             sleep 5
             if pgrep -f "venv/bin/python3 app.py" > /dev/null; then
-              echo "✅ App is running with correct configuration."
+              echo "✅ DEPLOYMENT SUCCESSFUL."
             else
-              echo "❌ Failed. Check app.log"
+              echo "❌ DEPLOYMENT FAILED. Showing last 20 lines of app.log:"
+              tail -n 20 app.log
               exit 1
             fi
 REMOTECMD
