@@ -1,0 +1,10 @@
+venv/
+__pycache__/
+*.pyc
+.git
+.env
+app.log
+*.db
+data/
+temp_update/
+project.tar.gz

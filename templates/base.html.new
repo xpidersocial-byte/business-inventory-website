@@ -1,0 +1,47 @@
+        function updateConnectivityUI() {
+            const icon = document.getElementById('connectivity-icon');
+            const text = document.getElementById('connectivity-text');
+            const mainContent = document.getElementById('main-content');
+            let banner = document.getElementById('offline-banner');
+
+            if (navigator.onLine) {
+                if (icon) {
+                    icon.classList.remove('bi-cloud-slash-fill', 'text-warning', 'text-danger');
+                    icon.classList.add('bi-cloud-check-fill', 'text-success');
+                    icon.title = "Online & Synced";
+                }
+                if (text) {
+                    text.innerText = "ONLINE";
+                    text.classList.remove('text-warning');
+                    text.classList.add('text-white');
+                }
+                if (banner) banner.remove();
+                console.log("[PWA] Back Online. Ready for sync.");
+            } else {
+                if (icon) {
+                    icon.classList.remove('bi-cloud-check-fill', 'text-success');
+                    icon.classList.add('bi-cloud-slash-fill', 'text-warning');
+                    icon.title = "Offline (Viewing Cached Data)";
+                }
+                if (text) {
+                    text.innerText = "OFFLINE";
+                    text.classList.remove('text-white');
+                    text.classList.add('text-warning');
+                }
+                
+                if (!banner) {
+                    banner = document.createElement('div');
+                    banner.id = 'offline-banner';
+                    banner.className = 'alert alert-warning py-2 mb-3 shadow-sm d-flex align-items-center justify-content-between';
+                    banner.innerHTML = `
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                            <span class="small fw-bold">Offline Mode: Viewing cached data. Changes will sync when online.</span>
+                        </div>
+                        <button class="btn btn-sm btn-outline-dark py-0" onclick="window.location.reload()">Retry</button>
+                    `;
+                    if (mainContent) mainContent.prepend(banner);
+                }
+                console.warn("[PWA] Device is Offline. Serving cached content.");
+            }
+        }

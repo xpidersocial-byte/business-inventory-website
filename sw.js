@@ -1,75 +1,108 @@
-// XPIDER Service Worker v2.5 (SUPER STRICT FILTERING)
-const CACHE_NAME = 'xpider-v2.5';
-const ASSETS = [
+/**
+ * FBIHM Service Worker v4.1 (Universal Offline Mode)
+ * Implements Stale-While-Revalidate for ALL pages and assets.
+ */
+
+const CACHE_NAME = 'fbihm-v4.1';
+const OFFLINE_URL = '/offline';
+
+// Core assets to precache during 'install' phase
+const ASSETS_TO_CACHE = [
+    '/',
+    '/login',
+    '/dashboard',
+    '/inventory/items',
+    '/pos', '/sales/summary',
+    OFFLINE_URL,
     '/static/manifest.json',
+    '/favicon.ico',
+    '/static/sounds/notification.mp3',
     'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css',
-    'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css'
+    'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css',
+    '/static/js/offline-manager.js'
 ];
 
 self.addEventListener('install', (event) => {
     self.skipWaiting();
     event.waitUntil(
         caches.open(CACHE_NAME).then((cache) => {
-            return cache.addAll(ASSETS);
+            console.log('[SW] Precaching universal assets');
+            return cache.addAll(ASSETS_TO_CACHE);
         })
     );
 });
 
 self.addEventListener('activate', (event) => {
+    event.waitUntil(clients.claim());
     event.waitUntil(
-        Promise.all([
-            clients.claim(),
-            // Clear old caches
-            caches.keys().then((cacheNames) => {
-                return Promise.all(cacheNames.map(c => caches.delete(c)));
-            }),
-            // Force clear existing notifications
-            self.registration.getNotifications().then(notifications => {
-                notifications.forEach(n => n.close());
-            })
-        ])
-    );
-});
-
-self.addEventListener('fetch', (event) => {
-    const url = new URL(event.request.url);
-    // Ignore navigation and specific routes
-    if (event.request.mode === 'navigate' || 
-        url.pathname.startsWith('/login') || 
-        url.pathname.startsWith('/system-info') || 
-        url.pathname.startsWith('/latest-log') ||
-        url.pathname.startsWith('/log-client-error') ||
-        url.pathname.startsWith('/socket.io')) {
-        return;
-    }
-    event.respondWith(
-        caches.match(event.request).then((response) => {
-            return response || fetch(event.request).catch(() => null);
+        caches.keys().then((cacheNames) => {
+            return Promise.all(
+                cacheNames.map((cacheName) => {
+                    if (cacheName !== CACHE_NAME) {
+                        return caches.delete(cacheName);
+                    }
+                })
+            );
         })
     );
 });
 
-// LISTEN FOR PUSH FROM SERVER
-self.addEventListener('push', (event) => {
-    let data = { title: 'System Alert', body: 'New activity recorded.' };
-    if (event.data) {
-        try {
-            data = event.data.json();
-        } catch (e) {
-            data.body = event.data.text();
-        }
-    }
+self.addEventListener('fetch', (event) => {
+    if (event.request.method !== 'GET') return;
 
-    // --- SUPER STRICT FILTER ---
-    const title = (data.title || '').toUpperCase();
-    const body = (data.body || '').toUpperCase();
-    
-    // Completely ignore anything related to subscriptions
-    if (title.includes('SUBSCRIBE') || body.includes('SUBSCRIBE')) {
-        console.log('[SW] Blocked subscription spam:', title);
+    const url = new URL(event.request.url);
+
+    // Skip dynamic routes that should never be cached
+    if (url.pathname.startsWith('/logout') || 
+        url.pathname.includes('socket.io') ||
+        url.pathname.startsWith('/system-info') ||
+        url.pathname.startsWith('/health')) {
         return;
     }
 
+    // Network-First strategy for Navigation to ensure fresh data when online,
+    // but fallback to cache or Offline Page when offline.
+    if (event.request.mode === 'navigate') {
+        event.respondWith(
+            fetch(event.request).then((networkResponse) => {
+                if (networkResponse && networkResponse.status === 200) {
+                    const cacheCopy = networkResponse.clone();
+                    caches.open(CACHE_NAME).then((cache) => cache.put(event.request, cacheCopy));
+                }
+                return networkResponse;
+            }).catch(() => {
+                return caches.match(event.request).then((cachedResponse) => {
+                    return cachedResponse || caches.match(OFFLINE_URL);
+                });
+            })
+        );
+        return;
+    }
+
+    // Stale-While-Revalidate for everything else (CSS, JS, Images, API)
+    event.respondWith(
+        caches.match(event.request).then((cachedResponse) => {
+            const fetchPromise = fetch(event.request).then((networkResponse) => {
+                if (networkResponse && networkResponse.status === 200) {
+                    const cacheCopy = networkResponse.clone();
+                    caches.open(CACHE_NAME).then((cache) => cache.put(event.request, cacheCopy));
+                }
+                return networkResponse;
+            }).catch(() => {
+                return cachedResponse;
+            });
+
+            return cachedResponse || fetchPromise;
+        })
+    );
+});
+
+// LISTEN FOR PUSH
+self.addEventListener('push', (event) => {
+    let data = { title: 'System Alert', body: 'New activity recorded.' };
+    if (event.data) {
+        try { data = event.data.json(); } catch (e) { data.body = event.data.text(); }
+    }
     const options = {
         body: data.body,
         icon: '/static/images/login_hero.webp',
@@ -78,13 +111,7 @@ self.addEventListener('push', (event) => {
         tag: 'xpider-activity',
         renotify: true
     };
-
-    // Add 3-second delay to match UI
-    event.waitUntil(
-        new Promise(resolve => setTimeout(resolve, 3000)).then(() => {
-            return self.registration.showNotification(data.title, options);
-        })
-    );
+    event.waitUntil(self.registration.showNotification(data.title, options));
 });
 
 self.addEventListener('notificationclick', (event) => {

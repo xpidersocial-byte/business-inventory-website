@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}System Logs - Inventory Manager{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12 d-flex justify-content-between align-items-center mb-4">
+        <h2 class="text-theme-main">System Audit Logs</h2>
+        <span class="badge bg-info text-dark px-3 py-2">Activity History</span>
+    </div>
+
+    <div class="col-md-12">
+        <div class="card shadow-lg p-0">
+            <div class="table-responsive">
+                <table class="table table-dark table-hover align-middle border-secondary mb-0">
+                    <thead class="text-primary border-bottom border-primary bg-black">
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>Email Address</th>
+                            <th>IP Address</th>
+                            <th>Action</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in logs %}
+                        <tr>
+                            <td class="text-theme-muted small">{{ log.timestamp|format_datetime }}</td>
+                            <td><span class="fw-bold">{{ log.email if log.email else log.username }}</span></td>
+                            <td class="text-info small">{{ log.ip if log.ip else 'N/A' }}</td>
+                            <td>
+                                <span class="badge 
+                                    {% if log.action == 'ADD_ITEM' %}bg-success
+                                    {% elif log.action == 'EDIT_ITEM' %}bg-info
+                                    {% elif log.action == 'DELETE_ITEM' %}bg-danger
+                                    {% elif log.action == 'SALE' %}bg-primary
+                                    {% elif log.action == 'PURCHASE' %}bg-success
+                                    {% elif log.action == 'LOGIN' %}bg-info text-dark
+                                    {% elif log.action == 'LOGOUT' %}bg-warning text-dark
+                                    {% elif 'USER' in log.action %}bg-danger
+                                    {% else %}bg-secondary{% endif %} px-2">
+                                    {{ log.action }}
+                                </span>
+                            </td>
+                            <td>{{ log.details }}</td>
+                        </tr>
+                        {% endfor %}
+                        {% if logs|length == 0 %}
+                        <tr>
+                            <td colspan="5" class="text-center text-theme-muted py-5">No system logs available.</td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

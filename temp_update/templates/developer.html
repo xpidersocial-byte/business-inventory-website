@@ -1,0 +1,350 @@
+{% extends "base.html" %}
+
+{% block title %}Developer Portal{% endblock %}
+
+{% block extra_css %}
+    .status-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 8px; background-color: #3fb950; box-shadow: 0 0 8px #3fb950; }
+    .dev-card { border-radius: 12px; transition: all 0.3s ease; border: 1px solid rgba(255,255,255,0.05); }
+    .dev-card:hover { border-color: var(--primary-soft); transform: translateY(-2px); }
+    .control-btn { border-radius: 8px; font-weight: 600; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; }
+    .metric-small { font-size: 0.65rem; color: #8b949e; }
+    .lang-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+    
+    .log-entry { border-left: 2px solid transparent; transition: all 0.2s; }
+    .log-entry:hover { background: rgba(255,255,255,0.02); border-left-color: var(--primary-soft); }
+    
+    .quick-link-card {
+        background: linear-gradient(135deg, rgba(37, 42, 55, 0.8) 0%, rgba(20, 24, 33, 0.9) 100%);
+        border: 1px solid rgba(255,255,255,0.05);
+    }
+{% endblock %}
+
+{% block content %}
+<!-- Header & Global Status -->
+<div class="row mb-4 align-items-end">
+    <div class="col-md-8">
+        <h2 class="text-theme-main mb-1"><i class="bi bi-cpu-fill me-3 text-info"></i>Core Kernel Controller</h2>
+        <p class="text-theme-muted small mb-0">Hardware telemetry and low-level system orchestration</p>
+    </div>
+    <div class="col-md-4 text-md-end mt-3 mt-md-0">
+        <div class="d-inline-flex align-items-center bg-dark p-2 px-3 rounded-pill border border-secondary border-opacity-25 shadow-sm">
+            <span class="status-dot"></span>
+            <span class="small fw-bold text-success me-3">KERNEL ONLINE</span>
+            <span class="text-theme-muted small border-start border-secondary ps-3">v2.4.0-stable</span>
+        </div>
+    </div>
+</div>
+
+<!-- Primary Navigation & Quick Actions -->
+<div class="row mb-4 g-3">
+    <div class="col-md-3">
+        <a href="{{ url_for('developer.live_debug') }}" class="card dev-card quick-link-card text-decoration-none h-100">
+            <div class="card-body p-3 d-flex align-items-center">
+                <div class="bg-primary bg-opacity-10 p-3 rounded-3 me-3">
+                    <i class="bi bi-terminal-fill text-primary fs-4"></i>
+                </div>
+                <div>
+                    <h6 class="text-theme-main mb-0">Live Debug</h6>
+                    <small class="text-theme-muted x-small">Kernel stream & logs</small>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-3">
+        <a href="{{ url_for('developer.developer_backup') }}" class="card dev-card quick-link-card text-decoration-none h-100">
+            <div class="card-body p-3 d-flex align-items-center">
+                <div class="bg-success bg-opacity-10 p-3 rounded-3 me-3">
+                    <i class="bi bi-cloud-download-fill text-success fs-4"></i>
+                </div>
+                <div>
+                    <h6 class="text-theme-main mb-0">Export JSON</h6>
+                    <small class="text-theme-muted x-small">Complete DB dump</small>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-3">
+        <div class="card dev-card quick-link-card h-100">
+            <div class="card-body p-3 d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center">
+                    <div class="bg-warning bg-opacity-10 p-3 rounded-3 me-3">
+                        <i class="bi bi-database-fill-add text-warning fs-4"></i>
+                    </div>
+                    <div>
+                        <h6 class="text-theme-main mb-0">Seed Data</h6>
+                        <small class="text-theme-muted x-small">Inject test records</small>
+                    </div>
+                </div>
+                <button onclick="seedTestData(this)" class="btn btn-sm btn-outline-warning control-btn">SEED</button>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card dev-card quick-link-card h-100">
+            <div class="card-body p-3 d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center">
+                    <div class="bg-danger bg-opacity-10 p-3 rounded-3 me-3">
+                        <i class="bi bi-power text-danger fs-4"></i>
+                    </div>
+                    <div>
+                        <h6 class="text-theme-main mb-0">Reboot</h6>
+                        <small class="text-theme-muted x-small">Soft restart</small>
+                    </div>
+                </div>
+                <button onclick="toggleDebug()" class="btn btn-sm btn-outline-danger control-btn">RESTART</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <!-- Center Column: Main Controls -->
+    <div class="col-lg-8">
+        <!-- Hardware Telemetry -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-4">
+                <div class="card bg-card border-secondary shadow-sm p-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="small fw-bold text-theme-muted text-uppercase">CPU Load</span>
+                        <span id="cpuVal" class="text-info fw-bold">0%</span>
+                    </div>
+                    <div class="progress bg-dark bg-opacity-50" style="height: 6px;">
+                        <div id="cpuBar" class="progress-bar bg-info" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-card border-secondary shadow-sm p-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="small fw-bold text-theme-muted text-uppercase">RAM Usage</span>
+                        <span id="ramVal" class="text-primary fw-bold">0%</span>
+                    </div>
+                    <div class="progress bg-dark bg-opacity-50" style="height: 6px;">
+                        <div id="ramBar" class="progress-bar bg-primary" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-card border-secondary shadow-sm p-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="small fw-bold text-theme-muted text-uppercase">Storage</span>
+                        <span id="diskFree" class="text-success fw-bold">0GB</span>
+                    </div>
+                    <div class="progress bg-dark bg-opacity-50" style="height: 6px;">
+                        <div id="diskBar" class="progress-bar bg-success" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Development Log -->
+        <div class="card bg-card border-secondary shadow-lg">
+            <div class="card-header bg-transparent border-bottom border-secondary p-3 d-flex justify-content-between align-items-center">
+                <span class="small fw-bold text-uppercase opacity-75"><i class="bi bi-journal-code me-2 text-warning"></i>Project Changelog</span>
+                <span class="badge bg-dark text-theme-muted">{{ dev_updates|length }} entries</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="p-4 border-bottom border-secondary border-opacity-25 bg-black bg-opacity-10">
+                    <form action="{{ url_for('developer.add_dev_update') }}" method="POST">
+                        <div class="row g-2">
+                            <div class="col-md-3">
+                                <label for="devTag" class="visually-hidden">Update Tag</label><select id="devTag" name="tag" class="form-select bg-dark border-secondary text-warning small" autocomplete="off">
+                                    <option value="UPDATE">UPDATE</option>
+                                    <option value="FEATURE">FEATURE</option>
+                                    <option value="BUG">BUG</option>
+                                    <option value="TODO">TODO</option>
+                                </select>
+                            </div>
+                            <div class="col-md-7">
+                                <label for="devContent" class="visually-hidden">Update Content</label><input id="devContent" type="text" name="content" class="form-control bg-dark border-secondary text-theme-main" placeholder="Synchronize system changes..." required autocomplete="off">
+                            </div>
+                            <div class="col-md-2">
+                                <button class="btn btn-warning w-100 control-btn py-2" type="submit">POST</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="overflow-auto" style="max-height: 450px;">
+                    <div class="list-group list-group-flush">
+                        {% for update in dev_updates %}
+                        <div class="list-group-item bg-transparent border-secondary border-opacity-10 p-3 log-entry">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="d-flex gap-3">
+                                    <span class="badge 
+                                        {% if update.tag == 'FEATURE' %}bg-success
+                                        {% elif update.tag == 'BUG' %}bg-danger
+                                        {% elif update.tag == 'TODO' %}bg-info text-dark
+                                        {% else %}bg-warning text-dark{% endif %}" style="font-size: 0.6rem; height: fit-content; padding: 4px 8px;">
+                                        {{ update.tag }}
+                                    </span>
+                                    <div>
+                                        <p class="text-theme-main small mb-1">{{ update.content }}</p>
+                                        <div class="text-theme-muted x-small"><i class="bi bi-clock me-1"></i>{{ update.timestamp|format_datetime }}</div>
+                                    </div>
+                                </div>
+                                <button onclick="deleteUpdate('{{ update._id }}')" class="btn btn-link text-theme-muted btn-sm p-0 hover-danger">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column: Environment & Security -->
+    <div class="col-lg-4">
+        <!-- System Health Watchdog -->
+        <div class="card bg-card border-secondary shadow-lg mb-4">
+            <div class="card-body p-4">
+                <h6 class="text-warning mb-3 small fw-bold text-uppercase"><i class="bi bi-shield-shaded me-2"></i>Self-Healing Engine</h6>
+                <div class="p-3 rounded-3 bg-dark bg-opacity-50 border border-secondary border-opacity-25 mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span class="small text-theme-muted">Watchdog Protocol</span>
+                        <span class="badge bg-{% if watchdog_active %}success{% else %}danger{% endif %} rounded-pill">
+                            {% if watchdog_active %}ACTIVE{% else %}INACTIVE{% endif %}
+                        </span>
+                    </div>
+                    <div class="d-flex gap-2">
+                        {% if watchdog_active %}
+                        <button class="btn btn-outline-danger btn-sm w-100 control-btn" onclick="controlWatchdog('stop')">TERMINATE</button>
+                        {% else %}
+                        <button class="btn btn-success btn-sm w-100 control-btn" onclick="controlWatchdog('start')">INITIALIZE</button>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="small text-theme-muted">Debug Environment</span>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" role="switch" id="debugSwitch" {% if flask_debug %}checked{% endif %} onchange="toggleDebug()">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Live Telemetry (Online Users) -->
+        <div class="card bg-card border-secondary shadow-lg mb-4">
+            <div class="card-header bg-transparent border-bottom border-secondary p-3 d-flex justify-content-between align-items-center">
+                <h6 class="text-success mb-0 small fw-bold text-uppercase"><i class="bi bi-people-fill me-2"></i>Active Sessions</h6>
+                <span id="online_count" class="badge bg-success rounded-pill">0</span>
+            </div>
+            <div class="card-body p-0">
+                <div id="online_users_list" class="list-group list-group-flush bg-transparent overflow-auto" style="max-height: 200px;">
+                    <div class="text-theme-muted small p-4 text-center">Awaiting data...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Software Stack Analysis -->
+        <div class="card bg-card border-secondary shadow-lg">
+            <div class="card-body p-4">
+                <h6 class="text-primary mb-3 small fw-bold text-uppercase"><i class="bi bi-code-slash me-2"></i>Deployment Stack</h6>
+                <div class="progress bg-dark mb-3" style="height: 12px; border-radius: 6px;">
+                    {% for lang, percent in lang_stats.items() %}
+                    <div class="progress-bar 
+                        {% if lang == 'Python' %}bg-primary
+                        {% elif lang == 'HTML/Jinja' %}bg-success
+                        {% elif lang == 'JavaScript' %}bg-warning
+                        {% else %}bg-info{% endif %}" 
+                        role="progressbar" 
+                        style="width: {{ percent }}%">
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="row g-2">
+                    {% for lang, percent in lang_stats.items() %}
+                    <div class="col-6">
+                        <div class="x-small text-theme-muted d-flex align-items-center">
+                            <span class="lang-dot 
+                                {% if lang == 'Python' %}bg-primary
+                                {% elif lang == 'HTML/Jinja' %}bg-success
+                                {% elif lang == 'JavaScript' %}bg-warning
+                                {% else %}bg-info{% endif %}"></span>
+                            {{ lang }}: {{ percent }}%
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function seedTestData(btn) {
+        if (!confirm('This will WIPE all existing inventory and sales data and replace it with 50+ test items. Continue?')) return;
+        
+        const originalText = btn.innerText;
+        btn.disabled = true;
+        btn.innerText = 'SEEDING...';
+
+        fetch('/developer/seed-data', { method: 'POST' })
+            .then(r => {
+                if (!r.ok) throw new Error('HTTP status ' + r.status);
+                return r.json();
+            })
+            .then(data => {
+                alert(data.message);
+                if (data.success) window.location.reload();
+            })
+            .catch(err => {
+                alert('Error seeding data: ' + err);
+                console.error(err);
+            })
+            .finally(() => {
+                btn.disabled = false;
+                btn.innerText = originalText;
+            });
+    }
+
+    function controlWatchdog(action) {
+        if (!confirm(`${action === 'start' ? 'Initialize' : 'Terminate'} core watchdog protocol?`)) return;
+        fetch(`/developer/watchdog/${action}`, { method: 'POST' })
+            .then(r => r.json())
+            .then(data => { window.location.reload(); });
+    }
+
+    function toggleDebug() {
+        const status = "{{ 'DISABLED' if flask_debug else 'ENABLED' }}";
+        if (!confirm(`Switch Debug Engine to ${status}? System will reload.`)) return;
+        fetch('/developer/server/toggle-debug', { method: 'POST' }).finally(() => {
+            setTimeout(() => window.location.reload(), 3000);
+        });
+    }
+
+    function initSocketListeners() {
+        if (typeof socket === 'undefined') { setTimeout(initSocketListeners, 100); return; }
+        socket.on('online_users_update', (data) => {
+            document.getElementById('online_count').innerText = data.count;
+            const list = document.getElementById('online_users_list');
+            list.innerHTML = '';
+            if (data.users.length === 0) { list.innerHTML = '<div class="text-theme-muted small py-4 text-center">No active connections</div>'; return; }
+            data.users.forEach(user => {
+                const item = document.createElement('div');
+                item.className = 'list-group-item bg-transparent border-secondary border-opacity-10 px-4 py-3';
+                item.innerHTML = `<div class="d-flex justify-content-between align-items-center">
+                    <div><div class="text-theme-main small fw-bold">${user.email}</div><div class="text-theme-muted x-small">${user.since}</div></div>
+                    <span class="badge bg-dark border border-secondary text-theme-muted x-small">${user.role}</span>
+                </div>`;
+                list.appendChild(item);
+            });
+        });
+    }
+
+    function deleteUpdate(id) {
+        if (confirm('Permanently redact this log entry?')) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = `/dev-updates/delete/${id}`;
+            document.body.appendChild(form);
+            form.submit();
+        }
+    }
+
+    initSocketListeners();
+</script>
+{% endblock %}

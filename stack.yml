@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  web:
+    image: bejasadhev/fbihm-inventory:latest
+    ports:
+      - "5000:5000"
+    environment:
+      - MONGO_URI=mongodb://mongo:27017/inventory_db
+      - FLASK_ENV=production
+      - FLASK_DEBUG=false
+      - SECRET_KEY=supersecretkey
+    deploy:
+      replicas: 2
+      update_config:
+        parallelism: 1
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+    networks:
+      - fbihm_network
+
+  mongo:
+    image: mongo:6.0
+    volumes:
+      - mongo_data:/data/db
+    deploy:
+      restart_policy:
+        condition: on-failure
+    networks:
+      - fbihm_network
+
+networks:
+  fbihm_network:
+    driver: overlay
+
+volumes:
+  mongo_data:

@@ -1,0 +1,1621 @@
+{% extends "base.html" %}
+
+{% block title %}Your Profile - {{ site_config.business_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .profile-header {
+        background: var(--card-bg);
+        margin-top: -1.5rem;
+        margin-left: -1.5rem;
+        margin-right: -1.5rem;
+        border-bottom: 1px solid var(--border-soft);
+        padding-bottom: 0;
+    }
+    
+    .cover-photo-wrapper {
+        height: 350px;
+        background: var(--primary-gradient);
+        border-bottom-left-radius: 8px;
+        border-bottom-right-radius: 8px;
+        position: relative;
+        overflow: hidden;
+    }
+    .cover-photo-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .profile-info-container {
+        max-width: 1050px;
+        margin: 0 auto;
+        padding: 0 2rem;
+        position: relative;
+    }
+
+    .profile-pic-wrapper {
+        width: 168px;
+        height: 168px;
+        background: #e4e6eb;
+        border: 4px solid var(--card-bg);
+        border-radius: 50%;
+        margin-top: -84px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 4rem;
+        font-weight: bold;
+        color: var(--text-main);
+        position: relative;
+        overflow: hidden;
+        cursor: pointer;
+    }
+    .profile-pic-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    .edit-pic-overlay {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: rgba(0,0,0,0.3);
+        height: 30%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.2rem;
+        opacity: 0;
+        transition: opacity 0.2s;
+    }
+    .profile-pic-wrapper:hover .edit-pic-overlay { opacity: 1; }
+
+    .profile-main-info {
+        margin-top: 1rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+    }
+
+    .user-name {
+        font-size: 2rem;
+        font-weight: 800;
+        margin-bottom: 0.2rem;
+        color: var(--text-main);
+    }
+
+    .profile-tabs {
+        max-width: 1050px;
+        margin: 1rem auto 0;
+        padding: 0 2rem;
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .profile-tab {
+        padding: 1rem;
+        color: var(--text-theme-muted);
+        font-weight: 600;
+        text-decoration: none;
+        border-bottom: 3px solid transparent;
+        transition: all 0.2s;
+        cursor: pointer;
+    }
+
+    .profile-tab:hover { background: var(--glass-bg); border-radius: 8px; color: var(--text-theme-muted); }
+    .profile-tab.active { color: var(--primary-soft); border-bottom-color: var(--primary-soft); border-radius: 0; }
+
+    .feed-card {
+        background: var(--card-bg);
+        border-radius: 8px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        padding: 1.25rem;
+        margin-bottom: 1rem;
+    }
+
+    .log-item {
+        padding: 0.75rem;
+        border-left: 3px solid var(--primary-soft);
+        background: var(--content-bg);
+        border-radius: 4px;
+        margin-bottom: 0.5rem;
+    }
+
+    .form-label { font-size: 0.75rem; font-weight: 700; color: var(--text-theme-muted); text-transform: uppercase; margin-bottom: 0.25rem; }
+    .form-control { border-radius: 6px; padding: 0.6rem 0.75rem; }
+
+    /* Active Status Dot */
+    .status-badge {
+        font-size: 0.85rem;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .status-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        display: inline-block;
+    }
+    .status-online { background-color: #31a24c; box-shadow: 0 0 0 2px var(--card-bg), 0 0 5px #31a24c; }
+    .status-away { background-color: #f7b928; }
+    .status-offline { background-color: #bec3c9; }
+
+    /* Admin Settings Sub-tabs */
+    .settings-sidebar {
+        border-right: 1px solid var(--border-soft);
+    }
+    .settings-link {
+        display: block;
+        padding: 0.75rem 1rem;
+        color: var(--text-main);
+        text-decoration: none;
+        border-radius: 6px;
+        margin-bottom: 2px;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+    .settings-link:hover { background: var(--glass-bg); }
+    .settings-link.active { background: rgba(24, 119, 242, 0.1); color: var(--primary-soft); }
+    
+    /* Toggle Checkbox Styling */
+    .perm-toggle {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid var(--content-bg);
+    }
+    .perm-toggle:last-child { border-bottom: none; }
+
+    .stat-bar { height: 8px; border-radius: 10px; background: #e4e6eb; overflow: hidden; margin-top: 5px; }
+    .stat-progress { height: 100%; background: var(--primary-soft); transition: width 0.5s ease; }
+    
+    .info-box { background: var(--content-bg); border-radius: 8px; padding: 12px; border: 1px solid var(--border-soft); }
+
+    /* Drag and Drop Styling */
+    .sortable-ghost { opacity: 0.4; background: rgba(24, 119, 242, 0.1); border: 2px dashed #1877f2; }
+    .drag-handle { cursor: grab; color: #adb5bd; padding-right: 10px; }
+    .drag-handle:active { cursor: grabbing; }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="profile-header shadow-sm">
+    <div class="profile-info-container p-0">
+        <div class="cover-photo-wrapper" id="coverWrapper">
+            {% if user.cover_photo %}
+                <img src="{{ url_for('static', filename=user.cover_photo) }}" class="cover-photo-img" id="coverImg">
+            {% endif %}
+            <button class="btn btn-light fw-bold position-absolute bottom-0 end-0 m-3 shadow-sm" onclick="document.getElementById('coverInput').click()">
+                <i class="bi bi-camera-fill me-2"></i>Edit Cover Photo
+            </button>
+            <input type="file" id="coverInput" class="d-none" accept="image/*" onchange="uploadFile(this, '/profile/upload-cover', 'coverImg')">
+        </div>
+    </div>
+    
+    <div class="profile-info-container">
+        <div class="profile-main-info flex-wrap">
+            <div class="d-flex align-items-end gap-3 flex-wrap">
+                <div class="profile-pic-wrapper shadow-sm" onclick="document.getElementById('photoInput').click()">
+                    {% if user.profile_pic %}
+                        <img src="{{ url_for('static', filename=user.profile_pic) }}" class="profile-pic-img" id="profilePicImg">
+                    {% else %}
+                        <span id="initialText">{{ user.email[0]|upper }}</span>
+                    {% endif %}
+                    <div class="edit-pic-overlay"><i class="bi bi-camera-fill"></i></div>
+
+                </div>
+                <input type="file" id="photoInput" class="d-none" accept="image/*" onchange="uploadFile(this, '/profile/upload-photo', 'profilePicImg')">
+                
+                <div class="mb-2">
+                    <h1 class="user-name">
+                        {% if user.first_name %}{{ user.first_name }} {{ user.last_name }}{% else %}{{ user.email.split('@')[0] }}{% endif %}
+                    </h1>
+                    <div class="status-badge {% if user.status_text == 'Online' %}text-success{% else %}text-muted{% endif %} mb-1">
+                        <div class="status-dot {% if user.status_text == 'Online' %}status-online{% elif user.status_text == 'Away' %}status-away{% else %}status-offline{% endif %}"></div>
+                        {{ user.status_text }}
+                    </div>
+                    <div class="text-muted fw-bold">{{ user.job_title or user.role|capitalize }}</div>
+                </div>
+            </div>
+            <div class="mb-3 d-flex gap-2">
+                {% if session.get('role') == 'owner' %}
+                <button class="btn btn-primary fw-bold px-4" onclick="switchTab('settings', document.querySelector('.profile-tab:last-child'))"><i class="bi bi-gear-fill me-2"></i>Business Settings</button>
+                {% else %}
+                <button class="btn btn-primary fw-bold px-4" onclick="switchTab('about', document.querySelector('.profile-tab'))"><i class="bi bi-pencil-fill me-2"></i>Edit Profile</button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="profile-tabs">
+        <div class="profile-tab active" onclick="switchTab('about', this)">About</div>
+        <div class="profile-tab" onclick="switchTab('activity', this)">Activity Feed</div>
+
+        {% if session.get('role') == 'owner' %}
+        <div class="profile-tab" id="adminSettingsTabLink" onclick="switchTab('settings', this)">Admin Settings</div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="container mt-4" style="max-width: 1050px;">
+    <!-- TAB: ABOUT -->
+    <div id="tab-about" class="tab-content-area">
+        <div class="row">
+            <div class="col-md-5">
+                <div class="feed-card shadow-sm">
+                    <h5 class="fw-bold mb-3">Intro</h5>
+                    {% if user.bio %}<p class="text-center italic mb-3">"{{ user.bio }}"</p>{% endif %}
+                    <div class="d-flex align-items-center mb-3"><i class="bi bi-briefcase-fill me-3 text-muted fs-5"></i><span>{{ user.job_title or 'Member' }} at <strong>{{ site_config.business_name }}</strong></span></div>
+                    <div class="d-flex align-items-center mb-3"><i class="bi bi-building-fill me-3 text-muted fs-5"></i><span>Dept: <strong>{{ user.department or 'General' }}</strong></span></div>
+
+                    <div class="d-flex align-items-center mb-3"><i class="bi bi-envelope-at-fill me-3 text-muted fs-5"></i><span>{{ user.email }}</span></div>
+                    {% if user.phone %}<div class="d-flex align-items-center mb-3"><i class="bi bi-telephone-fill me-3 text-muted fs-5"></i><span>{{ user.phone }}</span></div>{% endif %}
+                </div>
+            </div>
+            <div class="col-md-7">
+                <div class="feed-card shadow-sm">
+                    <h5 class="fw-bold mb-4">Personal Information</h5>
+                    <form action="{{ url_for('auth.update_profile') }}" method="POST">
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-6">
+                                <label class="form-label">First Name</label>
+                                <input type="text" name="first_name" class="form-control" value="{{ user.first_name or '' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Last Name</label>
+                                <input type="text" name="last_name" class="form-control" value="{{ user.last_name or '' }}">
+                            </div>
+                            <div class="col-md-12">
+                                <label class="form-label">Bio</label>
+                                <textarea name="bio" class="form-control" rows="2">{{ user.bio or '' }}</textarea>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Job Title</label>
+                                <input type="text" name="job_title" class="form-control" value="{{ user.job_title or '' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Department</label>
+                                <input type="text" name="department" class="form-control" value="{{ user.department or '' }}">
+                            </div>
+                        </div>
+                        <h6 class="fw-bold mb-3 text-primary border-top pt-3">Security</h6>
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-6">
+                                <label class="form-label">Email</label>
+                                <input type="email" name="email" class="form-control" value="{{ user.email }}" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Password</label>
+                                <input type="password" name="password" class="form-control" placeholder="Update password">
+                            </div>
+                        </div>
+                        <div class="border-top pt-3 mt-2">
+                            <h6 class="fw-bold mb-3 text-warning"><i class="bi bi-shield-lock-fill me-2"></i>Email Confirmation Required</h6>
+                            <div class="row g-2 align-items-end">
+                                <div class="col-md-5">
+                                    <label class="form-label small fw-bold">Confirmation Code</label>
+                                    <input type="text" name="confirm_code" id="profile_confirm_code_input" class="form-control" placeholder="Enter 6-digit code" maxlength="6" autocomplete="off">
+                                </div>
+                                <div class="col-md-4">
+                                    <button type="button" id="send-profile-code-btn" class="btn btn-outline-secondary w-100 fw-bold" onclick="sendProfileConfirmCode()">
+                                        <i class="bi bi-envelope-arrow-up me-1"></i>Send Code
+                                    </button>
+                                </div>
+                                <div class="col-md-3 text-end">
+                                    <button type="submit" class="btn btn-primary fw-bold w-100">Save Profile</button>
+                                </div>
+                            </div>
+                            <div id="profile-code-hint" class="small text-muted mt-2" style="display:none;"></div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB: ACTIVITY FEED -->
+    <div id="tab-activity" class="tab-content-area d-none">
+        <div class="feed-card shadow-sm">
+            <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+                <h5 class="fw-bold mb-0">Recent Activity</h5>
+                <div class="d-flex gap-2">
+                    <input type="text" id="userActivitySearch" class="form-control form-control-sm" placeholder="Search..." onkeyup="filterUserActivity()" style="width: 150px;">
+                    <select id="userActivitySort" class="form-select form-select-sm" onchange="filterUserActivity()" style="width: 120px;">
+                        <option value="newest">Newest First</option>
+                        <option value="oldest">Oldest First</option>
+                    </select>
+                </div>
+            </div>
+            <div class="activity-logs" id="userActivityContainer" style="max-height: 500px; overflow-y: auto;">
+                {% for log in logs %}
+                <div class="log-item shadow-sm user-activity-item" data-timestamp="{{ log.timestamp }}" style="border-left: 3px solid var(--primary-soft);">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <span class="badge bg-primary mb-1 activity-action">{{ log.action }}</span>
+                            <div class="text-dark small activity-details">{{ log.details }}</div>
+                            {% if log.ip %}
+                            <div class="x-small text-muted mt-1 code-font"><i class="bi bi-geo-alt me-1"></i>{{ log.ip }}</div>
+                            {% endif %}
+                        </div>
+                        <small class="text-muted time-label">{{ log.timestamp }}</small>
+                    </div>
+                </div>
+                {% else %}
+                <div class="text-center text-muted p-4">No recent activity.</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    <script>
+        function filterUserActivity() {
+            const container = document.getElementById('userActivityContainer');
+            if(!container) return;
+            const term = document.getElementById('userActivitySearch').value.toLowerCase();
+            const sortOrder = document.getElementById('userActivitySort').value;
+            const items = Array.from(container.getElementsByClassName('user-activity-item'));
+            
+            items.forEach(item => {
+                const action = item.querySelector('.activity-action').innerText.toLowerCase();
+                const details = item.querySelector('.activity-details').innerText.toLowerCase();
+                if (action.includes(term) || details.includes(term)) {
+                    item.style.display = '';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+
+            const sortedItems = items.sort((a, b) => {
+                const ta = new Date(a.getAttribute('data-timestamp')).getTime() || 0;
+                const tb = new Date(b.getAttribute('data-timestamp')).getTime() || 0;
+                return sortOrder === 'newest' ? tb - ta : ta - tb;
+            });
+            
+            sortedItems.forEach(item => container.appendChild(item));
+        }
+    </script>
+
+
+
+    <!-- TAB: ADMIN SETTINGS -->
+    <!-- User Peek Modal -->
+<div class="modal fade" id="userPeekModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 20px; background: var(--card-bg);">
+            <div id="peekCoverBg" style="height: 80px; border-radius: 20px 20px 0 0; background: linear-gradient(135deg, #1877f2, #0dcaf0);"></div>
+            <div class="modal-body pt-0 pb-4 px-4 text-center">
+                <div class="position-relative d-inline-block" style="margin-top: -36px;">
+                    <div id="peekAvatar" class="avatar border border-3 border-white" style="width:72px; height:72px; font-size:2rem; background:#e4e6eb; border-radius:50%; display:flex; align-items:center; justify-content:center; overflow:hidden;"></div>
+                </div>
+                <h6 id="peekName" class="fw-bold mb-0 mt-3" style="color: var(--text-main);"></h6>
+                <div id="peekEmail" class="x-small text-muted mb-2"></div>
+                <div class="d-flex justify-content-center gap-2 mb-3">
+                    <span id="peekRoleBadge" class="badge"></span>
+                    <span id="peekStatus" class="badge bg-secondary" style="font-size:0.6rem;"></span>
+                </div>
+                <div id="peekIpRow" class="x-small text-muted mb-3 d-none"><i class="bi bi-router-fill me-1"></i><span id="peekIp"></span></div>
+                <div class="d-flex gap-2 justify-content-center">
+                    <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+    {% if session.get('role') == 'owner' %}
+    <div id="tab-settings" class="tab-content-area d-none">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="feed-card shadow-sm p-2 settings-sidebar">
+                    <a href="javascript:void(0)" class="settings-link active" onclick="switchAdminSection('user-mgmt', this)"><i class="bi bi-people-fill me-2"></i>Users & Roles</a>
+                    <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('perms-control', this)"><i class="bi bi-shield-lock-fill me-2"></i>Permissions Control</a>
+                    <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('server-health', this)"><i class="bi bi-cpu-fill me-2"></i>Server Health</a>
+                    <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('db-mgmt', this)"><i class="bi bi-database-fill-check me-2"></i>Database Info</a>
+                    <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('biz-identity', this)"><i class="bi bi-building-fill me-2"></i>Business Identity</a>
+                    <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('social-branding', this)"><i class="bi bi-palette-fill me-2"></i>Social & Branding</a>
+                    <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('smtp-config', this)"><i class="bi bi-envelope-paper-fill me-2"></i>SMTP Config</a>
+                    <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('system-logs', this)"><i class="bi bi-journal-text me-2"></i>System Audit Logs</a>
+                    <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('notifications-config', this)"><i class="bi bi-bell-fill me-2"></i>Notification Center</a>
+                    <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('logic-loc', this)"><i class="bi bi-clock-history me-2"></i>Logic & Localization</a>
+                    <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('cats-menus', this)"><i class="bi bi-tags-fill me-2"></i>Categories & Menus</a>
+                    <a href="javascript:void(0)" class="settings-link text-success fw-bold" onclick="switchAdminSection('offline-config', this)"><i class="bi bi-wifi-off me-2"></i>Offline Engine (PWA)</a>
+                    <a href="javascript:void(0)" class="settings-link text-danger" onclick="switchAdminSection('maintenance', this)"><i class="bi bi-tools me-2"></i>Maintenance</a>
+                </div>
+            </div>
+            <div class="col-md-9">
+                <!-- User Mgmt -->
+                <div id="section-user-mgmt" class="admin-section">
+                    <div class="feed-card shadow-sm">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h5 class="fw-bold mb-0">System User Accounts</h5>
+                            <button class="btn btn-success btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#addUserModal">Add User</button>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead><tr class="bg-light small"><th>User</th><th>Role</th><th class="text-end">Action</th></tr></thead>
+                                <tbody>
+                                    {% for u in admin_data.all_users %}
+                                    <tr>
+                                        <td>
+                                            <div class="d-flex align-items-center gap-2">
+                                                <div class="avatar" style="width:32px; height:32px; font-size:0.9rem; background:#e4e6eb; overflow:hidden; border-radius:50%;">
+                                                    {% if u.profile_pic %}
+                                                        <img src="{{ url_for('static', filename=u.profile_pic) }}" style="width:100%; height:100%; object-fit:cover;">
+                                                    {% else %}
+                                                        {{ u.email[0]|upper }}
+                                                    {% endif %}
+                                                </div>
+                                                <div class="lh-sm">
+                                                    <div class="fw-bold small">{{ u.first_name }} {{ u.last_name }}</div>
+                                                    <div class="x-small text-muted">{{ u.email }}</div>
+                                                    {% if u.last_ip %}
+                                                    <div class="x-small text-muted opacity-75 mt-1"><i class="bi bi-router-fill me-1"></i>{{ u.last_ip }}</div>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td><span class="badge {{ 'bg-danger' if u.role == 'owner' else 'bg-info' }}">{{ u.role|upper }}</span></td>
+                                        <td class="text-end">
+                                            <div class="btn-group">
+                                                <button class="btn btn-link text-primary p-0 me-3" onclick="openEditUserModal('{{ u._id }}', '{{ u.email }}', '{{ u.role }}')"><i class="bi bi-pencil-square"></i></button>
+                                                {% if u.email != 'admin@inventory.com' and u.email != session['email'] %}
+                                                <button class="btn btn-link text-danger p-0" onclick="confirmAction('{{ url_for('admin.delete_user', id=u._id) }}', 'Delete user?')"><i class="bi bi-trash"></i></button>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Permissions Control -->
+                <div id="section-perms-control" class="admin-section d-none">
+                    <div class="feed-card shadow-sm">
+                        <h5 class="fw-bold mb-4">Access Control Levels</h5>
+                        
+                        <form action="{{ url_for('admin.update_permissions') }}" method="POST">
+                            <h6 class="fw-bold text-primary mb-3">Cashier Permissions</h6>
+                            <div class="row">
+                                {% set p = admin_data.cashier_perms %}
+                                <div class="col-md-6">
+                                    <div class="perm-toggle"><span>Dashboard Access</span><div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="dashboard" {{ 'checked' if p.dashboard }}></div></div>
+                                    <div class="perm-toggle"><span>Point of Sale</span><div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="pos" {{ 'checked' if p.pos }}></div></div>
+                                    <div class="perm-toggle"><span>Items List</span><div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="items_master" {{ 'checked' if p.items_master }}></div></div>
+                                    <div class="perm-toggle"><span>Sold Items (Ledger)</span><div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="sales_ledger" {{ 'checked' if p.sales_ledger }}></div></div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="perm-toggle"><span>Restock Management</span><div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="restock" {{ 'checked' if p.restock }}></div></div>
+                                    <div class="perm-toggle"><span>Sales Summary (Charts)</span><div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="sales_summary" {{ 'checked' if p.sales_summary }}></div></div>
+                                    <div class="perm-toggle"><span>Bulletin Board</span><div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="bulletin_board" {{ 'checked' if p.bulletin_board }}></div></div>
+                                    <div class="perm-toggle"><span>LEGEND (Alerts)</span><div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="legend" {{ 'checked' if p.legend }}></div></div>
+                                </div>
+                            </div>
+                            <div class="text-end mt-3"><button type="submit" class="btn btn-primary btn-sm fw-bold">Update Cashier Limits</button></div>
+                        </form>
+
+
+                    </div>
+                </div>
+
+                <!-- Server Health -->
+                <div id="section-server-health" class="admin-section d-none">
+                    <div class="feed-card shadow-sm">
+                        <h5 class="fw-bold mb-4"><i class="bi bi-cpu me-2"></i>Real-time Server Resources</h5>
+                        <div class="row g-4">
+                            <div class="col-md-4">
+                                <div class="p-3 bg-light rounded-3 border h-100">
+                                    <div class="d-flex justify-content-between">
+                                        <span class="small fw-bold text-muted">CPU LOAD</span>
+                                        <span class="small fw-bold" id="cpu_val">0%</span>
+                                    </div>
+                                    <div class="stat-bar"><div class="stat-progress" id="cpu_bar" style="width: 0%"></div></div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="p-3 bg-light rounded-3 border h-100">
+                                    <div class="d-flex justify-content-between">
+                                        <span class="small fw-bold text-muted">RAM USAGE</span>
+                                        <span class="small fw-bold" id="ram_val">0%</span>
+                                    </div>
+                                    <div class="stat-bar"><div class="stat-progress" id="ram_bar" style="width: 0%"></div></div>
+                                    <div class="x-small text-muted mt-1" id="ram_text">0 / 0 GB</div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="p-3 bg-light rounded-3 border h-100">
+                                    <div class="d-flex justify-content-between">
+                                        <span class="small fw-bold text-muted">STORAGE</span>
+                                        <span class="small fw-bold" id="disk_val">0%</span>
+                                    </div>
+                                    <div class="stat-bar"><div class="stat-progress" id="disk_bar" style="width: 0%; background: #dc3545;"></div></div>
+                                    <div class="x-small text-muted mt-1" id="disk_text">0 GB Free</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <h5 class="fw-bold mb-4 mt-5"><i class="bi bi-info-circle me-2"></i>Server Information</h5>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="info-box d-flex justify-content-between align-items-center">
+                                    <span class="small fw-bold text-muted text-uppercase">Public IP</span>
+                                    <span class="badge bg-primary px-3" id="pub_ip">...</span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="info-box d-flex justify-content-between align-items-center">
+                                    <span class="small fw-bold text-muted text-uppercase">Local IP</span>
+                                    <span class="fw-bold" id="loc_ip">...</span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="info-box d-flex justify-content-between align-items-center">
+                                    <span class="small fw-bold text-muted text-uppercase">Hostname</span>
+                                    <span class="fw-bold" id="hostname_val">...</span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="info-box d-flex justify-content-between align-items-center">
+                                    <span class="small fw-bold text-muted text-uppercase">OS / Kernel</span>
+                                    <span class="fw-bold text-truncate ms-3" id="os_val">...</span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="info-box d-flex justify-content-between align-items-center">
+                                    <span class="small fw-bold text-muted text-uppercase">Python Version</span>
+                                    <span class="fw-bold" id="py_val">...</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 pt-3 border-top">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="badge bg-success-subtle text-success p-2 px-3 border border-success border-opacity-25"><i class="bi bi-check-circle-fill me-2"></i>Server Status: Operational</span>
+                                <button class="btn btn-outline-primary btn-sm" onclick="updateServerStats()"><i class="bi bi-arrow-clockwise me-1"></i>Force Refresh</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Database Info -->
+                <div id="section-db-mgmt" class="admin-section d-none">
+                    <div class="feed-card shadow-sm">
+                        <h5 class="fw-bold mb-4"><i class="bi bi-database-fill me-2 text-primary"></i>MongoDB Cluster Information</h5>
+                        
+                        <div class="row g-4 mb-5">
+                            <div class="col-md-4">
+                                <div class="p-3 bg-light rounded-3 border h-100 text-center">
+                                    <div class="text-theme-muted small fw-bold uppercase mb-1">DATA SIZE</div>
+                                    <h4 class="fw-bold mb-0" id="db_data_size">...</h4>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="p-3 bg-light rounded-3 border h-100 text-center">
+                                    <div class="text-theme-muted small fw-bold uppercase mb-1">STORAGE SIZE</div>
+                                    <h4 class="fw-bold mb-0 text-primary" id="db_storage_size">...</h4>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="p-3 bg-light rounded-3 border h-100 text-center">
+                                    <div class="text-theme-muted small fw-bold uppercase mb-1">INDEX SIZE</div>
+                                    <h4 class="fw-bold mb-0" id="db_index_size">...</h4>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="info-box d-flex justify-content-between align-items-center">
+                                    <span class="small fw-bold text-muted text-uppercase">Database Name</span>
+                                    <span class="fw-bold" id="db_name_val">...</span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="info-box d-flex justify-content-between align-items-center">
+                                    <span class="small fw-bold text-muted text-uppercase">Cluster Host</span>
+                                    <span class="small fw-bold text-truncate ms-3" id="db_host_val" style="max-width: 250px;">...</span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="info-box d-flex justify-content-between align-items-center">
+                                    <span class="small fw-bold text-muted text-uppercase">Total Objects</span>
+                                    <span class="badge bg-dark px-3" id="db_obj_count">...</span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="info-box d-flex justify-content-between align-items-center">
+                                    <span class="small fw-bold text-muted text-uppercase">Total Collections</span>
+                                    <span class="badge bg-secondary px-3" id="db_coll_count">...</span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="info-box d-flex justify-content-between align-items-center">
+                                    <span class="small fw-bold text-muted text-uppercase">Cluster Type</span>
+                                    <span class="fw-bold text-primary" id="db_cluster_type">...</span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="info-box d-flex justify-content-between align-items-center">
+                                    <span class="small fw-bold text-muted text-uppercase">Server Version</span>
+                                    <span class="badge bg-success px-3" id="db_server_version">...</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <h6 class="fw-bold mb-3 mt-5">Collection Breakdown</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover border">
+                                <thead class="bg-light">
+                                    <tr>
+                                        <th class="ps-3 py-2">Collection Name</th>
+                                        <th class="text-end pe-3 py-2">Document Count</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="db_collections_table">
+                                    <!-- Populated by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="mt-4 pt-3 border-top">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div id="db_status_badge">
+                                    <span class="badge bg-info-subtle text-info p-2 px-3 border border-info border-opacity-25 ripple"><i class="bi bi-hdd-network-fill me-2"></i>Status: Checking...</span>
+                                </div>
+                                <button class="btn btn-primary btn-sm fw-bold px-4" onclick="updateDatabaseStats()">
+                                    <i class="bi bi-arrow-clockwise me-1"></i>Refresh DB Metrics
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Business Identity -->
+                <div id="section-biz-identity" class="admin-section d-none">
+                    <div class="feed-card shadow-sm">
+                        <h5 class="fw-bold mb-4">Business Profile</h5>
+                        <form action="{{ url_for('admin.update_profile') }}" method="POST">
+                            <input type="hidden" name="form_id" value="identity">
+                            <div class="row g-3">
+                                <div class="col-md-6"><label class="form-label">Business Name</label><input type="text" name="business_name" class="form-control" value="{{ site_config.business_name }}"></div>
+                                <div class="col-md-6"><label class="form-label">Contact Email</label><input type="email" name="contact_email" class="form-control" value="{{ site_config.contact_email }}"></div>
+                                <div class="col-md-6"><label class="form-label">Contact Phone</label><input type="text" name="contact_phone" class="form-control" value="{{ site_config.contact_phone }}" placeholder="+63 9XX XXX XXXX"></div>
+                                <div class="col-md-6"><label class="form-label">Business Identifier/Icon</label><input type="text" name="business_icon" class="form-control" value="{{ site_config.business_icon }}" placeholder="bi-box-seam"></div>
+                                <div class="col-md-12"><label class="form-label">Business Address</label><textarea name="contact_address" class="form-control" rows="2">{{ site_config.contact_address }}</textarea></div>
+                                <div class="col-12 text-end mt-4"><button type="submit" class="btn btn-primary fw-bold">Update Identity</button></div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Social & Branding -->
+                <div id="section-social-branding" class="admin-section d-none">
+                    <div class="feed-card shadow-sm">
+                        <h5 class="fw-bold mb-4">Social Media & Public Branding</h5>
+                        <form action="{{ url_for('admin.update_profile') }}" method="POST">
+                            <input type="hidden" name="form_id" value="social">
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <label class="form-label">Facebook Profile URL</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-light border-end-0"><i class="bi bi-facebook text-primary"></i></span>
+                                        <input type="text" name="social_facebook" class="form-control border-start-0" value="{{ site_config.social_facebook }}" placeholder="facebook.com/yourpage">
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Twitter/X URL</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-light border-end-0"><i class="bi bi-twitter-x text-dark"></i></span>
+                                        <input type="text" name="social_twitter" class="form-control border-start-0" value="{{ site_config.social_twitter }}">
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Instagram URL</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-light border-end-0"><i class="bi bi-instagram text-danger"></i></span>
+                                        <input type="text" name="social_instagram" class="form-control border-start-0" value="{{ site_config.social_instagram }}">
+                                    </div>
+                                </div>
+                                <div class="col-md-12">
+                                    <label class="form-label mt-2">Footer Copyright/Disclaimer Text</label>
+                                    <input type="text" name="footer_text" class="form-control" value="{{ site_config.footer_text }}">
+                                </div>
+                                <div class="col-12 text-end mt-4"><button type="submit" class="btn btn-primary fw-bold">Save Branding</button></div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- SMTP Config -->
+                <div id="section-smtp-config" class="admin-section d-none">
+                    <div class="feed-card shadow-sm">
+                        <h5 class="fw-bold mb-4">SMTP Configuration</h5>
+                        <form action="{{ url_for('admin.update_profile') }}" method="POST">
+                            <input type="hidden" name="form_id" value="smtp">
+                            <div class="row g-3">
+                                <div class="col-md-8"><label class="form-label">SMTP Host</label><input type="text" name="smtp_host" class="form-control" value="{{ site_config.smtp_host }}" placeholder="smtp.gmail.com"></div>
+                                <div class="col-md-4"><label class="form-label">Port</label><input type="number" name="smtp_port" class="form-control" value="{{ site_config.smtp_port }}" placeholder="587"></div>
+                                <div class="col-md-6"><label class="form-label">Username</label><input type="text" name="smtp_user" class="form-control" value="{{ site_config.smtp_user }}"></div>
+                                <div class="col-md-6"><label class="form-label">Password</label><input type="password" name="smtp_password" class="form-control" value="{{ site_config.smtp_password }}"></div>
+                                <div class="col-md-12">
+                                    <div class="d-flex gap-4 pt-2">
+                                        <div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="smtp_use_tls" {{ 'checked' if site_config.smtp_use_tls }}> <label class="small fw-bold">Use TLS</label></div>
+                                        <div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="smtp_use_ssl" {{ 'checked' if site_config.smtp_use_ssl }}> <label class="small fw-bold">Use SSL</label></div>
+                                    </div>
+                                </div>
+                                <div class="col-md-12 mt-3">
+                                    <label class="form-label small fw-bold text-muted">SMTP TEST RECIPIENT</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-white border-end-0"><i class="bi bi-person-fill-check"></i></span>
+                                        <input type="email" id="smtp_test_recipient" class="form-control border-start-0 ps-0" placeholder="Enter recipient email (e.g. your@email.com)">
+                                    </div>
+                                    <div id="smtp_test_logs" class="bg-dark text-success p-3 rounded mt-3 font-monospace d-none shadow-sm border border-secondary" style="max-height: 250px; overflow-y: auto; font-size: 0.85rem;">
+                                        <!-- Logs will appear here -->
+                                    </div>
+                                </div>
+                                <div class="col-12 text-end mt-4 d-flex justify-content-end gap-2">
+                                    <button type="button" id="test-smtp-btn" class="btn btn-outline-primary fw-bold" onclick="testSMTPSettings()">
+                                        <i class="bi bi-envelope-check me-1"></i>Send Test Email
+                                    </button>
+                                    <button type="submit" class="btn btn-primary fw-bold">Save SMTP Settings</button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Logic & Localization -->
+                <div id="section-logic-loc" class="admin-section d-none">
+                    <div class="feed-card shadow-sm">
+                        <h5 class="fw-bold mb-4">System Logic & Localization</h5>
+                        <form action="{{ url_for('admin.update_profile') }}" method="POST">
+                            <input type="hidden" name="form_id" value="logic">
+                            <div class="row g-3">
+                                <div class="col-md-6"><label class="form-label">Currency Symbol</label><input type="text" name="currency_symbol" class="form-control" value="{{ site_config.currency_symbol }}"></div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Timezone</label>
+                                    <select name="timezone" class="form-select">
+                                        <option value="UTC" {{ 'selected' if site_config.timezone == 'UTC' }}>UTC (Standard)</option>
+                                        <option value="Asia/Manila" {{ 'selected' if site_config.timezone == 'Asia/Manila' }}>Asia/Manila (+8)</option>
+                                        <option value="Asia/Singapore" {{ 'selected' if site_config.timezone == 'Asia/Singapore' }}>Asia/Singapore (+8)</option>
+                                        <option value="Asia/Hong_Kong" {{ 'selected' if site_config.timezone == 'Asia/Hong_Kong' }}>Asia/Hong_Kong (+8)</option>
+                                        <option value="US/Pacific" {{ 'selected' if site_config.timezone == 'US/Pacific' }}>US/Pacific (-8)</option>
+                                        <option value="US/Eastern" {{ 'selected' if site_config.timezone == 'US/Eastern' }}>US/Eastern (-5)</option>
+                                        <option value="Europe/London" {{ 'selected' if site_config.timezone == 'Europe/London' }}>Europe/London (+0)</option>
+                                        <option value="Australia/Sydney" {{ 'selected' if site_config.timezone == 'Australia/Sydney' }}>Australia/Sydney (+11)</option>
+                                    </select>
+                                </div>
+                                <div class="col-12 text-end mt-4"><button type="submit" class="btn btn-primary fw-bold">Save System Logic</button></div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+
+
+                <!-- Notification Configuration -->
+                <div id="section-notifications-config" class="admin-section d-none">
+                    <div class="feed-card shadow-sm">
+                        <h5 class="fw-bold mb-4">Notification Settings</h5>
+                        <form action="{{ url_for('admin.update_profile') }}" method="POST">
+                            <input type="hidden" name="form_id" value="notifications">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <div class="form-check form-switch mb-2">
+                                        <input class="form-check-input" type="checkbox" name="email_notif_stock_in" {{ 'checked' if site_config.email_notif_stock_in }}>
+                                        <label class="form-check-label small fw-bold">Stock In Alerts</label>
+                                    </div>
+                                    <div class="form-check form-switch mb-2">
+                                        <input class="form-check-input" type="checkbox" name="email_notif_stock_out" {{ 'checked' if site_config.email_notif_stock_out }}>
+                                        <label class="form-check-label small fw-bold">Stock Out Alerts</label>
+                                    </div>
+                                    <div class="form-check form-switch mb-2">
+                                        <input class="form-check-input" type="checkbox" name="email_notif_low_stock" {{ 'checked' if site_config.email_notif_low_stock }}>
+                                        <label class="form-check-label small fw-bold">Low Stock Alerts</label>
+                                    </div>
+                                    <div class="form-check form-switch mb-2">
+                                        <input class="form-check-input" type="checkbox" name="email_notif_sales" {{ 'checked' if site_config.email_notif_sales }}>
+                                        <label class="form-check-label small fw-bold">Sales & Transaction Alerts</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-check form-switch mb-2">
+                                        <input class="form-check-input" type="checkbox" name="email_notif_login" {{ 'checked' if site_config.email_notif_login }}>
+                                        <label class="form-check-label small fw-bold">Login Security Alerts</label>
+                                    </div>
+                                    <div class="form-check form-switch mb-2">
+                                        <input class="form-check-input" type="checkbox" name="email_notif_profile" {{ 'checked' if site_config.email_notif_profile }}>
+                                        <label class="form-check-label small fw-bold">Profile Change Alerts</label>
+                                    </div>
+                                    <div class="form-check form-switch mb-2">
+                                        <input class="form-check-input" type="checkbox" name="email_notif_inventory" {{ 'checked' if site_config.email_notif_inventory }}>
+                                        <label class="form-check-label small fw-bold">Inventory Modification Alerts</label>
+                                    </div>
+                                    <div class="form-check form-switch mb-2">
+                                        <input class="form-check-input" type="checkbox" name="email_notif_bulletin" {{ 'checked' if site_config.email_notif_bulletin }}>
+                                        <label class="form-check-label small fw-bold">Bulletin Board Alerts</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12 text-end mt-4"><button type="submit" class="btn btn-primary fw-bold">Update Notifications</button></div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- System Audit Logs -->
+                <div id="section-system-logs" class="admin-section d-none">
+                    <div class="feed-card shadow-sm">
+                        <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+                            <h5 class="fw-bold mb-0"><i class="bi bi-shield-check me-2 text-primary"></i>System Audit Logs</h5>
+                            <div class="d-flex gap-2 flex-grow-1 justify-content-end">
+                                <div class="input-group input-group-sm" style="width: 220px;">
+                                    <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
+                                    <input type="text" id="logSearch" class="form-control border-start-0 ps-0" placeholder="Search accounts or details..." onkeyup="filterSystemLogs()">
+                                </div>
+                                <select id="logTypeFilter" class="form-select form-select-sm" style="width: 140px;" onchange="filterSystemLogs()">
+                                    <option value="all">All Actions</option>
+                                    <option value="LOGIN">Logins</option>
+                                    <option value="SALE">Sales</option>
+                                    <option value="UPDATE">Updates</option>
+                                    <option value="DELETE">Deletes</option>
+                                    <option value="RESET">Resets</option>
+                                </select>
+                                <button class="btn btn-outline-secondary btn-sm" onclick="toggleLogSort()" id="logSortBtn" title="Toggle Chronological Order">
+                                    <i class="bi bi-sort-down"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="table-responsive border rounded" style="max-height: 550px; overflow-y: auto;">
+                            <table class="table table-hover align-middle mb-0" id="adminLogTable">
+                                <thead class="sticky-top bg-light" style="z-index: 10;">
+                                    <tr class="x-small fw-bold text-muted text-uppercase">
+                                        <th class="ps-3 py-3">Principal</th>
+                                        <th class="py-3">Event</th>
+                                        <th class="py-3">Payload Details</th>
+                                        <th class="py-3">Origin IP</th>
+                                        <th class="text-end pe-3 py-3">Timestamp</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="adminLogBody">
+                                    {% for log in admin_data.all_logs %}
+                                    <tr class="log-row" data-action="{{ log.action }}" data-details="{{ log.details }}" data-email="{{ log.email }}" style="border-left: 3px solid {% if 'DELETE' in log.action %}#dc3545{% elif 'SALE' in log.action %}#31a24c{% elif 'LOGIN' in log.action %}#1877f2{% else %}#65676b{% endif %};">
+                                        <td class="ps-3">
+                                            <div class="d-flex align-items-center gap-2">
+                                                <div class="avatar shadow-sm" style="width:24px; height:24px; font-size:0.7rem; background:#e4e6eb; border: 1px solid white;">{{ log.email[0]|upper }}</div>
+                                                <span class="fw-bold small text-dark">{{ log.email }}</span>
+                                            </div>
+                                        </td>
+                                        <td><span class="badge border {% if 'DELETE' in log.action %}bg-danger{% elif 'SALE' in log.action %}bg-success{% elif 'LOGIN' in log.action %}bg-primary{% else %}bg-secondary{% endif %} text-uppercase px-2" style="font-size: 0.65rem;">{{ log.action }}</span></td>
+                                        <td><div class="small text-muted text-truncate" style="max-width:300px;" title="{{ log.details }}">{{ log.details }}</div></td>
+                                        <td><code class="x-small text-muted">{{ log.ip }}</code></td>
+                                        <td class="text-end pe-3 text-muted" style="font-size: 0.75rem;">{{ log.timestamp }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="mt-3 x-small text-muted d-flex justify-content-between align-items-center">
+                            <span id="logCountText">{{ admin_data.all_logs|length }} entries total</span>
+                            <div class="pagination-controls d-flex gap-2">
+                                <button class="btn btn-outline-secondary btn-xs fw-bold px-3 py-1" onclick="changeLogPage(-1)" id="prevLogBtn" disabled><i class="bi bi-chevron-left me-1"></i>Previous</button>
+                                <span id="logPageIndicator" class="fw-bold text-dark px-2">Page 1</span>
+                                <button class="btn btn-outline-secondary btn-xs fw-bold px-3 py-1" onclick="changeLogPage(1)" id="nextLogBtn">Next<i class="bi bi-chevron-right ms-1"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cats & Menus -->
+                <div id="section-cats-menus" class="admin-section d-none">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="feed-card shadow-sm">
+                                <h6 class="fw-bold mb-3">Categories</h6>
+                                <div class="list-group list-group-flush mb-3">
+                                    {% for cat in admin_data.categories %}
+                                    <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                        <span class="small fw-bold">{{ cat.name }}</span>
+                                        <button class="btn btn-link text-danger p-0 btn-sm" onclick="confirmAction('{{ url_for('admin.delete_category', id=cat._id) }}', 'Delete?')"><i class="bi bi-x-circle"></i></button>
+                                    </div>
+                                    {% else %}
+                                    <div class="text-center py-4 bg-light rounded border border-dashed mb-3">
+                                        <i class="bi bi-tag text-muted fs-2 d-block mb-2"></i>
+                                        <p class="x-small text-muted mb-0">No categories found in system.</p>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                <form action="{{ url_for('admin.add_category') }}" method="POST"><input type="text" name="name" class="form-control mb-2" placeholder="New category name"><button class="btn btn-success btn-sm w-100 fw-bold">Add Category</button></form>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="feed-card shadow-sm">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <h6 class="fw-bold mb-0">Menu Anchors</h6>
+                                    <button class="btn btn-primary btn-sm fw-bold" onclick="saveMenuOrder()">Save Order</button>
+                                </div>
+                                <div id="menuOrderList" class="list-group list-group-flush mb-3">
+                                    {% for m in admin_data.menus %}
+                                    <div class="list-group-item d-flex justify-content-between align-items-center px-0" data-id="{{ m._id }}">
+                                        <div class="d-flex align-items-center">
+                                            <span class="drag-handle"><i class="bi bi-grip-vertical"></i></span>
+                                            <span class="small fw-bold">{{ m.name }}</span>
+                                        </div>
+                                        <button class="btn btn-link text-danger p-0 btn-sm" onclick="confirmAction('{{ url_for('admin.delete_menu', id=m._id) }}', 'Delete?')"><i class="bi bi-trash"></i></button>
+                                    </div>
+                                    {% else %}
+                                    <div class="text-center py-4 bg-light rounded border border-dashed mb-3">
+                                        <i class="bi bi-list-ul text-muted fs-2 d-block mb-2"></i>
+                                        <p class="x-small text-muted mb-0">No menu anchors defined yet.</p>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                <form action="{{ url_for('admin.add_menu') }}" method="POST"><input type="text" name="name" class="form-control mb-2" placeholder="New menu anchor"><button class="btn btn-warning btn-sm w-100 fw-bold text-dark">Add Menu</button></form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Offline Documentation -->
+                <div id="section-offline-config" class="admin-section d-none">
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="feed-card shadow-sm border border-success border-opacity-25" style="background: #f4fff8;">
+                                <div class="d-flex align-items-center mb-4 pb-3 border-bottom border-success border-opacity-25">
+                                    <div class="bg-success text-white rounded-circle d-flex align-items-center justify-content-center me-3 shadow-sm" style="width: 50px; height: 50px; font-size: 1.5rem;">
+                                        <i class="bi bi-wifi-off"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="fw-bold text-success mb-1">FBIHM Offline Engine</h4>
+                                        <div class="small text-muted fw-bold">Active and Monitoring Connectivity (<span class="text-success"><i class="bi bi-circle-fill me-1" style="font-size: 0.5rem;"></i>Service Worker Installed</span>)</div>
+                                    </div>
+                                </div>
+                                
+                                <h6 class="fw-bold mb-3"><i class="bi bi-question-circle-fill text-success me-2"></i>How It Works</h6>
+                                <p class="small text-dark opacity-75 mb-4">
+                                    The application is engineered as a <strong>Progressive Web App (PWA)</strong>. When installed or loaded on your browser, a background Service Worker caches all graphical and core structural assets. The engine utilizes <code>offline-manager.js</code> to intercept major database actions, securely storing them locally in your browser's IndexedDB when the system detects network disconnection. Upon reconnecting, the queue is automatically replayed chronologically to the live server.
+                                </p>
+
+                                <div class="row g-4 mb-4">
+                                    <div class="col-md-6">
+                                        <div class="bg-white p-3 rounded shadow-sm border h-100">
+                                            <h6 class="fw-bold"><i class="bi bi-check-circle-fill text-success me-2"></i>Offline Capabilities</h6>
+                                            <ul class="small mb-0 mt-2 list-unstyled opacity-75">
+                                                <li class="mb-2"><i class="bi bi-dot"></i><strong>Full POS Checkout:</strong> Ring up items and complete transactions. Receipts and revenue are synced upon reconnection.</li>
+                                                <li class="mb-2"><i class="bi bi-dot"></i><strong>Inventory Restocking:</strong> Process inbound shipments on the floor. Stock integers will be patched during sync.</li>
+                                                <li class="mb-2"><i class="bi bi-dot"></i><strong>Item Modifications:</strong> Adjusting pricing, notes, and general information natively caches to offline schema.</li>
+                                                <li><i class="bi bi-dot"></i><strong>Continuous UI:</strong> Navigating through cached pages works seamlessly.</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="bg-white p-3 rounded shadow-sm border border-warning border-opacity-50 h-100">
+                                            <h6 class="fw-bold"><i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>Limitations & Precautions</h6>
+                                            <ul class="small mb-0 mt-2 list-unstyled opacity-75">
+                                                <li class="mb-2"><i class="bi bi-dot"></i><strong>Image Uploads:</strong> Adding new primary photos to items while offline is temporarily blocked to prevent heavy cached blob failures.</li>
+                                                <li class="mb-2"><i class="bi bi-dot"></i><strong>Session Termination:</strong> Logging out or forcefully clearing browser cache while offline deletes your sync queue entirely.</li>
+                                                <li><i class="bi bi-dot"></i><strong>Real-time Dashboard:</strong> Dashboard metrics will freeze at the last known online state until reconnection re-establishes the Socket layer.</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="alert alert-success border-success bg-white shadow-sm mb-0">
+                                    <h6 class="fw-bold small mb-1"><i class="bi bi-info-circle-fill me-2"></i>How to Trigger / Test</h6>
+                                    <div class="x-small opacity-75">
+                                        You do not need to press a button to activate offline mode. It happens instantly in the background. To manually test the pipeline: turn off your device's WiFi/Data, execute a sale on the POS screen, and observe the system queue the transaction. Resurrect your internet connection and watch it seamlessly clear the queue and patch the server.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Maintenance -->
+                <div id="section-maintenance" class="admin-section d-none">
+                    <div class="row">
+                        <div class="col-md-5">
+                            <div class="feed-card shadow-sm border-danger border-opacity-10 mb-4" style="background: #fffafa;">
+                                <h5 class="fw-bold text-danger mb-4"><i class="bi bi-tools me-2"></i>Danger Zone</h5>
+                                <div class="d-grid gap-3">
+                                    <a href="{{ url_for('admin.download_backup') }}" class="btn btn-outline-dark fw-bold py-2"><i class="bi bi-download me-2"></i>Export System Backup</a>
+                                    <hr class="my-2 border-danger opacity-25">
+                                    <button class="btn btn-danger fw-bold py-2 shadow-sm" data-bs-toggle="modal" data-bs-target="#purgeDataModal"><i class="bi bi-trash-fill me-2"></i>PURGE ALL DATABASE RECORDS</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-7">
+                            <div class="feed-card shadow-sm border border-warning" style="background: #fffdf5;">
+                                <h5 class="fw-bold text-danger mb-2"><i class="bi bi-exclamation-triangle-fill me-2 text-warning"></i>CRITICAL: Import Data from JSON</h5>
+                                <p class="small text-muted mb-4 opacity-75">Importing a JSON backup will <strong>CLEAR and OVERWRITE</strong> your existing inventory, sales, and categories with the imported schema. System accounts are spared.</p>
+                                
+                                <form action="{{ url_for('admin.import_backup') }}" method="POST" enctype="multipart/form-data">
+                                    <div class="mb-4 bg-white p-3 rounded border border-warning border-opacity-50">
+                                        <label class="form-label fw-bold text-dark small"><i class="bi bi-filetype-json me-2"></i>Select Backup File</label>
+                                        <input type="file" name="backup_file" class="form-control form-control-sm" accept=".json" required>
+                                    </div>
+                                    
+                                    <div class="p-3 bg-white border border-danger border-opacity-25 rounded shadow-sm mb-1">
+                                        <h6 class="fw-bold text-danger mb-2 small"><i class="bi bi-shield-lock-fill me-2"></i>Master Authorization Required</h6>
+                                        <p class="x-small text-muted mb-3">A verification code must be sent to the master admin email before importing.</p>
+                                        
+                                        <div class="row g-2 align-items-end">
+                                            <div class="col-md-5">
+                                                <input type="text" name="import_auth_code" class="form-control form-control-sm text-center fw-bold text-danger" placeholder="------" maxlength="6" style="letter-spacing: 0.3rem;" required>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <button type="button" class="btn btn-outline-secondary btn-sm w-100 fw-bold py-1" onclick="sendImportAuthCode(this)">
+                                                    <i class="bi bi-envelope-arrow-up me-1"></i>Request Code
+                                                </button>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <button type="submit" class="btn btn-danger btn-sm w-100 fw-bold py-1">Execute</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <script>
+                    function sendImportAuthCode(btn) {
+                        const originalHtml = btn.innerHTML;
+                        btn.disabled = true;
+                        btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>...`;
+                        fetch('{{ url_for("admin.send_auth_code") }}', { method: 'POST' })
+                            .then(r => r.json())
+                            .then(data => {
+                                if(data.success) {
+                                    alert(data.message);
+                                    btn.innerHTML = `<i class="bi bi-check-circle-fill me-1 text-success"></i>Sent!`;
+                                } else {
+                                    alert('Error: ' + data.message);
+                                    btn.disabled = false;
+                                    btn.innerHTML = originalHtml;
+                                }
+                            }).catch(() => {
+                                alert('Network error. Failed to send auth code.');
+                                btn.disabled = false;
+                                btn.innerHTML = originalHtml;
+                            });
+                    }
+                </script>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Modals -->
+<div class="modal fade" id="addUserModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 rounded-4">
+            <div class="modal-header border-bottom-0 p-4 pb-0"><h5 class="fw-bold">Create New User</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <form action="{{ url_for('admin.add_user') }}" method="POST">
+                <div class="modal-body p-4">
+                    <div class="mb-3"><label class="form-label">Email</label><input type="email" name="email" class="form-control" required></div>
+                    <div class="mb-3"><label class="form-label">Password</label><input type="password" name="password" class="form-control" required></div>
+                    <div class="mb-3"><label class="form-label">Role</label><select name="role" class="form-select"><option value="cashier">Cashier</option><option value="owner">Owner / Admin</option></select></div>
+                </div>
+                <div class="modal-footer border-top-0 p-4 pt-0"><button type="submit" class="btn btn-success fw-bold w-100">Add Account</button></div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit User Modal -->
+<div class="modal fade" id="editUserModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 rounded-4 shadow-lg">
+            <div class="modal-header border-bottom-0 p-4 pb-0"><h5 class="fw-bold">Update System Account</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <form id="editUserForm" action="" method="POST">
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label">Email Address</label>
+                        <input type="email" name="email" id="editEmail" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-primary">Change Password</label>
+                        <input type="password" name="password" class="form-control" placeholder="Leave empty to keep current">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Account Role</label>
+                        <select name="role" id="editRole" class="form-select">
+                            <option value="cashier">Cashier</option>
+                            <option value="owner">Owner / Admin</option>
+                        </select>
+                    </div>
+                    
+                    <div id="authSection" class="mt-4 p-3 bg-danger bg-opacity-10 rounded d-none">
+                        <label class="form-label text-danger small fw-bold">Security Authorization Code Required</label>
+                        <div class="input-group">
+                            <input type="text" name="verification_code" class="form-control border-danger" placeholder="Enter code sent to email">
+                            <button class="btn btn-danger" type="button" onclick="sendAuthCode()">SEND</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-top-0 p-4 pt-0">
+                    <button type="submit" class="btn btn-primary fw-bold w-100 py-2">SAVE CHANGES</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="purgeDataModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 rounded-4 overflow-hidden">
+            <div class="p-5 text-center bg-white">
+                <div class="rounded-circle bg-danger bg-opacity-10 p-4 d-inline-block mb-4">
+                    <i class="bi bi-shield-exclamation text-danger display-4"></i>
+                </div>
+                <h3 class="text-dark fw-bold mb-3">Instant Data Purge?</h3>
+                <p class="text-muted mb-4">You are about to permanently delete all business records. This action is <strong>irreversible</strong> and will take effect immediately upon confirmation.</p>
+                <form action="{{ url_for('admin.clear_all_data') }}" method="POST">
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-danger btn-lg fw-bold shadow-sm">YES, PURGE EVERYTHING</button>
+                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    window.onload = function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const tab = urlParams.get('tab');
+        if (tab) {
+            const tabLink = document.querySelector(`.profile-tab[onclick*="'${tab}'"]`) || document.getElementById('adminSettingsTabLink');
+            if (tabLink) {
+                document.querySelectorAll('.profile-tab').forEach(t => t.classList.remove('active'));
+                tabLink.classList.add('active');
+                document.querySelectorAll('.tab-content-area').forEach(area => area.classList.add('d-none'));
+                document.getElementById('tab-' + tab).classList.remove('d-none');
+            }
+        }
+        
+        const section = urlParams.get('section');
+        if (section) {
+            const secLink = document.querySelector(`.settings-link[onclick*="'${section}'"]`);
+            if (secLink) {
+                document.querySelectorAll('.settings-link').forEach(l => l.classList.remove('active'));
+                secLink.classList.add('active');
+                document.querySelectorAll('.admin-section').forEach(sec => sec.classList.add('d-none'));
+                document.getElementById('section-' + section).classList.remove('d-none');
+            }
+        }
+        
+        if ({{ 'true' if session.get('role') == 'owner' else 'false' }}) {
+            updateServerStats();
+            updateDatabaseStats();
+            setInterval(updateServerStats, 10000);
+            setInterval(updateDatabaseStats, 30000);
+
+            // Real-time SMTP Logs
+            socket.on('smtp_log', function(data) {
+                const logBox = document.getElementById('smtp_test_logs');
+                if (!logBox) return;
+                
+                logBox.classList.remove('d-none');
+                const p = document.createElement('div');
+                p.className = 'mb-1 ' + (data.type === 'error' ? 'text-danger' : (data.type === 'success' ? 'text-info' : 'text-success'));
+                p.innerHTML = `<span class="opacity-50">[${new Date().toLocaleTimeString()}]</span> ${data.message}`;
+                logBox.appendChild(p);
+                logBox.scrollTop = logBox.scrollHeight;
+            });
+            
+            // Initialize sortable
+            const el = document.getElementById('menuOrderList');
+            if (el) {
+                new Sortable(el, {
+                    animation: 150,
+                    ghostClass: 'sortable-ghost',
+                    handle: '.drag-handle'
+                });
+            }
+        }
+    };
+
+    function saveMenuOrder() {
+        const items = document.querySelectorAll('#menuOrderList .list-group-item');
+        const order = Array.from(items).map(item => item.getAttribute('data-id'));
+        
+        fetch('/settings/menu/reorder', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ order: order })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) alert("Menu order updated successfully!");
+        });
+    }
+
+    function updateServerStats() {
+        fetch('/system-info')
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById('cpu_val').innerText = data.cpu + '%';
+                document.getElementById('cpu_bar').style.width = data.cpu + '%';
+                
+                document.getElementById('ram_val').innerText = data.ram_percent + '%';
+                document.getElementById('ram_bar').style.width = data.ram_percent + '%';
+                document.getElementById('ram_text').innerText = `${data.ram_used} / ${data.ram_total}`;
+                
+                document.getElementById('disk_val').innerText = data.disk_percent + '%';
+                document.getElementById('disk_bar').style.width = data.disk_percent + '%';
+                document.getElementById('disk_text').innerText = `${data.disk_free} Free`;
+                document.getElementById('pub_ip').innerText = data.public_ip;
+                document.getElementById('loc_ip').innerText = data.local_ip;
+                document.getElementById('hostname_val').innerText = data.hostname;
+                document.getElementById('os_val').innerText = data.os;
+                document.getElementById('os_val').title = data.os;
+                document.getElementById('py_val').innerText = data.python_v;
+            })
+            .catch(e => console.error("Stats error:", e));
+    }
+
+    function updateDatabaseStats() {
+        fetch('/admin/database-stats')
+            .then(r => r.json())
+            .then(data => {
+                if (data.status === 'Connected') {
+                    document.getElementById('db_data_size').innerText = data.data_size;
+                    document.getElementById('db_storage_size').innerText = data.storage_size;
+                    document.getElementById('db_index_size').innerText = data.index_size;
+                    document.getElementById('db_name_val').innerText = data.db_name;
+                    document.getElementById('db_host_val').innerText = data.connection_host;
+                    document.getElementById('db_host_val').title = data.connection_host;
+                    document.getElementById('db_obj_count').innerText = data.objects_count;
+                    document.getElementById('db_coll_count').innerText = data.collections_count;
+                    
+                    if (document.getElementById('db_cluster_type')) {
+                        document.getElementById('db_cluster_type').innerText = data.cluster_type || 'Unknown';
+                    }
+                    if (document.getElementById('db_server_version')) {
+                        document.getElementById('db_server_version').innerText = data.server_version || 'Unknown';
+                    }
+                    
+                    const tbody = document.getElementById('db_collections_table');
+                    tbody.innerHTML = '';
+                    data.collections.forEach(c => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `<td class="ps-3 py-2 fw-bold small text-primary">${c.name}</td><td class="text-end pe-3 py-2 fw-bold">${c.count}</td>`;
+                        tbody.appendChild(tr);
+                    });
+                    
+                    document.getElementById('db_status_badge').innerHTML = `<span class="badge bg-success-subtle text-success p-2 px-3 border border-success border-opacity-25"><i class="bi bi-shield-check me-2"></i>Database: Cluster Online</span>`;
+                } else {
+                    document.getElementById('db_status_badge').innerHTML = `<span class="badge bg-danger-subtle text-danger p-2 px-3 border border-danger border-opacity-25"><i class="bi bi-shield-x me-2"></i>Database: ${data.status}</span>`;
+                }
+            })
+            .catch(e => {
+                console.error("DB Stats error:", e);
+                document.getElementById('db_status_badge').innerHTML = `<span class="badge bg-danger-subtle text-danger p-2 px-3 border border-danger border-opacity-25"><i class="bi bi-shield-x me-2"></i>Database: Connection Failed</span>`;
+            });
+    }
+
+    function testSMTPSettings() {
+        const btn = document.getElementById('test-smtp-btn');
+        const logBox = document.getElementById('smtp_test_logs');
+        const recipientInput = document.getElementById('smtp_test_recipient');
+        
+        const originalText = btn.innerHTML;
+        const recipient = recipientInput.value.trim();
+        
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Testing...';
+        
+        // Clear and show logs
+        logBox.innerHTML = '<div class="text-muted small mb-2">--- SMTP TEST LOG INITIATED ---</div>';
+        logBox.classList.remove('d-none');
+        
+        fetch('/admin/test-email', { 
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ recipient: recipient })
+        })
+            .then(r => {
+                if (!r.ok) {
+                    throw new Error(`HTTP Error: ${r.status}`);
+                }
+                return r.json();
+            })
+            .then(data => {
+                const p = document.createElement('div');
+                if (data.success) {
+                    p.className = 'text-success fw-bold mb-1 mt-2';
+                    p.innerText = '[SUCCESS] Test email sent successfully!';
+                    alert("SMTP Success: " + data.message);
+                } else {
+                    p.className = 'text-danger fw-bold mb-1 mt-2';
+                    p.innerText = '[FAILED] ' + data.message;
+                    alert("SMTP Failed: " + data.message);
+                }
+                logBox.appendChild(p);
+                logBox.scrollTop = logBox.scrollHeight;
+            })
+            .catch(e => {
+                console.error("SMTP Test error:", e);
+                const p = document.createElement('div');
+                p.className = 'text-danger mb-1';
+                p.innerText = `[ERROR] ${e.message || 'System failure while contacting test route.'}`;
+                logBox.appendChild(p);
+            })
+            .finally(() => {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            });
+    }
+
+    function switchTab(tabName, el) {
+        document.querySelectorAll('.profile-tab').forEach(t => t.classList.remove('active'));
+        el.classList.add('active');
+        document.querySelectorAll('.tab-content-area').forEach(area => area.classList.add('d-none'));
+        document.getElementById('tab-' + tabName).classList.remove('d-none');
+        
+        const url = new URL(window.location);
+        url.searchParams.set('tab', tabName);
+        window.history.pushState({}, '', url);
+    }
+
+    function switchAdminSection(sectionId, el) {
+        document.querySelectorAll('.settings-link').forEach(l => l.classList.remove('active'));
+        el.classList.add('active');
+        document.querySelectorAll('.admin-section').forEach(sec => sec.classList.add('d-none'));
+        document.getElementById('section-' + sectionId).classList.remove('d-none');
+        
+        const url = new URL(window.location);
+        url.searchParams.set('section', sectionId);
+        window.history.pushState({}, '', url);
+    }
+
+    function confirmAction(url, msg) {
+        if(confirm(msg)) {
+            const f = document.createElement('form'); f.method='POST'; f.action=url; document.body.appendChild(f); f.submit();
+        }
+    }
+
+    function openEditUserModal(id, email, role) {
+        const form = document.getElementById('editUserForm');
+        form.action = `/settings/user/edit/${id}`;
+        document.getElementById('editEmail').value = email;
+        document.getElementById('editRole').value = role;
+        if (role === 'owner' || email === 'admin@inventory.com') {
+            document.getElementById('authSection').classList.remove('d-none');
+        } else {
+            document.getElementById('authSection').classList.add('d-none');
+        }
+        new bootstrap.Modal(document.getElementById('editUserModal')).show();
+    }
+
+    function sendAuthCode() {
+        const btn = document.querySelector('button[onclick="sendAuthCode()"]');
+        if (btn) btn.disabled = true;
+        fetch('/admin/send-auth-code', {method:'POST', credentials:'same-origin'}).then(r=>r.json()).then(d=>{ 
+            alert(d.message); 
+            if (btn) btn.disabled = false;
+        }).catch(e => {
+            if (btn) btn.disabled = false;
+        });
+    }
+
+    function sendProfileConfirmCode() {
+        const btn = document.getElementById('send-profile-code-btn');
+        const originalText = btn.innerHTML;
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Sending...';
+        }
+        
+        fetch('/auth/send-profile-code', {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                Swal.fire({
+                    title: 'Code Sent!',
+                    text: data.message,
+                    icon: 'success',
+                    confirmButtonColor: '#1877f2'
+                });
+                const hint = document.getElementById('profile-code-hint');
+                if (hint) {
+                    hint.textContent = data.message;
+                    hint.style.display = 'block';
+                }
+            } else {
+                Swal.fire({
+                    title: 'Error',
+                    text: data.message,
+                    icon: 'error',
+                    confirmButtonColor: '#1877f2'
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            Swal.fire({
+                title: 'System Error',
+                text: 'Failed to send confirmation code. Please check your internet connection.',
+                icon: 'error',
+                confirmButtonColor: '#1877f2'
+            });
+        })
+        .finally(() => {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        });
+    }
+
+    function uploadFile(input, url, imgId) {
+        if (!input.files || !input.files[0]) return;
+        const formData = new FormData();
+        formData.append('photo', input.files[0]);
+        fetch(url, { method: 'POST', body: formData }).then(r => r.json()).then(data => { if (data.success) location.reload(); else alert(data.message); });
+    }
+
+
+    let _peekEmail = '', _peekFirstName = '', _peekPic = '', _peekRole = '', _peekStatus = '', _peekIp = '';
+
+    function openUserPeek(email, firstName, lastName, picPath, role, status, lastIp) {
+        _peekEmail = email;
+        _peekFirstName = firstName;
+        _peekPic = picPath;
+        _peekRole = role;
+        _peekStatus = status;
+        _peekIp = lastIp;
+
+        const displayName = (firstName || email.split('@')[0]) + (lastName ? ' ' + lastName : '');
+        document.getElementById('peekName').textContent = displayName;
+        document.getElementById('peekEmail').textContent = email;
+
+        // Avatar
+        const avatarEl = document.getElementById('peekAvatar');
+        if (picPath) {
+            avatarEl.innerHTML = `<img src="/static/${picPath}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+        } else {
+            avatarEl.textContent = email[0].toUpperCase();
+        }
+
+        // Status dot
+        const dot = document.getElementById('peekStatusDot');
+        dot.style.backgroundColor = status === 'Online' ? '#31a24c' : status === 'Away' ? '#f7b928' : '#bec3c9';
+
+        // Role badge
+        const rb = document.getElementById('peekRoleBadge');
+        rb.textContent = role === 'owner' ? 'Admin' : 'Cashier';
+        rb.className = 'badge ' + (role === 'owner' ? 'bg-danger' : 'bg-primary');
+
+        document.getElementById('peekStatus').textContent = status;
+
+        // IP
+        const ipRow = document.getElementById('peekIpRow');
+        if (lastIp) {
+            document.getElementById('peekIp').textContent = lastIp;
+            ipRow.classList.remove('d-none');
+        } else {
+            ipRow.classList.add('d-none');
+        }
+
+        new bootstrap.Modal(document.getElementById('userPeekModal')).show();
+    }
+
+
+    let logsReversed = false;
+    let currentLogPage = 1;
+    const logsPerPage = 50;
+
+    function filterSystemLogs() {
+        const query = document.getElementById('logSearch').value.toLowerCase();
+        const type = document.getElementById('logTypeFilter').value;
+        const rows = document.querySelectorAll('.log-row');
+        let visibleCount = 0;
+        
+        // Reset to first page when filtering
+        currentLogPage = 1;
+
+        rows.forEach(row => {
+            const details = row.getAttribute('data-details').toLowerCase();
+            const email = row.getAttribute('data-email').toLowerCase();
+            const action = row.getAttribute('data-action');
+            
+            const matchesQuery = !query || details.includes(query) || email.includes(query);
+            const matchesType = type === 'all' || action.includes(type);
+            
+            if (matchesQuery && matchesType) {
+                row.dataset.visible = "true";
+                visibleCount++;
+            } else {
+                row.dataset.visible = "false";
+                row.style.display = 'none';
+            }
+        });
+        
+        updateLogsPagination();
+        const countText = document.getElementById('logCountText');
+        if (countText) countText.innerText = `${visibleCount} entries found`;
+    }
+
+    function updateLogsPagination() {
+        const visibleRows = Array.from(document.querySelectorAll('.log-row[data-visible="true"]'));
+        const totalPages = Math.ceil(visibleRows.length / logsPerPage) || 1;
+        
+        if (currentLogPage > totalPages) currentLogPage = totalPages;
+        if (currentLogPage < 1) currentLogPage = 1;
+
+        const startIdx = (currentLogPage - 1) * logsPerPage;
+        const endIdx = startIdx + logsPerPage;
+
+        visibleRows.forEach((row, idx) => {
+            if (idx >= startIdx && idx < endIdx) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        document.getElementById('logPageIndicator').innerText = `Page ${currentLogPage} of ${totalPages}`;
+        document.getElementById('prevLogBtn').disabled = currentLogPage === 1;
+        document.getElementById('nextLogBtn').disabled = currentLogPage === totalPages;
+    }
+
+    function changeLogPage(delta) {
+        currentLogPage += delta;
+        updateLogsPagination();
+    }
+
+    // Initialize audit log visibility if present
+    const initLogs = () => {
+        const rows = document.querySelectorAll('.log-row');
+        if (rows.length > 0) {
+            rows.forEach(r => r.dataset.visible = "true");
+            if (document.getElementById('logPageIndicator')) {
+                updateLogsPagination();
+            }
+        }
+    };
+    initLogs();
+
+    function toggleLogSort() {
+        const tbody = document.getElementById('adminLogBody');
+        const rows = Array.from(tbody.querySelectorAll('.log-row'));
+        const btn = document.getElementById('logSortBtn');
+        
+        rows.reverse();
+        tbody.innerHTML = '';
+        rows.forEach(r => tbody.appendChild(r));
+        
+        logsReversed = !logsReversed;
+        btn.innerHTML = logsReversed ? '<i class="bi bi-sort-up"></i>' : '<i class="bi bi-sort-down"></i>';
+        btn.classList.toggle('btn-primary');
+        btn.classList.toggle('btn-outline-secondary');
+        
+        // Re-run pagination after sorting
+        updateLogsPagination();
+    }
+
+</script>
+{% endblock %}

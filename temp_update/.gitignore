@@ -1,0 +1,10 @@
+venv/
+__pycache__/
+*.pyc
+.env
+mongodb_server/
+data/
+*.log
+*.zip
+.DS_Store
+diagnostic.data/
