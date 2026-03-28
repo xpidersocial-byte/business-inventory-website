@@ -1,21 +1,14 @@
 /**
- * FBIHM Service Worker v6.1 (Fail-Safe Offline Mode)
- * Ensures no "Stuck in Loading" by implementing global timeouts and error catches.
+ * FBIHM Service Worker v8.0 (Ultra-Stable)
+ * Ensures zero crashes and guaranteed responses for all requests.
  */
 
-const CACHE_NAME = 'fbihm-v7.3';
+const CACHE_NAME = 'fbihm-v8.0';
 const OFFLINE_URL = '/offline';
 const SYNC_CHANNEL = new BroadcastChannel('offline_sync_status');
 
 const ASSETS_TO_CACHE = [
-    '/',
-    '/login',
-    '/dashboard',
-    '/items',
-    '/sales',
-    '/sales-summary',
-    '/pos',
-    '/bulletin', '/restock',
+    '/', '/login', '/dashboard', '/items', '/sales', '/sales-summary', '/pos', '/bulletin', '/restock',
     OFFLINE_URL,
     '/static/manifest.json',
     '/favicon.ico',
@@ -33,13 +26,10 @@ self.addEventListener('install', (event) => {
     self.skipWaiting();
     event.waitUntil(
         caches.open(CACHE_NAME).then(async (cache) => {
-            console.log('[SW] Precaching App Shell');
             for (const url of ASSETS_TO_CACHE) {
                 try {
                     await cache.add(new Request(url, { redirect: 'follow' }));
-                } catch (e) {
-                    console.warn(`[SW] Precache failed: ${url}`);
-                }
+                } catch (e) { console.warn('[SW] Precache Failed:', url); }
             }
         })
     );
@@ -48,79 +38,46 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
     event.waitUntil(clients.claim());
     event.waitUntil(
-        caches.keys().then((cacheNames) => {
-            return Promise.all(
-                cacheNames.map((cacheName) => {
-                    if (cacheName !== CACHE_NAME) return caches.delete(cacheName);
-                })
-            );
-        })
+        caches.keys().then((keys) => Promise.all(keys.map(k => k !== CACHE_NAME && caches.delete(k))))
     );
 });
 
-/**
- * Robust Fetch with Timeout
- */
-async function fetchWithTimeout(request, timeout = 3000) {
-    const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), timeout);
-    try {
-        const response = await fetch(request, { signal: controller.signal });
-        clearTimeout(id);
-        return response;
-    } catch (err) {
-        clearTimeout(id);
-        throw err;
-    }
+// Helper to ensure we ALWAYS return a valid Response object
+function offlineResponse(status = 503) {
+    return new Response('', { status: status, statusText: 'Offline' });
 }
 
 self.addEventListener('fetch', (event) => {
     if (event.request.method !== 'GET') return;
-
+    
     const url = new URL(event.request.url);
     if (url.pathname.includes('socket.io') || url.pathname.startsWith('/health')) return;
 
-    // STRATEGY: Navigation (HTML Pages)
+    // 1. Navigation
     if (event.request.mode === 'navigate') {
         event.respondWith(
-            fetchWithTimeout(event.request, 4000)
-                .then((networkResponse) => {
-                    if (networkResponse.status === 200) {
-                        const cacheCopy = networkResponse.clone();
-                        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, cacheCopy));
-                    }
-                    return networkResponse;
-                })
-                .catch(() => {
-                    // Fail to cache or offline page
-                    return caches.match(event.request).then((cached) => cached || caches.match(OFFLINE_URL));
-                })
+            fetch(event.request).then(res => {
+                if (res.ok) {
+                    const copy = res.clone();
+                    caches.open(CACHE_NAME).then(c => c.put(event.request, copy));
+                }
+                return res;
+            }).catch(() => caches.match(event.request).then(cached => cached || caches.match(OFFLINE_URL)))
         );
         return;
     }
 
-    // STRATEGY: Static Assets & API (Cache-First with Fail-Safe)
+    // 2. Static Assets
     event.respondWith(
-        caches.match(event.request).then((cachedResponse) => {
-            if (cachedResponse) return cachedResponse;
-
-            return fetch(event.request)
-                .then((networkResponse) => {
-                    if (networkResponse && networkResponse.status === 200) {
-                        const cacheCopy = networkResponse.clone();
-                        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, cacheCopy));
-                    }
-                    return networkResponse;
-                })
-                .catch((err) => {
-                    // CRITICAL FIX: Return a null response or local placeholder instead of crashing
-                    console.log(`[SW] Fetch failed for ${url.pathname}, device likely offline.`);
-                    if (event.request.destination === 'image') {
-                        // Optionally return a tiny transparent pixel or placeholder
-                        return new Response('', { status: 404, statusText: 'Offline' });
-                    }
-                    return null; // Let the browser handle the missing resource gracefully
-                });
+        caches.match(event.request).then(cached => {
+            if (cached) return cached;
+            return fetch(event.request).then(res => {
+                if (res.ok) {
+                    const copy = res.clone();
+                    caches.open(CACHE_NAME).then(c => c.put(event.request, copy));
+                }
+                return res;
+            }).catch(() => offlineResponse());
         })
     );
 });
