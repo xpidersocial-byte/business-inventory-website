@@ -7,7 +7,8 @@ on:
 
 jobs:
   deploy:
-    runs-on: self-hosted
+    # Matching your runner labels
+    runs-on: [ubuntu-latest, ubuntu-22.04]
 
     steps:
       - name: Checkout Code
@@ -17,11 +18,13 @@ jobs:
         run: |
           docker build -t fbihm-local:latest .
 
+      - name: Initialize Swarm (If not already)
+        run: |
+          docker swarm init || true
+
       - name: Deploy to Swarm Stack
         run: |
-          # Ensure Swarm is initialized
-          docker swarm init || true
-          # Deploy the stack using our stack.yml
+          # This deploys the stack using the locally built image
           docker stack deploy -c stack.yml fbihm_stack
 
       - name: Cleanup Old Images
