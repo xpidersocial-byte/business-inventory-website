@@ -18,12 +18,19 @@ jobs:
 
       - name: Manual Checkout
         run: |
-          echo "🚀 Refreshing code from local Gitea..."
-          git config --global --add safe.directory "*"
-          git fetch origin
+          echo "🚀 Initializing local workspace and fetching code..."
+          # 1. Initialize git in the empty runner workspace
+          git init
+          git remote add origin https://thesis.fbihm.online/bejasadhev/FBIHM.git
+          
+          # 2. Fetch the specific branch being pushed
           BRANCH=$(echo ${GITHUB_REF} | sed 's|refs/heads/||')
-          git checkout $BRANCH
-          git reset --hard origin/$BRANCH
+          echo "Fetching branch: $BRANCH"
+          
+          # We use -c http.sslVerify=false if your server certificate is self-signed
+          git -c http.sslVerify=false fetch origin $BRANCH
+          git checkout -f $BRANCH
+          git reset --hard FETCH_HEAD
 
       - name: Deploy to Remote Server via SSH
         env:
@@ -34,9 +41,7 @@ jobs:
           TARGET_DIR="/home/eujyrn/Desktop/flask_mongo_app"
           
           echo "🚀 Syncing to $REMOTE_HOST..."
-          
           sshpass -p "$SSH_PASS" ssh -o StrictHostKeyChecking=no $REMOTE_USER@$REMOTE_HOST "rm -f $TARGET_DIR/app.py"
-          
           sshpass -p "$SSH_PASS" rsync -avzc -e "ssh -o StrictHostKeyChecking=no" \
             --exclude 'venv/' --exclude 'data/' --exclude '.git/' \
             ./ $REMOTE_USER@$REMOTE_HOST:$TARGET_DIR/
@@ -51,10 +56,5 @@ jobs:
             pkill -f 'app.py' || true && \
             nohup venv/bin/python3 app.py > app.log 2>&1 < /dev/null & \
             sleep 5 && \
-            if pgrep -f 'venv/bin/python3 app.py' > /dev/null; then
-              echo '✅ App is running.'
-            else
-              echo '❌ Failed.'
-              exit 1
-            fi
+            pgrep -f 'venv/bin/python3 app.py' && echo '✅ App is running.'
           "
