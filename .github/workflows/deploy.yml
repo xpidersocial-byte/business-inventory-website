@@ -1,4 +1,4 @@
-name: Manual Server Deploy
+name: Remote SSH Deploy
 
 on:
   push:
@@ -13,55 +13,57 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Install System Dependencies
+      - name: Install Deployment Tools
         run: |
           apt-get update
-          apt-get install -y python3-venv python3-pip rsync
+          apt-get install -y sshpass rsync
 
-      - name: Deploy to Local Directory
+      - name: Deploy to Remote Server via SSH
+        env:
+          SSH_PASS: ${{ secrets.SERVER_PASSWORD }}
         run: |
+          # Define remote details
+          REMOTE_USER="root"
+          REMOTE_HOST="74.208.174.70"
           TARGET_DIR="/home/eujyrn/Desktop/flask_mongo_app"
-          echo "🚀 Deploying to: $TARGET_DIR"
           
-          mkdir -p "$TARGET_DIR"
+          echo "🚀 Syncing files to $REMOTE_HOST..."
           
-          # Sync files, excluding unnecessary directories
-          rsync -av --delete --exclude 'venv/' --exclude 'data/' --exclude '.git/' --exclude 'temp_update/' ./ "$TARGET_DIR/"
+          # 1. Ensure target directory exists on remote
+          sshpass -p "$SSH_PASS" ssh -o StrictHostKeyChecking=no $REMOTE_USER@$REMOTE_HOST "mkdir -p $TARGET_DIR"
           
-          cd "$TARGET_DIR"
+          # 2. Sync files using rsync over SSH
+          sshpass -p "$SSH_PASS" rsync -avz -e "ssh -o StrictHostKeyChecking=no" \
+            --exclude 'venv/' --exclude 'data/' --exclude '.git/' --exclude 'temp_update/' \
+            ./ $REMOTE_USER@$REMOTE_HOST:$TARGET_DIR/
           
-          # Recreate VENV if it is too old (Python < 3.10)
-          if [ -d "venv" ]; then
-            # Check version using Python directly (more reliable than bc)
-            if ! venv/bin/python3 -c 'import sys; exit(0 if sys.version_info >= (3, 10) else 1)'; then
-              echo "⚠️ VENV is too old (Python < 3.10). Recreating..."
-              rm -rf venv
-            else
-              echo "✅ VENV version is compatible."
+          # 3. Remote execution: Setup and Restart
+          sshpass -p "$SSH_PASS" ssh -o StrictHostKeyChecking=no $REMOTE_USER@$REMOTE_HOST << 'EOF'
+            cd /home/eujyrn/Desktop/flask_mongo_app
+            
+            # Setup VENV if missing
+            if [ ! -d "venv" ]; then
+              python3 -m venv venv
             fi
-          fi
-
-          if [ ! -d "venv" ]; then
-            echo "📦 Creating fresh Virtual Environment..."
-            python3 -m venv venv
-          fi
-          
-          # Install Requirements
-          source venv/bin/activate
-          pip install --upgrade pip
-          pip install -r requirements.txt
-          
-          # Restart the Application
-          echo "🔄 Restarting Flask Application..."
-          pkill -f "$TARGET_DIR/venv/bin/python3 app.py" || true
-          nohup venv/bin/python3 app.py > app.log 2>&1 &
-          
-          # Verify
-          sleep 10
-          if pgrep -f "$TARGET_DIR/venv/bin/python3 app.py" > /dev/null; then
-            echo "✅ Manual Deployment Successful!"
-          else
-            echo "❌ Application failed to start. Last 20 lines of app.log:"
-            tail -n 20 app.log
-            exit 1
-          fi
+            
+            # Install requirements
+            source venv/bin/activate
+            pip install --upgrade pip
+            pip install -r requirements.txt
+            
+            echo "🔄 Restarting Flask Application..."
+            # Kill existing process
+            fuser -k 5000/tcp || true
+            
+            # Start the app
+            nohup venv/bin/python3 app.py > app.log 2>&1 &
+            
+            sleep 5
+            if pgrep -f "venv/bin/python3 app.py" > /dev/null; then
+              echo "✅ App is running on remote server."
+            else
+              echo "❌ App failed to start. Last logs:"
+              tail -n 20 app.log
+              exit 1
+            fi
+          EOF
