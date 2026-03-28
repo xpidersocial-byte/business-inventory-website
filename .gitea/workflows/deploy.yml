@@ -11,13 +11,20 @@ jobs:
     runs-on: [ubuntu-latest, ubuntu-22.04]
 
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
       - name: Install Deployment Tools
         run: |
           apt-get update
-          apt-get install -y sshpass rsync
+          apt-get install -y sshpass rsync git
+
+      - name: Manual Checkout
+        run: |
+          echo "🚀 Refreshing code from local Gitea..."
+          git config --global --add safe.directory "*"
+          git fetch origin
+          # Get branch name from GITHUB_REF (e.g. refs/heads/v2 -> v2)
+          BRANCH=$(echo ${GITHUB_REF} | sed 's|refs/heads/||')
+          git checkout $BRANCH
+          git reset --hard origin/$BRANCH
 
       - name: Deploy to Remote Server via SSH
         env:
@@ -28,7 +35,6 @@ jobs:
           TARGET_DIR="/home/eujyrn/Desktop/flask_mongo_app"
           
           echo "🚀 Preparing server..."
-          # Delete code files but PROTECT .env and app.log
           sshpass -p "$SSH_PASS" ssh -o StrictHostKeyChecking=no $REMOTE_USER@$REMOTE_HOST \
             "find $TARGET_DIR -maxdepth 1 -type f -not -name 'app.log' -not -name '.env' -delete"
           
@@ -39,23 +45,18 @@ jobs:
           
           sshpass -p "$SSH_PASS" ssh -o StrictHostKeyChecking=no $REMOTE_USER@$REMOTE_HOST << 'REMOTECMD'
             cd /home/eujyrn/Desktop/flask_mongo_app
-            echo "--- Verifying Config ---"
-            grep "MONGO_URI" .env
-            
             if [ ! -d "venv" ]; then python3 -m venv venv; fi
             source venv/bin/activate
             pip install -r requirements.txt
-            
             echo "🔄 Restarting Application..."
             fuser -k 5000/tcp || true
             pkill -f "app.py" || true
             nohup venv/bin/python3 app.py > app.log 2>&1 < /dev/null &
-            
             sleep 5
             if pgrep -f "venv/bin/python3 app.py" > /dev/null; then
-              echo "✅ App is running with correct configuration."
+              echo "✅ App is running."
             else
-              echo "❌ Failed. Check app.log"
+              echo "❌ Failed."
               exit 1
             fi
 REMOTECMD
