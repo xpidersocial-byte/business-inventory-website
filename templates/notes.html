@@ -1,36 +1,7 @@
 {% extends "base.html" %}
 
 {% block title %}Bulletin Board
-    // --- PERSISTENT OFFLINE DISPLAY ---
-    async function loadOfflineNotes() {
-        const pending = await xpiderSync.getPendingByUrl("/bulletin/add");
-        if (pending && pending.length > 0) {
-            const container = document.querySelector(".row.g-4");
-            if (!container) return;
-            
-            pending.forEach(action => {
-                const data = action.body;
-                const col = document.createElement("div");
-                col.className = "col-xl-4 col-md-6";
-                col.innerHTML = `
-                    <div class="bulletin-card h-100 border-${data.color || "blue"}">
-                        <div class="card-body p-4">
-                            <div class="d-flex justify-content-between align-items-start mb-3">
-                                <span class="badge rounded-pill bg-warning text-dark small uppercase ls-1">SYNC PENDING</span>
-                            </div>
-                            <p class="bulletin-content mb-4 text-theme-main">${data.content}</p>
-                            <div class="d-flex justify-content-between align-items-center mt-auto pt-3 border-top border-secondary border-opacity-10">
-                                <span class="small text-theme-muted"><i class="bi bi-clock me-1"></i>Offline Saved</span>
-                                <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 px-2 py-1">${data.tag || "Normal"}</span>
-                            </div>
-                        </div>
-                    </div>
-                `;
-                container.prepend(col);
-            });
-        }
-    }
-    document.addEventListener("DOMContentLoaded", loadOfflineNotes);
+    
 
 {% endblock %}
 
@@ -141,36 +112,7 @@
     .empty-board { color: var(--text-muted); }
 </style>
 
-    // --- PERSISTENT OFFLINE DISPLAY ---
-    async function loadOfflineNotes() {
-        const pending = await xpiderSync.getPendingByUrl("/bulletin/add");
-        if (pending && pending.length > 0) {
-            const container = document.querySelector(".row.g-4");
-            if (!container) return;
-            
-            pending.forEach(action => {
-                const data = action.body;
-                const col = document.createElement("div");
-                col.className = "col-xl-4 col-md-6";
-                col.innerHTML = `
-                    <div class="bulletin-card h-100 border-${data.color || "blue"}">
-                        <div class="card-body p-4">
-                            <div class="d-flex justify-content-between align-items-start mb-3">
-                                <span class="badge rounded-pill bg-warning text-dark small uppercase ls-1">SYNC PENDING</span>
-                            </div>
-                            <p class="bulletin-content mb-4 text-theme-main">${data.content}</p>
-                            <div class="d-flex justify-content-between align-items-center mt-auto pt-3 border-top border-secondary border-opacity-10">
-                                <span class="small text-theme-muted"><i class="bi bi-clock me-1"></i>Offline Saved</span>
-                                <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 px-2 py-1">${data.tag || "Normal"}</span>
-                            </div>
-                        </div>
-                    </div>
-                `;
-                container.prepend(col);
-            });
-        }
-    }
-    document.addEventListener("DOMContentLoaded", loadOfflineNotes);
+    
 
 {% endblock %}
 
@@ -387,36 +329,7 @@
     </div>
 </div>
 
-    // --- PERSISTENT OFFLINE DISPLAY ---
-    async function loadOfflineNotes() {
-        const pending = await xpiderSync.getPendingByUrl("/bulletin/add");
-        if (pending && pending.length > 0) {
-            const container = document.querySelector(".row.g-4");
-            if (!container) return;
-            
-            pending.forEach(action => {
-                const data = action.body;
-                const col = document.createElement("div");
-                col.className = "col-xl-4 col-md-6";
-                col.innerHTML = `
-                    <div class="bulletin-card h-100 border-${data.color || "blue"}">
-                        <div class="card-body p-4">
-                            <div class="d-flex justify-content-between align-items-start mb-3">
-                                <span class="badge rounded-pill bg-warning text-dark small uppercase ls-1">SYNC PENDING</span>
-                            </div>
-                            <p class="bulletin-content mb-4 text-theme-main">${data.content}</p>
-                            <div class="d-flex justify-content-between align-items-center mt-auto pt-3 border-top border-secondary border-opacity-10">
-                                <span class="small text-theme-muted"><i class="bi bi-clock me-1"></i>Offline Saved</span>
-                                <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 px-2 py-1">${data.tag || "Normal"}</span>
-                            </div>
-                        </div>
-                    </div>
-                `;
-                container.prepend(col);
-            });
-        }
-    }
-    document.addEventListener("DOMContentLoaded", loadOfflineNotes);
+    
 
 {% endblock %}
 
@@ -541,10 +454,10 @@
     }
     setInterval(updateCountdowns, 60000);
     updateCountdowns();
-</script>
 
     // --- PERSISTENT OFFLINE DISPLAY ---
-    async function loadOfflineNotes() {
+    async function hydrateOfflineData() {
+        if (typeof xpiderSync === "undefined") return;
         const pending = await xpiderSync.getPendingByUrl("/bulletin/add");
         if (pending && pending.length > 0) {
             const container = document.querySelector(".row.g-4");
@@ -552,6 +465,7 @@
             
             pending.forEach(action => {
                 const data = action.body;
+                
                 const col = document.createElement("div");
                 col.className = "col-xl-4 col-md-6";
                 col.innerHTML = `
@@ -569,9 +483,19 @@
                     </div>
                 `;
                 container.prepend(col);
+
             });
         }
     }
-    document.addEventListener("DOMContentLoaded", loadOfflineNotes);
+    // Ensure hydration happens after the initial DOM load
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", hydrateOfflineData);
+    } else {
+        hydrateOfflineData();
+    }
+    
+</script>
+
+    
 
 {% endblock %}
