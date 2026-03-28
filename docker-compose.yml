@@ -7,24 +7,10 @@ services:
     ports:
       - "5000:5000"
     environment:
-      - MONGO_URI=mongodb://mongo:27017/inventory_db
+      - MONGO_URI=mongodb://74.208.174.70:27017/inventory_db
       - FLASK_ENV=production
       - FLASK_DEBUG=false
       - SECRET_KEY=supersecretkey
-    depends_on:
-      - mongo
     restart: unless-stopped
     volumes:
       - ./static/uploads:/app/static/uploads
-
-  mongo:
-    image: mongo:6.0
-    container_name: fbihm_mongo
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongo_data:/data/db
-    restart: unless-stopped
-
-volumes:
-  mongo_data:

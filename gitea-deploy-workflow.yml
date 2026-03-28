@@ -1,0 +1,29 @@
+name: Gitea Auto Deploy
+
+on:
+  push:
+    branches: [ "v2" ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest # Adjust this to your runner label if different
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Login to Docker Hub
+        run: echo "${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}" | docker login -u bejasadhev --password-stdin
+
+      - name: Build and Push Docker Image
+        run: |
+          docker build -t bejasadhev/fbihm-inventory:latest .
+          docker push bejasadhev/fbihm-inventory:latest
+
+      - name: Pull and Restart on Server
+        run: |
+          # Assuming the runner is on the same server where you want to deploy
+          # or has SSH access. If the runner IS the server:
+          cd /home/eujyrn/Desktop/flask_mongo_app
+          docker-compose pull
+          docker-compose up -d
+          docker system prune -f
