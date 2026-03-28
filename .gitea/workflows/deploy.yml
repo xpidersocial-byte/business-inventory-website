@@ -18,16 +18,10 @@ jobs:
 
       - name: Manual Checkout
         run: |
-          echo "🚀 Initializing local workspace and fetching code..."
-          # 1. Initialize git in the empty runner workspace
+          echo "🚀 Refreshing workspace..."
           git init
           git remote add origin https://thesis.fbihm.online/bejasadhev/FBIHM.git
-          
-          # 2. Fetch the specific branch being pushed
           BRANCH=$(echo ${GITHUB_REF} | sed 's|refs/heads/||')
-          echo "Fetching branch: $BRANCH"
-          
-          # We use -c http.sslVerify=false if your server certificate is self-signed
           git -c http.sslVerify=false fetch origin $BRANCH
           git checkout -f $BRANCH
           git reset --hard FETCH_HEAD
@@ -42,19 +36,38 @@ jobs:
           
           echo "🚀 Syncing to $REMOTE_HOST..."
           sshpass -p "$SSH_PASS" ssh -o StrictHostKeyChecking=no $REMOTE_USER@$REMOTE_HOST "rm -f $TARGET_DIR/app.py"
+          
           sshpass -p "$SSH_PASS" rsync -avzc -e "ssh -o StrictHostKeyChecking=no" \
             --exclude 'venv/' --exclude 'data/' --exclude '.git/' \
             ./ $REMOTE_USER@$REMOTE_HOST:$TARGET_DIR/
           
           sshpass -p "$SSH_PASS" ssh -o StrictHostKeyChecking=no $REMOTE_USER@$REMOTE_HOST "
-            cd /home/eujyrn/Desktop/flask_mongo_app && \
-            if [ ! -d 'venv' ]; then python3 -m venv venv; fi && \
-            source venv/bin/activate && \
-            pip install -r requirements.txt && \
-            echo '🔄 Restarting Application...' && \
-            fuser -k 5000/tcp || true && \
-            pkill -f 'app.py' || true && \
-            nohup venv/bin/python3 app.py > app.log 2>&1 < /dev/null & \
-            sleep 5 && \
-            pgrep -f 'venv/bin/python3 app.py' && echo '✅ App is running.'
+            cd /home/eujyrn/Desktop/flask_mongo_app
+            echo '--- DEBUG: Current Directory ---'
+            pwd
+            
+            if [ ! -d 'venv' ]; then python3 -m venv venv; fi
+            source venv/bin/activate
+            pip install -r requirements.txt
+            
+            echo '--- DEBUG: Checking MongoDB Connection ---'
+            grep 'MONGO_URI' .env || grep 'MONGO_URI' app.py
+            
+            echo '🔄 Restarting Application...'
+            fuser -k 5000/tcp || true
+            pkill -f 'app.py' || true
+            
+            # Start and capture PID
+            nohup venv/bin/python3 app.py > app.log 2>&1 < /dev/null &
+            sleep 7
+            
+            if pgrep -f 'venv/bin/python3 app.py' > /dev/null; then
+              echo '✅ SUCCESS: App is running on port 5000.'
+              echo '--- Recent Logs ---'
+              tail -n 10 app.log
+            else
+              echo '❌ ERROR: App failed to start. CRITICAL DEBUG LOGS BELOW:'
+              cat app.log
+              exit 1
+            fi
           "
