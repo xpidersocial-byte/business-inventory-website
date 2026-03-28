@@ -3,7 +3,7 @@
  * Ensures no "Stuck in Loading" by implementing global timeouts and error catches.
  */
 
-const CACHE_NAME = 'fbihm-v6.1';
+const CACHE_NAME = 'fbihm-v6.2';
 const OFFLINE_URL = '/offline';
 const SYNC_CHANNEL = new BroadcastChannel('offline_sync_status');
 
@@ -15,7 +15,7 @@ const ASSETS_TO_CACHE = [
     '/sales',
     '/sales-summary',
     '/pos',
-    '/bulletin',
+    '/bulletin', '/restock',
     OFFLINE_URL,
     '/static/manifest.json',
     '/favicon.ico',
