@@ -27,10 +27,10 @@ jobs:
           REMOTE_HOST="74.208.174.70"
           TARGET_DIR="/home/eujyrn/Desktop/flask_mongo_app"
           
-          echo "🚀 Preparing server for fresh deployment..."
-          # Wipe old code files (excluding venv and data) to ensure 100% update
+          echo "🚀 Preparing server..."
+          # Delete code files but PROTECT .env and app.log
           sshpass -p "$SSH_PASS" ssh -o StrictHostKeyChecking=no $REMOTE_USER@$REMOTE_HOST \
-            "find $TARGET_DIR -maxdepth 1 -type f -not -name 'app.log' -delete"
+            "find $TARGET_DIR -maxdepth 1 -type f -not -name 'app.log' -not -name '.env' -delete"
           
           echo "🚀 Syncing new files..."
           sshpass -p "$SSH_PASS" rsync -avzc -e "ssh -o StrictHostKeyChecking=no" \
@@ -39,28 +39,23 @@ jobs:
           
           sshpass -p "$SSH_PASS" ssh -o StrictHostKeyChecking=no $REMOTE_USER@$REMOTE_HOST << 'REMOTECMD'
             cd /home/eujyrn/Desktop/flask_mongo_app
-            
-            echo "--- Verifying Config Lock (.env) ---"
-            if [ -f ".env" ]; then echo "✅ .env file exists."; else echo "❌ .env MISSING"; fi
+            echo "--- Verifying Config ---"
             grep "MONGO_URI" .env
             
-            # Setup
             if [ ! -d "venv" ]; then python3 -m venv venv; fi
             source venv/bin/activate
             pip install -r requirements.txt
             
-            echo "🔄 Starting Application..."
+            echo "🔄 Restarting Application..."
             fuser -k 5000/tcp || true
             pkill -f "app.py" || true
-            
             nohup venv/bin/python3 app.py > app.log 2>&1 < /dev/null &
             
             sleep 5
             if pgrep -f "venv/bin/python3 app.py" > /dev/null; then
-              echo "✅ App is successfully running with LOCKED config."
+              echo "✅ App is running with correct configuration."
             else
-              echo "❌ Failed. Showing app.log:"
-              tail -n 20 app.log
+              echo "❌ Failed. Check app.log"
               exit 1
             fi
 REMOTECMD
