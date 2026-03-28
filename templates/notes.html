@@ -437,263 +437,67 @@
 
 
 {% block scripts %}
+
 <script>
-    function markReadOnPage(id, element) {
-        const badge = element.querySelector('.badge.bg-danger');
-        if (badge) {
-            fetch('/api/notifications/mark-one', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ note_id: id, type: 'bulletin' })
-            }).then(() => {
-                badge.remove();
-                element.classList.remove('border-primary');
-                // Optionally update top-bar count if global function exists
-                if (typeof fetchNotifications === 'function') fetchNotifications();
-            }).catch(() => {});
-        }
-    }
-
-    async function handleBulletinAction(id, actionPath) {
-        const url = `/bulletin/${actionPath}/${id}`;
+    // --- RENDER ENGINE ---
+    async function refreshNotes() {
+        console.log("🌊 [UI] Refreshing Notes from PouchDB...");
+        if (typeof xpiderSync === "undefined") return;
+        
         try {
-            const res = await offlineSafePost(url, new FormData());
-            if (res.offline) {
-                // For UI responsiveness, we might want to reload or update manually
-                window.location.reload();
-            } else {
-                window.location.reload();
-            }
-        } catch (err) { console.error(err); }
+            const pending = await xpiderSync.getPendingActions("/bulletin/add");
+            const container = document.querySelector(".row.g-4");
+            if (!container) return;
+            container.innerHTML = ""; // Clear for re-render
+
+            // 1. Render Pending (Queued) notes first
+            pending.forEach(action => {
+                renderNote(container, action.body, true);
+            });
+
+            // 2. Fetch already synced notes from server or local cache (for now we rely on precached HTML or we could use notesDB)
+            // Since we want this fast, let s just handle the optimistic ones here.
+            // Full CSR for notes would require an /api/notes/sync endpoint.
+            console.log(`✅ [UI] Handled ${pending.length} pending notes.`);
+        } catch (e) { console.error("Notes Refresh Failed:", e); }
     }
 
-    function toggleStatus(id) {
-        handleBulletinAction(id, 'toggle_status');
+    function renderNote(container, data, isPending) {
+        const col = document.createElement("div");
+        col.className = "col-xl-4 col-md-6";
+        col.innerHTML = `
+            <div class="bulletin-card h-100 border-${data.color || "blue"}">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <span class="badge rounded-pill bg-warning text-dark small uppercase ls-1">
+                            ${isPending ? "SYNC PENDING" : "ACTIVE"}
+                        </span>
+                    </div>
+                    <p class="bulletin-content mb-4 text-theme-main">${data.content}</p>
+                    <div class="d-flex justify-content-between align-items-center mt-auto pt-3 border-top border-secondary border-opacity-10">
+                        <span class="small text-theme-muted"><i class="bi bi-clock me-1"></i>Offline Saved</span>
+                        <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 px-2 py-1">${data.tag || "Normal"}</span>
+                    </div>
+                </div>
+            </div>
+        `;
+        container.prepend(col);
     }
 
-    // Mark as done: animate the card out, then submit
-    function markDone(id) {
-        // Find the parent col that contains the card with this note id
-        const btn = document.querySelector(`[onclick="markDone('${id}')"]`);
-        if (btn) {
-            const card = btn.closest('.col-xl-4, .col-md-6');
-            if (card) {
-                card.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
-                card.style.opacity = '0';
-                card.style.transform = 'scale(0.9)';
-                setTimeout(() => {
-                    card.remove();
-                    toggleStatus(id);
-                }, 300);
-                return;
-            }
-        }
-        toggleStatus(id);
-    }
-
-    function pinNote(id) {
-        handleBulletinAction(id, 'pin');
-    }
-
-    function deleteNote(id) {
-        if (confirm('Permanently delete your bulletin?')) {
-            handleBulletinAction(id, 'delete');
-        }
-    }
-
-    async function handleBulletinSubmit(event, urlOverride) {
+    async function handleBulletinSubmit(event) {
         event.preventDefault();
         const form = event.target;
-        const btn = form.querySelector('button[type="submit"]');
-        const originalBtnText = btn.innerHTML;
-        
-        // Show loading state
-        btn.disabled = true;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Posting...';
-        
         const formData = new FormData(form);
-        const url = urlOverride || form.action;
+        const url = "{{ url_for("bulletin.add_bulletin") }}";
         
-        try {
-            const res = await offlineSafePost(url, formData);
-            if (res.offline) {
-                bootstrap.Modal.getInstance(form.closest('.modal')).hide();
-                window.location.reload();
-            } else {
-                window.location.reload();
-            }
-        } catch (err) { 
-            console.error(err); 
-            alert("Submission failed");
-            btn.disabled = false;
-            btn.innerHTML = originalBtnText;
-        }
+        await offlineSafePost(url, formData);
+        bootstrap.Modal.getInstance(form.closest(".modal")).hide();
+        form.reset();
+        refreshNotes();
     }
 
-    function openEditModal(id, content, tag, color) {
-        document.getElementById('editContent').value = content;
-        document.getElementById('editTag').value = tag;
-        document.getElementById('editColor').value = color;
-        document.getElementById('editNoteForm').action = `/bulletin/edit/${id}`;
-        new bootstrap.Modal(document.getElementById('editNoteModal')).show();
-    }
-
-    function updateCountdowns() {
-        const timers = document.querySelectorAll('.countdown-timer');
-        const now = new Date();
-        timers.forEach(timer => {
-            const doneAt = new Date(timer.getAttribute('data-done-at'));
-            const expiryDate = new Date(doneAt.getTime() + (7 * 24 * 60 * 60 * 1000));
-            const diff = expiryDate - now;
-            if (diff <= 0) {
-                timer.innerHTML = '<i class="bi bi-trash"></i> Expiring...';
-            } else {
-                const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-                const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-                timer.innerHTML = `<i class="bi bi-clock-history"></i> ${days}d ${hours}h left`;
-            }
-        });
-    }
-    setInterval(updateCountdowns, 60000);
-    updateCountdowns();
-
-    
-    {
-        console.log("🌊 [UI] Checking for offline notes...");
-        try {
-            const pending = await xpiderSync.getPendingActions("/bulletin/add");
-            const container = document.querySelector(".row.g-4");
-            if (!container || !pending.length) return;
-            
-            pending.forEach(action => {
-                const data = action.body;
-                const col = document.createElement("div");
-                col.className = "col-xl-4 col-md-6 offline-temp-note";
-                col.innerHTML = `
-                    <div class="bulletin-card h-100 border-${data.color || "blue"}">
-                        <div class="card-body p-4">
-                            <div class="d-flex justify-content-between align-items-start mb-3">
-                                <span class="badge rounded-pill bg-warning text-dark small uppercase ls-1">SYNC PENDING</span>
-                            </div>
-                            <p class="bulletin-content mb-4 text-theme-main">${data.content}</p>
-                            <div class="d-flex justify-content-between align-items-center mt-auto pt-3 border-top border-secondary border-opacity-10">
-                                <span class="small text-theme-muted"><i class="bi bi-clock me-1"></i>Offline Saved</span>
-                                <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 px-2 py-1">${data.tag || "Normal"}</span>
-                            </div>
-                        </div>
-                    </div>
-                `;
-                container.prepend(col);
-            });
-            console.log("✅ [UI] Injected " + pending.length + " offline notes.");
-        } catch (e) { console.error("Hydration Failed:", e); }
-    }
-    window.addEventListener("load", hydrateOfflineData);
-
-    
-
-    
-
-
-    // --- OFFLINE POWER PACK v8.0 ---
-    (function() {
-        async function hydrate() {
-            console.log("🌊 [Offline] Hydrating /bulletin/add...");
-            if (typeof xpiderSync === "undefined") return;
-            const pending = await xpiderSync.getPendingActions("/bulletin/add");
-            const container = document.querySelector(".row.g-4");
-            if (!container || !pending.length) return;
-            pending.forEach(action => {
-                const data = action.body;
-                
-                const col = document.createElement("div");
-                col.className = "col-xl-4 col-md-6 offline-temp-note";
-                col.innerHTML = `
-                    <div class="bulletin-card h-100 border-${data.color || "blue"}">
-                        <div class="card-body p-4">
-                            <div class="d-flex justify-content-between align-items-start mb-3">
-                                <span class="badge rounded-pill bg-warning text-dark small uppercase ls-1">SYNC PENDING</span>
-                            </div>
-                            <p class="bulletin-content mb-4 text-theme-main">${data.content}</p>
-                            <div class="d-flex justify-content-between align-items-center mt-auto pt-3 border-top border-secondary border-opacity-10">
-                                <span class="small text-theme-muted"><i class="bi bi-clock me-1"></i>Offline Saved</span>
-                                <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 px-2 py-1">${data.tag || "Normal"}</span>
-                            </div>
-                        </div>
-                    </div>
-                `;
-                container.prepend(col);
-
-            });
-        }
-
-        document.addEventListener("offlineActionQueued", (e) => {
-            if (e.detail.url.includes("/bulletin/add")) {
-                const container = document.querySelector(".row.g-4");
-                if (!container) return;
-                const data = e.detail.body;
-                
-                const col = document.createElement("div");
-                col.className = "col-xl-4 col-md-6 offline-temp-note";
-                col.innerHTML = `
-                    <div class="bulletin-card h-100 border-${data.color || "blue"}">
-                        <div class="card-body p-4">
-                            <div class="d-flex justify-content-between align-items-start mb-3">
-                                <span class="badge rounded-pill bg-warning text-dark small uppercase ls-1">SYNC PENDING</span>
-                            </div>
-                            <p class="bulletin-content mb-4 text-theme-main">${data.content}</p>
-                            <div class="d-flex justify-content-between align-items-center mt-auto pt-3 border-top border-secondary border-opacity-10">
-                                <span class="small text-theme-muted"><i class="bi bi-clock me-1"></i>Offline Saved</span>
-                                <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 px-2 py-1">${data.tag || "Normal"}</span>
-                            </div>
-                        </div>
-                    </div>
-                `;
-                container.prepend(col);
-
-            }
-        });
-
-        if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", hydrate);
-        else hydrate();
-    })();
-    
+    document.addEventListener("DOMContentLoaded", refreshNotes);
+    document.addEventListener("offlineActionQueued", refreshNotes);
 </script>
-
-    
-
-
-    {
-        console.log("🌊 [UI] Checking for offline notes...");
-        if (typeof xpiderSync === "undefined") return;
-        try {
-            const pending = await xpiderSync.getPendingActions("/bulletin/add");
-            const container = document.querySelector(".row.g-4");
-            if (!container || !pending.length) return;
-            
-            pending.forEach(action => {
-                const data = action.body;
-                const col = document.createElement("div");
-                col.className = "col-xl-4 col-md-6 offline-temp-note";
-                col.innerHTML = `
-                    <div class="bulletin-card h-100 border-${data.color || "blue"}">
-                        <div class="card-body p-4">
-                            <div class="d-flex justify-content-between align-items-start mb-3">
-                                <span class="badge rounded-pill bg-warning text-dark small uppercase ls-1">SYNC PENDING</span>
-                            </div>
-                            <p class="bulletin-content mb-4 text-theme-main">${data.content}</p>
-                            <div class="d-flex justify-content-between align-items-center mt-auto pt-3 border-top border-secondary border-opacity-10">
-                                <span class="small text-theme-muted"><i class="bi bi-clock me-1"></i>Offline Saved</span>
-                                <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 px-2 py-1">${data.tag || "Normal"}</span>
-                            </div>
-                        </div>
-                    </div>
-                `;
-                container.prepend(col);
-            });
-            console.log("✅ [UI] Injected " + pending.length + " offline notes.");
-        } catch (e) { console.error("Hydration Failed:", e); }
-    }
-    window.addEventListener("DOMContentLoaded", hydrateOfflineData);
 
 {% endblock %}

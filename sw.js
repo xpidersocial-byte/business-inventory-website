@@ -1,11 +1,10 @@
 /**
- * FBIHM Service Worker v9.0 (PouchDB-Ready)
- * Optimized for performance with Stale-While-Revalidate API caching.
+ * FBIHM Service Worker v10.0 (Ultra-Fast App Shell)
+ * Implements Stale-While-Revalidate for ALL navigation and assets.
  */
 
-const CACHE_NAME = 'fbihm-v9.0';
+const CACHE_NAME = 'fbihm-v10.0';
 const OFFLINE_URL = '/offline';
-const SYNC_CHANNEL = new BroadcastChannel('offline_sync_status');
 
 const ASSETS_TO_CACHE = [
     '/', '/login', '/dashboard', '/items', '/sales', '/sales-summary', '/pos', '/bulletin', '/restock',
@@ -43,65 +42,38 @@ self.addEventListener('activate', (event) => {
     );
 });
 
-// Helper to ensure we ALWAYS return a valid Response object
-function offlineResponse(status = 503) {
-    return new Response('', { status: status, statusText: 'Offline' });
-}
-
 self.addEventListener('fetch', (event) => {
     if (event.request.method !== 'GET') return;
     
     const url = new URL(event.request.url);
     if (url.pathname.includes('socket.io') || url.pathname.startsWith('/health')) return;
 
-    // 1. API Synchronization Cache (Stale-While-Revalidate)
-    if (url.pathname.startsWith('/api/')) {
-        event.respondWith(
-            caches.open(CACHE_NAME).then(async (cache) => {
-                const cachedRes = await cache.match(event.request);
-                const fetchPromise = fetch(event.request).then((networkRes) => {
-                    if (networkRes.ok) {
-                        cache.put(event.request, networkRes.clone());
-                    }
-                    return networkRes;
-                });
-                return cachedRes || fetchPromise;
-            })
-        );
-        return;
-    }
-
-    // 2. Navigation
-    if (event.request.mode === 'navigate') {
-        event.respondWith(
-            fetch(event.request).then(res => {
-                if (res.ok) {
-                    const copy = res.clone();
-                    caches.open(CACHE_NAME).then(c => c.put(event.request, copy));
-                }
-                return res;
-            }).catch(() => caches.match(event.request).then(cached => cached || caches.match(OFFLINE_URL)))
-        );
-        return;
-    }
-
-    // 3. Static Assets (Cache-First)
+    // STRATEGY: Stale-While-Revalidate for everything (including Navigation)
+    // This makes page transitions instant.
     event.respondWith(
-        caches.match(event.request).then(cached => {
-            if (cached) return cached;
-            return fetch(event.request).then(res => {
-                if (res.ok) {
-                    const copy = res.clone();
-                    caches.open(CACHE_NAME).then(c => c.put(event.request, copy));
+        caches.match(event.request).then((cachedResponse) => {
+            const fetchPromise = fetch(event.request).then((networkResponse) => {
+                if (networkResponse && networkResponse.status === 200) {
+                    const cacheCopy = networkResponse.clone();
+                    caches.open(CACHE_NAME).then((cache) => cache.put(event.request, cacheCopy));
                 }
-                return res;
-            }).catch(() => offlineResponse());
+                return networkResponse;
+            }).catch(() => {
+                // If network fails and no cache, show offline page for navigation
+                if (event.request.mode === 'navigate' && !cachedResponse) {
+                    return caches.match(OFFLINE_URL);
+                }
+                return cachedResponse;
+            });
+
+            return cachedResponse || fetchPromise;
         })
     );
 });
 
 self.addEventListener('sync', (event) => {
     if (event.tag === 'fbihm-sync') {
+        const SYNC_CHANNEL = new BroadcastChannel('offline_sync_status');
         SYNC_CHANNEL.postMessage({ type: 'SYNC_STARTED' });
     }
 });
