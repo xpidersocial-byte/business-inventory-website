@@ -27,11 +27,11 @@ jobs:
           REMOTE_HOST="74.208.174.70"
           TARGET_DIR="/home/eujyrn/Desktop/flask_mongo_app"
           
+          echo "🚀 Preparing remote server..."
+          sshpass -p "$SSH_PASS" ssh -o StrictHostKeyChecking=no $REMOTE_USER@$REMOTE_HOST "rm -f $TARGET_DIR/app.py"
+          
           echo "🚀 Syncing files to $REMOTE_HOST..."
-          
-          sshpass -p "$SSH_PASS" ssh -o StrictHostKeyChecking=no $REMOTE_USER@$REMOTE_HOST "mkdir -p $TARGET_DIR"
-          
-          sshpass -p "$SSH_PASS" rsync -avz -e "ssh -o StrictHostKeyChecking=no" \
+          sshpass -p "$SSH_PASS" rsync -avzc -e "ssh -o StrictHostKeyChecking=no" \
             --exclude 'venv/' --exclude 'data/' --exclude '.git/' --exclude 'temp_update/' \
             ./ $REMOTE_USER@$REMOTE_HOST:$TARGET_DIR/
           
@@ -39,10 +39,19 @@ jobs:
             cd /home/eujyrn/Desktop/flask_mongo_app
             if [ ! -d "venv" ]; then python3 -m venv venv; fi
             source venv/bin/activate
+            pip install --upgrade pip
             pip install -r requirements.txt
             echo "🔄 Restarting Flask Application..."
             fuser -k 5000/tcp || true
+            pkill -f "app.py" || true
             nohup venv/bin/python3 app.py > app.log 2>&1 < /dev/null &
             sleep 5
-            pgrep -f "venv/bin/python3 app.py" && echo "✅ App is running." || (echo "❌ Failed" && exit 1)
+            if pgrep -f "venv/bin/python3 app.py" > /dev/null; then
+              echo "✅ App is successfully running."
+              grep "MONGO_URI" app.py
+            else
+              echo "❌ App failed to start."
+              tail -n 20 app.log
+              exit 1
+            fi
 REMOTECMD
