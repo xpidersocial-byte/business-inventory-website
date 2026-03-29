@@ -1,10 +1,11 @@
 /**
- * FBIHM Service Worker v11.0 (Enterprise Offline-First)
- * Features: Absolute Cache-First for assets, optimized data layer, and DNS resilience.
+ * FBIHM Service Worker v9.0 (PouchDB-Ready)
+ * Optimized for performance with Stale-While-Revalidate API caching.
  */
 
-const CACHE_NAME = 'fbihm-v11.0';
+const CACHE_NAME = 'fbihm-v9.0';
 const OFFLINE_URL = '/offline';
+const SYNC_CHANNEL = new BroadcastChannel('offline_sync_status');
 
 const ASSETS_TO_CACHE = [
     '/', '/login', '/dashboard', '/items', '/sales', '/sales-summary', '/pos', '/bulletin', '/restock',
@@ -26,11 +27,10 @@ self.addEventListener('install', (event) => {
     self.skipWaiting();
     event.waitUntil(
         caches.open(CACHE_NAME).then(async (cache) => {
-            console.log('[SW v11] Hydrating Application Shell');
             for (const url of ASSETS_TO_CACHE) {
                 try {
                     await cache.add(new Request(url, { redirect: 'follow' }));
-                } catch (e) { console.warn(`[SW v11] Precache Skip: ${url}`); }
+                } catch (e) { console.warn('[SW] Precache Failed:', url); }
             }
         })
     );
@@ -43,55 +43,68 @@ self.addEventListener('activate', (event) => {
     );
 });
 
-/**
- * Enterprise Fetch Strategy
- * 1. Cache-First for static assets (instant load)
- * 2. Stale-While-Revalidate for core pages
- */
+// Helper to ensure we ALWAYS return a valid Response object
+function offlineResponse(status = 503) {
+    return new Response('', { status: status, statusText: 'Offline' });
+}
+
 self.addEventListener('fetch', (event) => {
     if (event.request.method !== 'GET') return;
-    
+
     const url = new URL(event.request.url);
     if (url.pathname.includes('socket.io') || url.pathname.startsWith('/health')) return;
 
-    // Is it a static asset (CSS, JS, Image)? -> Absolute Cache-First
-    const isAsset = url.pathname.match(/\.(js|css|png|jpg|jpeg|webp|svg|woff2|mp3)$/) || 
-                    url.host.includes('cdn.jsdelivr.net');
-
-    if (isAsset) {
+    // 1. API Synchronization Cache (Stale-While-Revalidate)
+    if (url.pathname.startsWith('/api/')) {
         event.respondWith(
-            caches.match(event.request).then(cached => {
-                return cached || fetch(event.request).then(res => {
-                    if (res.ok) {
-                        const copy = res.clone();
-                        caches.open(CACHE_NAME).then(c => c.put(event.request, copy));
+            caches.open(CACHE_NAME).then(async (cache) => {
+                const cachedRes = await cache.match(event.request);
+                const fetchPromise = fetch(event.request).then((networkRes) => {
+                    // Only cache full responses, not partial 206 responses.
+                    if (networkRes.status === 200) {
+                        cache.put(event.request, networkRes.clone());
                     }
-                    return res;
+                    return networkRes;
                 });
+                return cachedRes || fetchPromise;
             })
         );
         return;
     }
 
-    // Navigation and API -> Stale-While-Revalidate
-    event.respondWith(
-        caches.match(event.request).then(cached => {
-            const fetchPromise = fetch(event.request).then(networkRes => {
-                if (networkRes.ok) {
-                    const copy = networkRes.clone();
+    // 2. Navigation
+    if (event.request.mode === 'navigate') {
+        event.respondWith(
+            fetch(event.request).then(res => {
+                // Only cache full responses, not partial 206 responses.
+                if (res.status === 200) {
+                    const copy = res.clone();
                     caches.open(CACHE_NAME).then(c => c.put(event.request, copy));
                 }
-                return networkRes;
-            }).catch(() => null);
+                return res;
+            }).catch(() => caches.match(event.request).then(cached => cached || caches.match(OFFLINE_URL)))
+        );
+        return;
+    }
 
-            return cached || fetchPromise || new Response('', { status: 503 });
+    // 3. Static Assets (Cache-First)
+    event.respondWith(
+        caches.match(event.request).then(cached => {
+            if (cached) return cached;
+            return fetch(event.request).then(res => {
+                // Only cache full responses, not partial 206 responses.
+                if (res.status === 200) {
+                    const copy = res.clone();
+                    caches.open(CACHE_NAME).then(c => c.put(event.request, copy));
+                }
+                return res;
+            }).catch(() => offlineResponse());
         })
     );
 });
 
 self.addEventListener('sync', (event) => {
     if (event.tag === 'fbihm-sync') {
-        const SYNC_CHANNEL = new BroadcastChannel('offline_sync_status');
         SYNC_CHANNEL.postMessage({ type: 'SYNC_STARTED' });
     }
 });
