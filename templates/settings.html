@@ -118,12 +118,12 @@
             <form action="{{ url_for('admin.add_user') }}" method="POST">
                 <div class="mb-3">
                     <label class="form-label">Email Address</label>
-                    <input type="email" name="email" class="form-control bg-dark border-secondary text-theme-main" placeholder="user@example.com" required>
+                    <input type="email" name="email" class="form-control bg-dark border-secondary text-theme-main" placeholder="user@example.com" required autocomplete="email">
                 </div>
                 <div class="mb-3">
                     <label class="form-label">Password</label>
                     <div class="input-group">
-                        <input type="password" name="password" id="newUserPassword" class="form-control bg-dark border-secondary text-theme-main" required>
+                        <input type="password" name="password" id="newUserPassword" class="form-control bg-dark border-secondary text-theme-main" required autocomplete="new-password">
                         <button class="btn btn-outline-secondary border-secondary" type="button" id="toggleNewPassword">
                             <i class="bi bi-eye-slash" id="newEyeIcon"></i>
                         </button>

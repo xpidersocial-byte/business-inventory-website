@@ -36,11 +36,16 @@ class OfflineSyncManager {
         this.isSyncing = true;
 
         try {
-            await this.pullItems();
-            await this.processSyncQueue();
-            console.log('✅ [OfflineManager] Full Sync Complete');
+            const pullOk = await this.pullItems();
+            const queueOk = await this.processSyncQueue();
+            
+            if (pullOk && queueOk) {
+                console.log('✅ [OfflineManager] Full Sync Complete');
+            } else {
+                console.warn('⚠️ [OfflineManager] Partial sync achieved; some components failed.');
+            }
         } catch (e) {
-            console.error('❌ [OfflineManager] Sync failed:', e);
+            console.error('❌ [OfflineManager] Critical sync exception:', e);
         } finally {
             this.isSyncing = false;
         }
@@ -52,7 +57,10 @@ class OfflineSyncManager {
     async pullItems() {
         try {
             const res = await fetch('/api/items/sync');
-            if (!res.ok) return;
+            if (!res.ok) {
+                console.error(`❌ [OfflineManager] pullItems failed with status: ${res.status}`);
+                return false;
+            }
             const items = await res.json();
             
             // Batch update PouchDB
@@ -66,7 +74,11 @@ class OfflineSyncManager {
                 }
             }
             document.dispatchEvent(new CustomEvent('items_updated'));
-        } catch (e) { console.warn('[OfflineManager] Could not pull items'); }
+            return true;
+        } catch (e) { 
+            console.error('[OfflineManager] fetch exception while pulling items:', e);
+            return false;
+        }
     }
 
     /**
@@ -98,15 +110,23 @@ class OfflineSyncManager {
     async processSyncQueue() {
         const result = await this.syncDB.allDocs({ include_docs: true });
         const actions = result.rows.map(row => row.doc);
+        let allOk = true;
         
         for (const action of actions) {
             try {
                 const ok = await this.executeRemote(action);
                 if (ok) {
                     await this.syncDB.remove(action);
+                } else {
+                    allOk = false;
+                    console.warn(`⚠️ [OfflineManager] Remote execution failed for ${action.url}`);
                 }
-            } catch (e) { break; }
+            } catch (e) { 
+                allOk = false;
+                break; 
+            }
         }
+        return allOk;
     }
 
     async executeRemote(action) {

@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, session, flash
+from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify
 from markupsafe import Markup
 from core.utils import calculate_item_metrics, log_action, get_site_config, send_email_notification
 from core.middleware import login_required, role_required
@@ -343,19 +343,27 @@ def stock_in():
 @inventory_bp.route('/api/items/sync')
 @login_required
 def api_sync_items():
-    items_collection = get_items_collection()
-    # Fetch all active items, only return minimal fields to save bandwidth
-    raw_items = list(items_collection.find({"active": {"$ne": False}}, {
-        "name": 1, "category": 1, "menu": 1, "retail_price": 1, "stock": 1, "sold": 1
-    }))
-    
-    # Process them to ensure they have a string _id for PouchDB
-    processed = []
-    for item in raw_items:
-        item['_id'] = str(item['_id'])
-        processed.append(item)
+    try:
+        items_collection = get_items_collection()
+        # Fetch all active items, only return minimal fields to save bandwidth
+        raw_items = list(items_collection.find({"active": {"$ne": False}}, {
+            "name": 1, "category": 1, "menu": 1, "retail_price": 1, "stock": 1, "sold": 1
+        }))
         
-    return jsonify(processed)
+        # Process them to ensure they have a string _id for PouchDB
+        processed = []
+        for item in raw_items:
+            if '_id' in item:
+                item['_id'] = str(item['_id'])
+            processed.append(item)
+            
+        return jsonify(processed)
+    except Exception as e:
+        import traceback
+        error_msg = f"Sync API Error: {str(e)}"
+        print(f"[ERROR] {error_msg}")
+        print(traceback.format_exc())
+        return jsonify({"error": error_msg, "status": "failed"}), 500
 
 
 @inventory_bp.route('/inventory/stock-out', methods=['POST'])

@@ -1,43 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Bulletin Board
-    
-
-
-    {
-        console.log("🌊 [UI] Checking for offline notes...");
-        if (typeof xpiderSync === "undefined") return;
-        try {
-            const pending = await xpiderSync.getPendingActions("/bulletin/add");
-            const container = document.querySelector(".row.g-4");
-            if (!container || !pending.length) return;
-            
-            pending.forEach(action => {
-                const data = action.body;
-                const col = document.createElement("div");
-                col.className = "col-xl-4 col-md-6 offline-temp-note";
-                col.innerHTML = `
-                    <div class="bulletin-card h-100 border-${data.color || "blue"}">
-                        <div class="card-body p-4">
-                            <div class="d-flex justify-content-between align-items-start mb-3">
-                                <span class="badge rounded-pill bg-warning text-dark small uppercase ls-1">SYNC PENDING</span>
-                            </div>
-                            <p class="bulletin-content mb-4 text-theme-main">${data.content}</p>
-                            <div class="d-flex justify-content-between align-items-center mt-auto pt-3 border-top border-secondary border-opacity-10">
-                                <span class="small text-theme-muted"><i class="bi bi-clock me-1"></i>Offline Saved</span>
-                                <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 px-2 py-1">${data.tag || "Normal"}</span>
-                            </div>
-                        </div>
-                    </div>
-                `;
-                container.prepend(col);
-            });
-            console.log("✅ [UI] Injected " + pending.length + " offline notes.");
-        } catch (e) { console.error("Hydration Failed:", e); }
-    }
-    window.addEventListener("DOMContentLoaded", hydrateOfflineData);
-
-{% endblock %}
+{% block title %}Bulletin Board - {{ site_config.business_name }}{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -145,44 +108,8 @@
     /* Empty state */
     .empty-board { color: var(--text-muted); }
 </style>
-
-    
-
-
-    {
-        console.log("🌊 [UI] Checking for offline notes...");
-        if (typeof xpiderSync === "undefined") return;
-        try {
-            const pending = await xpiderSync.getPendingActions("/bulletin/add");
-            const container = document.querySelector(".row.g-4");
-            if (!container || !pending.length) return;
-            
-            pending.forEach(action => {
-                const data = action.body;
-                const col = document.createElement("div");
-                col.className = "col-xl-4 col-md-6 offline-temp-note";
-                col.innerHTML = `
-                    <div class="bulletin-card h-100 border-${data.color || "blue"}">
-                        <div class="card-body p-4">
-                            <div class="d-flex justify-content-between align-items-start mb-3">
-                                <span class="badge rounded-pill bg-warning text-dark small uppercase ls-1">SYNC PENDING</span>
-                            </div>
-                            <p class="bulletin-content mb-4 text-theme-main">${data.content}</p>
-                            <div class="d-flex justify-content-between align-items-center mt-auto pt-3 border-top border-secondary border-opacity-10">
-                                <span class="small text-theme-muted"><i class="bi bi-clock me-1"></i>Offline Saved</span>
-                                <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 px-2 py-1">${data.tag || "Normal"}</span>
-                            </div>
-                        </div>
-                    </div>
-                `;
-                container.prepend(col);
-            });
-            console.log("✅ [UI] Injected " + pending.length + " offline notes.");
-        } catch (e) { console.error("Hydration Failed:", e); }
-    }
-    window.addEventListener("DOMContentLoaded", hydrateOfflineData);
-
 {% endblock %}
+
 
 {% block content %}
 <div class="row board-header">
@@ -210,7 +137,8 @@
             <div class="col-xl-4 col-md-6 mb-4">
                 <div class="card note-card {{ 'note-pinned' if note.pinned else '' }} {% if note.unread %}border-primary{% endif %}" 
                      style="cursor: pointer;" 
-                     onclick="markReadOnPage('{{ note._id }}', this)">
+                     data-id="{{ note._id }}" 
+                     onclick="markReadOnPage(this.dataset.id, this)">
                     <div class="note-body">
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <div class="d-flex align-items-center gap-2">
@@ -224,19 +152,19 @@
                                     <i class="bi bi-three-dots-vertical"></i>
                                 </button>
                                 <ul class="dropdown-menu dropdown-menu-end shadow border" style="background: var(--card-bg); border-color: var(--border-soft) !important;">
-                                    <li><button class="dropdown-item" onclick="markDone('{{ note._id }}')" style="color: var(--text-main);">
+                                    <li><button class="dropdown-item" onclick="markDone(this.dataset.id)" data-id="{{ note._id }}" style="color: var(--text-main);">
                                         <i class="bi bi-check-circle-fill text-success me-2"></i> Mark as Done
                                     </button></li>
-                                    <li><button class="dropdown-item" onclick="pinNote('{{ note._id }}')" style="color: var(--text-main);">
+                                    <li><button class="dropdown-item" onclick="pinNote(this.dataset.id)" data-id="{{ note._id }}" data-pinned="{{ note.pinned }}" style="color: var(--text-main);">
                                         <i class="bi {{ 'bi-pin-angle-fill text-warning' if note.pinned else 'bi-pin-angle' }} me-2"></i>
                                         {{ 'Unpin Post' if note.pinned else 'Pin to Top' }}
                                     </button></li>
                                     {% if note.author == session.get('email') %}
                                     <li><hr class="dropdown-divider" style="border-color: var(--border-soft);"></li>
-                                    <li><button class="dropdown-item" onclick='openEditModal("{{ note._id }}", {{ note.content|tojson|e }}, {{ note.tag|tojson|e }}, {{ note.color|tojson|e }})' style="color: var(--text-main);">
+                                    <li><button class="dropdown-item" onclick="prepareEditModal(this.dataset)" data-id="{{ note._id }}" data-content='{{ note.content|tojson|safe }}' data-tag='{{ note.tag|tojson|safe }}' data-color='{{ note.color|tojson|safe }}' style="color: var(--text-main);">
                                         <i class="bi bi-pencil me-2"></i> Edit Post
                                     </button></li>
-                                    <li><button class="dropdown-item text-danger" onclick="deleteNote('{{ note._id }}')">
+                                    <li><button class="dropdown-item text-danger" onclick="deleteNote(this.dataset.id)" data-id="{{ note._id }}">
                                         <i class="bi bi-trash me-2"></i> Delete Permanently
                                     </button></li>
                                     {% endif %}
@@ -286,7 +214,7 @@
                     <span class="countdown-timer" data-done-at="{{ note.done_at }}">
                         <i class="bi bi-clock-history"></i> ...
                     </span>
-                    <button class="btn btn-link p-0 small" onclick="toggleStatus('{{ note._id }}')" style="color: var(--text-muted);" title="Restore">
+                    <button class="btn btn-link p-0 small" onclick="toggleStatus(this.dataset.id)" data-id="{{ note._id }}" style="color: var(--text-muted);" title="Restore">
                         <i class="bi bi-arrow-counterclockwise"></i>
                     </button>
                 </div>
@@ -317,7 +245,7 @@
                 <h5 class="modal-title fw-bold" style="color: var(--text-main);">Post to Bulletin</h5>
                 <button type="button" class="btn-close btn-close-adaptive" data-bs-dismiss="modal"></button>
             </div>
-            <form onsubmit="handleBulletinSubmit(event, '{{ url_for('bulletin.add_bulletin') }}')">
+            <form onsubmit="handleBulletinSubmit(event, this.dataset.url)" data-url="{{ url_for('bulletin.add_bulletin') }}">
                 <div class="modal-body p-4">
                     <div class="mb-3">
                         <label class="form-label small fw-bold text-uppercase" style="color: var(--text-muted);">Content</label>
@@ -361,7 +289,7 @@
                 <h5 class="modal-title fw-bold" style="color: var(--text-main);">Edit Bulletin</h5>
                 <button type="button" class="btn-close btn-close-adaptive" data-bs-dismiss="modal"></button>
             </div>
-            <form id="editNoteForm" onsubmit="handleBulletinSubmit(event)">
+            <form id="editNoteForm" onsubmit="handleBulletinSubmit(event, this.dataset.url)" data-url="">
                 <div class="modal-body p-4">
                     <div class="mb-3">
                         <label class="form-label small fw-bold text-uppercase" style="color: var(--text-muted);">Content</label>
@@ -396,84 +324,101 @@
         </div>
     </div>
 </div>
-
-    
-
-
-    {
-        console.log("🌊 [UI] Checking for offline notes...");
-        if (typeof xpiderSync === "undefined") return;
-        try {
-            const pending = await xpiderSync.getPendingActions("/bulletin/add");
-            const container = document.querySelector(".row.g-4");
-            if (!container || !pending.length) return;
-            
-            pending.forEach(action => {
-                const data = action.body;
-                const col = document.createElement("div");
-                col.className = "col-xl-4 col-md-6 offline-temp-note";
-                col.innerHTML = `
-                    <div class="bulletin-card h-100 border-${data.color || "blue"}">
-                        <div class="card-body p-4">
-                            <div class="d-flex justify-content-between align-items-start mb-3">
-                                <span class="badge rounded-pill bg-warning text-dark small uppercase ls-1">SYNC PENDING</span>
-                            </div>
-                            <p class="bulletin-content mb-4 text-theme-main">${data.content}</p>
-                            <div class="d-flex justify-content-between align-items-center mt-auto pt-3 border-top border-secondary border-opacity-10">
-                                <span class="small text-theme-muted"><i class="bi bi-clock me-1"></i>Offline Saved</span>
-                                <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 px-2 py-1">${data.tag || "Normal"}</span>
-                            </div>
-                        </div>
-                    </div>
-                `;
-                container.prepend(col);
-            });
-            console.log("✅ [UI] Injected " + pending.length + " offline notes.");
-        } catch (e) { console.error("Hydration Failed:", e); }
-    }
-    window.addEventListener("DOMContentLoaded", hydrateOfflineData);
-
 {% endblock %}
 
-
 {% block scripts %}
-
 <script>
     async function refreshNotes() {
         if (typeof xpiderSync === "undefined") return;
         try {
             const pending = await xpiderSync.getPendingActions("/bulletin/add");
-            const container = document.querySelector(".row.g-4");
+            const container = document.querySelector("#pendingNotesContainer");
             if (!container) return;
-            container.innerHTML = "";
+            
+            // Remove existing offline temp notes to avoid duplicates
+            container.querySelectorAll(".offline-temp-note").forEach(n => n.remove());
+            
             pending.forEach(action => {
                 const data = action.body;
                 const col = document.createElement("div");
-                col.className = "col-xl-4 col-md-6";
+                col.className = "col-xl-4 col-md-6 mb-4 offline-temp-note";
                 col.innerHTML = `
-                    <div class="bulletin-card h-100 border-${data.color || "blue"}">
-                        <div class="card-body p-4">
-                            <div class="d-flex justify-content-between mb-3"><span class="badge bg-warning text-dark">SYNC PENDING</span></div>
-                            <p class="text-theme-main">${data.content}</p>
-                            <div class="mt-auto pt-3 border-top"><span class="small text-theme-muted">Just now</span></div>
+                    <div class="card note-card border-warning">
+                        <div class="note-body">
+                            <div class="d-flex justify-content-between mb-3">
+                                <span class="badge bg-warning text-dark uppercase small fw-bold">SYNC PENDING</span>
+                            </div>
+                            <p class="note-text text-theme-main">${data.content}</p>
+                            <div class="mt-auto pt-3 border-top d-flex justify-content-between">
+                                <span class="small text-theme-muted"><i class="bi bi-clock me-1"></i>Offline Saved</span>
+                                <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 px-2 py-1">${data.tag || "Normal"}</span>
+                            </div>
                         </div>
                     </div>`;
                 container.prepend(col);
             });
-        } catch (e) { console.error(e); }
+        } catch (e) { console.error("Refresh Error:", e); }
     }
 
-    async function handleBulletinSubmit(event) {
+    async function handleBulletinSubmit(event, url) {
         event.preventDefault();
-        const url = "{{ url_for("bulletin.add_bulletin") }}";
-        await offlineSafePost(url, new FormData(event.target));
+        const formData = new FormData(event.target);
+        await offlineSafePost(url, formData);
         bootstrap.Modal.getInstance(event.target.closest(".modal")).hide();
         event.target.reset();
         refreshNotes();
+        if (!navigator.onLine) {
+            alert("Note saved locally. It will sync once you are back online.");
+        } else {
+            location.reload();
+        }
+    }
+
+    async function markDone(id) {
+        if (!confirm("Move this to completed items?")) return;
+        const url = `/bulletin/toggle_status/${id}`;
+        await offlineSafePost(url, {});
+        location.reload();
+    }
+
+    async function pinNote(id) {
+        const url = `/bulletin/pin/${id}`;
+        await offlineSafePost(url, {});
+        location.reload();
+    }
+
+    async function deleteNote(id) {
+        if (!confirm("Are you sure you want to permanently delete this bulletin?")) return;
+        const url = `/bulletin/delete/${id}`;
+        await offlineSafePost(url, {});
+        location.reload();
+    }
+
+    async function toggleStatus(id) {
+        const url = `/bulletin/toggle_status/${id}`;
+        await offlineSafePost(url, {});
+        location.reload();
+    }
+
+    function prepareEditModal(dataset) {
+        const modal = document.getElementById('editNoteModal');
+        const form = document.getElementById('editNoteForm');
+        
+        form.dataset.url = `/bulletin/edit/${dataset.id}`;
+        form.querySelector('#editContent').value = JSON.parse(dataset.content);
+        form.querySelector('#editTag').value = JSON.parse(dataset.tag);
+        form.querySelector('#editColor').value = JSON.parse(dataset.color);
+        
+        new bootstrap.Modal(modal).show();
+    }
+
+    function markReadOnPage(id, element) {
+        const badge = element.querySelector('.badge.bg-danger');
+        if (badge) badge.remove();
+        element.classList.remove('border-primary');
     }
 
     document.addEventListener("DOMContentLoaded", refreshNotes);
     document.addEventListener("offlineActionQueued", refreshNotes);
 </script>
-
 {% endblock %}

@@ -1,48 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Items - Inventory Manager
-    
-
-
-    {
-        console.log("🌊 [UI] Checking for offline data...");
-        if (typeof xpiderSync === "undefined") {
-            console.error("❌ [UI] xpiderSync not found!");
-            return;
-        }
-        try {
-            const pending = await xpiderSync.getPendingActions("/items/add");
-            const tbody = document.querySelector("#itemsTable tbody");
-            if (!tbody || !pending.length) {
-                console.log("ℹ️ [UI] No pending items found.");
-                return;
-            }
-            
-            pending.forEach(action => {
-                const data = action.body;
-                const newRow = document.createElement("tr");
-                newRow.className = "item-row bg-warning bg-opacity-10 offline-temp-row";
-                newRow.innerHTML = `
-                    <td class="fw-bold text-theme-main">${data.name} <small class="badge bg-warning text-dark">Sync Pending</small></td>
-                    <td class="hide-mobile">--</td>
-                    <td class="hide-mobile"><span class="badge bg-secondary">${data.category || "--"}</span></td>
-                    <td class="hide-mobile">₱${parseFloat(data.cost_price || 0).toFixed(2)}</td>
-                    <td class="hide-mobile">₱${parseFloat(data.retail_price || 0).toFixed(2)}</td>
-                    <td class="hide-mobile">--</td>
-                    <td>0 <span class="badge bg-warning small">Offline</span></td>
-                    <td class="hide-mobile">0</td>
-                    <td class="hide-mobile">₱0.00</td>
-                    <td class="hide-mobile">₱0.00</td>
-                    <td class="text-center"><i class="bi bi-cloud-slash text-warning"></i></td>
-                `;
-                tbody.prepend(newRow);
-            });
-            console.log("✅ [UI] Injected " + pending.length + " offline items.");
-        } catch (e) { console.error("Hydration Failed:", e); }
-    }
-    window.addEventListener("DOMContentLoaded", hydrateOfflineData);
-
-{% endblock %}
+{% block title %}Items - Inventory Manager{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -213,48 +171,6 @@
         .hide-mobile { display: none !important; }
     }
 </style>
-
-    
-
-
-    {
-        console.log("🌊 [UI] Checking for offline data...");
-        if (typeof xpiderSync === "undefined") {
-            console.error("❌ [UI] xpiderSync not found!");
-            return;
-        }
-        try {
-            const pending = await xpiderSync.getPendingActions("/items/add");
-            const tbody = document.querySelector("#itemsTable tbody");
-            if (!tbody || !pending.length) {
-                console.log("ℹ️ [UI] No pending items found.");
-                return;
-            }
-            
-            pending.forEach(action => {
-                const data = action.body;
-                const newRow = document.createElement("tr");
-                newRow.className = "item-row bg-warning bg-opacity-10 offline-temp-row";
-                newRow.innerHTML = `
-                    <td class="fw-bold text-theme-main">${data.name} <small class="badge bg-warning text-dark">Sync Pending</small></td>
-                    <td class="hide-mobile">--</td>
-                    <td class="hide-mobile"><span class="badge bg-secondary">${data.category || "--"}</span></td>
-                    <td class="hide-mobile">₱${parseFloat(data.cost_price || 0).toFixed(2)}</td>
-                    <td class="hide-mobile">₱${parseFloat(data.retail_price || 0).toFixed(2)}</td>
-                    <td class="hide-mobile">--</td>
-                    <td>0 <span class="badge bg-warning small">Offline</span></td>
-                    <td class="hide-mobile">0</td>
-                    <td class="hide-mobile">₱0.00</td>
-                    <td class="hide-mobile">₱0.00</td>
-                    <td class="text-center"><i class="bi bi-cloud-slash text-warning"></i></td>
-                `;
-                tbody.prepend(newRow);
-            });
-            console.log("✅ [UI] Injected " + pending.length + " offline items.");
-        } catch (e) { console.error("Hydration Failed:", e); }
-    }
-    window.addEventListener("DOMContentLoaded", hydrateOfflineData);
-
 {% endblock %}
 
 {% block content %}
@@ -430,16 +346,26 @@
                                             <i class="bi bi-arrow-left-right"></i>
                                         </a>
                                         <button class="btn btn-sm btn-outline-primary border-0" 
-                                            onclick="openEditModal('{{ item._id }}', '{{ item.name|e }}', '{{ item.category|e }}', '{{ (item.menu or 'None')|e }}', '{{ item.cost_price }}', '{{ item.retail_price }}')" title="Edit Item">
+                                            data-id="{{ item._id }}"
+                                            data-name="{{ item.name }}"
+                                            data-category="{{ item.category }}"
+                                            data-menu="{{ item.menu or 'None' }}"
+                                            data-cost="{{ item.cost_price }}"
+                                            data-retail="{{ item.retail_price }}"
+                                            onclick='openEditModalFromBtn(this)' title="Edit Item">
                                             <i class="bi bi-pencil"></i>
                                         </button>
                                         <button class="btn btn-sm btn-outline-warning border-0"
-                                            onclick="persistentResetItem(this, '{{ item.name|e }}', '{{ item._id }}')"
+                                            data-id="{{ item._id }}"
+                                            data-name="{{ item.name }}"
+                                            onclick="persistentResetItem(this, this.getAttribute('data-name'), this.getAttribute('data-id'))"
                                             title="Reset item data (Offline Safe)">
                                             <i class="bi bi-arrow-counterclockwise"></i>
                                         </button>
                                         <button class="btn btn-sm btn-outline-danger border-0"
-                                            onclick="persistentDeleteItem(this, '{{ item.name|e }}', '{{ item._id }}')"
+                                            data-id="{{ item._id }}"
+                                            data-name="{{ item.name }}"
+                                            onclick="persistentDeleteItem(this, this.getAttribute('data-name'), this.getAttribute('data-id'))"
                                             title="Hide/Delete item (Offline Safe)">
                                             <i class="bi bi-trash"></i>
                                         </button>
@@ -627,25 +553,31 @@
     const pageSize = 50;
     let filteredRows = [];
 
-    const menuData = {
-        {% for menu in menus %}
-        {{ menu.name|tojson }}: {
-            "id": "{{ menu._id }}",
-            "warning": {{ menu.warning_threshold or 10 }},
-            "low": {{ menu.low_stock_threshold or 5 }}
-        },
-        {% endfor %}
-        "all": {
-            "id": "global",
-            "warning": {{ site_config.warning_threshold or 10 }},
-            "low": {{ site_config.low_stock_threshold or 5 }}
-        },
-        "None": {
-            "id": "global",
-            "warning": {{ site_config.warning_threshold or 10 }},
-            "low": {{ site_config.low_stock_threshold or 5 }}
-        }
-    };
+    </script>
+<script id="menu-data-json" type="application/json">
+{
+    {% for menu in menus %}
+    {{ menu.name|tojson }}: {
+        "id": {{ menu._id|tojson }},
+        "warning": {{ menu.warning_threshold or 10 }},
+        "low": {{ menu.low_stock_threshold or 5 }}
+    },
+    {% endfor %}
+    "all": {
+        "id": "global",
+        "warning": {{ site_config.warning_threshold or 10 }},
+        "low": {{ site_config.low_stock_threshold or 5 }}
+    },
+    "None": {
+        "id": "global",
+        "warning": {{ site_config.warning_threshold or 10 }},
+        "low": {{ site_config.low_stock_threshold or 5 }}
+    }
+}
+</script>
+<script>
+    const menuData = JSON.parse(document.getElementById("menu-data-json").textContent);
+    
 
     function filterMenu(event, menu) {
         if (event) event.preventDefault();
@@ -764,6 +696,16 @@
         document.getElementById('modalMenuInput').value = menuName;
         document.querySelectorAll('#modalMenuTiles .category-tile').forEach(el => el.classList.remove('selected'));
         if (element) element.classList.add('selected');
+    }
+
+    function openEditModalFromBtn(btn) {
+        const id = btn.getAttribute('data-id');
+        const name = btn.getAttribute('data-name');
+        const category = btn.getAttribute('data-category');
+        const menu = btn.getAttribute('data-menu');
+        const cost = btn.getAttribute('data-cost');
+        const retail = btn.getAttribute('data-retail');
+        openEditModal(id, name, category, menu, cost, retail);
     }
 
     function openEditModal(id, name, category, menu, cost, retail) {
@@ -1026,53 +968,8 @@
         }
     }
 
-    
-    {
-        console.log("🌊 [UI] Checking for offline data...");
-        try {
-            const pending = await xpiderSync.getPendingActions("/items/add");
-            const tbody = document.querySelector("#itemsTable tbody");
-            if (!tbody || !pending.length) return;
-            
-            pending.forEach(action => {
-                const data = action.body;
-                const newRow = document.createElement("tr");
-                newRow.className = "item-row bg-warning bg-opacity-10 offline-temp-row";
-                newRow.innerHTML = `
-                    <td class="fw-bold text-theme-main">${data.name} <small class="badge bg-warning text-dark">Sync Pending</small></td>
-                    <td class="hide-mobile">--</td>
-                    <td class="hide-mobile"><span class="badge bg-secondary">${data.category || "--"}</span></td>
-                    <td class="hide-mobile">₱${parseFloat(data.cost_price || 0).toFixed(2)}</td>
-                    <td class="hide-mobile">₱${parseFloat(data.retail_price || 0).toFixed(2)}</td>
-                    <td class="hide-mobile">--</td>
-                    <td>0 <span class="badge bg-warning small">Offline</span></td>
-                    <td class="hide-mobile">0</td>
-                    <td class="hide-mobile">₱0.00</td>
-                    <td class="hide-mobile">₱0.00</td>
-                    <td class="text-center"><i class="bi bi-cloud-slash text-warning"></i></td>
-                `;
-                tbody.prepend(newRow);
-            });
-            console.log("✅ [UI] Injected " + pending.length + " offline items.");
-        } catch (e) { console.error("Hydration Failed:", e); }
-    }
-    // Standard initialization
-    window.addEventListener("load", hydrateOfflineData);
-
-    
-
-    
-
-
-    
-    
-</script>
-
-    
-
-
-    {
-        console.log("🌊 [UI] Checking for offline data...");
+        async function hydrateOfflineData() {
+        console.log("🔍 [UI] Checking for offline data...");
         if (typeof xpiderSync === "undefined") {
             console.error("❌ [UI] xpiderSync not found!");
             return;
@@ -1108,5 +1005,5 @@
         } catch (e) { console.error("Hydration Failed:", e); }
     }
     window.addEventListener("DOMContentLoaded", hydrateOfflineData);
-
+</script>
 {% endblock %}

@@ -1,5 +1,5 @@
 /**
- * FBIHM Service Worker v9.0 (PouchDB-Ready)
+* FBIHM Service Worker v9.0 (PouchDB-Ready)
  * Optimized for performance with Stale-While-Revalidate API caching.
  */
 
@@ -12,7 +12,6 @@ const ASSETS_TO_CACHE = [
     OFFLINE_URL,
     '/static/manifest.json',
     '/favicon.ico',
-    '/static/sounds/notification.mp3',
     '/static/js/offline-manager.js',
     'https://cdn.jsdelivr.net/npm/pouchdb@8.0.1/dist/pouchdb.min.js',
     'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css',
@@ -65,7 +64,7 @@ self.addEventListener('fetch', (event) => {
                         cache.put(event.request, networkRes.clone());
                     }
                     return networkRes;
-                });
+                }).catch(() => offlineResponse());
                 return cachedRes || fetchPromise;
             })
         );
@@ -82,7 +81,12 @@ self.addEventListener('fetch', (event) => {
                     caches.open(CACHE_NAME).then(c => c.put(event.request, copy));
                 }
                 return res;
-            }).catch(() => caches.match(event.request).then(cached => cached || caches.match(OFFLINE_URL)))
+            }).catch(() => {
+                return caches.match(event.request).then(cached => {
+                    if (cached) return cached;
+                    return caches.match(OFFLINE_URL).then(offlinePage => offlinePage || offlineResponse());
+                });
+            })
         );
         return;
     }

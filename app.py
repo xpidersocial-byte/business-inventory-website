@@ -293,10 +293,14 @@ def favicon():
 
 @app.errorhandler(404)
 def not_found_error(error):
+    if request.path.startswith('/api/') or request.headers.get('Accept') == 'application/json':
+        return jsonify({"error": "Resource not found", "status": 404}), 404
     return render_template("offline.html"), 404
 
 @app.errorhandler(500)
 def internal_error(error):
+    if request.path.startswith('/api/') or request.headers.get('Accept') == 'application/json':
+        return jsonify({"error": "Internal Server Error", "status": 500}), 500
     return render_template("offline.html"), 500
 
 if __name__ == "__main__":

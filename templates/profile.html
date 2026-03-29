@@ -124,6 +124,12 @@
         margin-bottom: 0.5rem;
     }
 
+    /* Audit Log border colors */
+    .log-row-delete { border-left: 3px solid #dc3545 !important; }
+    .log-row-sale { border-left: 3px solid #31a24c !important; }
+    .log-row-login { border-left: 3px solid #1877f2 !important; }
+    .log-row-default { border-left: 3px solid #65676b !important; }
+
     .form-label { font-size: 0.75rem; font-weight: 700; color: var(--text-theme-muted); text-transform: uppercase; margin-bottom: 0.25rem; }
     .form-control { border-radius: 6px; padding: 0.6rem 0.75rem; }
 
@@ -293,7 +299,7 @@
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Password</label>
-                                <input type="password" name="password" class="form-control" placeholder="Update password">
+                                <input type="password" name="password" class="form-control" placeholder="Update password" autocomplete="new-password">
                             </div>
                         </div>
                         <div class="border-top pt-3 mt-2">
@@ -463,9 +469,9 @@
                                         <td><span class="badge {{ 'bg-danger' if u.role == 'owner' else 'bg-info' }}">{{ u.role|upper }}</span></td>
                                         <td class="text-end">
                                             <div class="btn-group">
-                                                <button class="btn btn-link text-primary p-0 me-3" onclick="openEditUserModal('{{ u._id }}', '{{ u.email }}', '{{ u.role }}')"><i class="bi bi-pencil-square"></i></button>
+                                                <button class="btn btn-link text-primary p-0 me-3" onclick="openEditUserModal(this.dataset.id, this.dataset.email, this.dataset.role)" data-id="{{ u._id }}" data-email="{{ u.email }}" data-role="{{ u.role }}"><i class="bi bi-pencil-square"></i></button>
                                                 {% if u.email != 'admin@inventory.com' and u.email != session['email'] %}
-                                                <button class="btn btn-link text-danger p-0" onclick="confirmAction('{{ url_for('admin.delete_user', id=u._id) }}', 'Delete user?')"><i class="bi bi-trash"></i></button>
+                                                <button class="btn btn-link text-danger p-0" onclick="confirmAction(this.dataset.url, 'Delete user?')" data-url="{{ url_for('admin.delete_user', id=u._id) }}"><i class="bi bi-trash"></i></button>
                                                 {% endif %}
                                             </div>
                                         </td>
@@ -744,7 +750,7 @@
                                 <div class="col-md-8"><label class="form-label">SMTP Host</label><input type="text" name="smtp_host" class="form-control" value="{{ site_config.smtp_host }}" placeholder="smtp.gmail.com"></div>
                                 <div class="col-md-4"><label class="form-label">Port</label><input type="number" name="smtp_port" class="form-control" value="{{ site_config.smtp_port }}" placeholder="587"></div>
                                 <div class="col-md-6"><label class="form-label">Username</label><input type="text" name="smtp_user" class="form-control" value="{{ site_config.smtp_user }}"></div>
-                                <div class="col-md-6"><label class="form-label">Password</label><input type="password" name="smtp_password" class="form-control" value="{{ site_config.smtp_password }}"></div>
+                                <div class="col-md-6"><label class="form-label">Password</label><input type="password" name="smtp_password" class="form-control" value="{{ site_config.smtp_password }}" autocomplete="new-password"></div>
                                 <div class="col-md-12">
                                     <div class="d-flex gap-4 pt-2">
                                         <div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="smtp_use_tls" {{ 'checked' if site_config.smtp_use_tls }}> <label class="small fw-bold">Use TLS</label></div>
@@ -887,7 +893,7 @@
                                 </thead>
                                 <tbody id="adminLogBody">
                                     {% for log in admin_data.all_logs %}
-                                    <tr class="log-row" data-action="{{ log.action }}" data-details="{{ log.details }}" data-email="{{ log.email }}" style="border-left: 3px solid {% if 'DELETE' in log.action %}#dc3545{% elif 'SALE' in log.action %}#31a24c{% elif 'LOGIN' in log.action %}#1877f2{% else %}#65676b{% endif %};">
+                                    <tr class="log-row {% if 'DELETE' in log.action %}log-row-delete{% elif 'SALE' in log.action %}log-row-sale{% elif 'LOGIN' in log.action %}log-row-login{% else %}log-row-default{% endif %}" data-action="{{ log.action }}" data-details="{{ log.details }}" data-email="{{ log.email }}">
                                         <td class="ps-3">
                                             <div class="d-flex align-items-center gap-2">
                                                 <div class="avatar shadow-sm" style="width:24px; height:24px; font-size:0.7rem; background:#e4e6eb; border: 1px solid white;">{{ log.email[0]|upper }}</div>
@@ -924,7 +930,7 @@
                                     {% for cat in admin_data.categories %}
                                     <div class="list-group-item d-flex justify-content-between align-items-center px-0">
                                         <span class="small fw-bold">{{ cat.name }}</span>
-                                        <button class="btn btn-link text-danger p-0 btn-sm" onclick="confirmAction('{{ url_for('admin.delete_category', id=cat._id) }}', 'Delete?')"><i class="bi bi-x-circle"></i></button>
+                                        <button class="btn btn-link text-danger p-0 btn-sm" onclick="confirmAction(this.dataset.url, 'Delete?')" data-url="{{ url_for('admin.delete_category', id=cat._id) }}"><i class="bi bi-x-circle"></i></button>
                                     </div>
                                     {% else %}
                                     <div class="text-center py-4 bg-light rounded border border-dashed mb-3">
@@ -949,7 +955,7 @@
                                             <span class="drag-handle"><i class="bi bi-grip-vertical"></i></span>
                                             <span class="small fw-bold">{{ m.name }}</span>
                                         </div>
-                                        <button class="btn btn-link text-danger p-0 btn-sm" onclick="confirmAction('{{ url_for('admin.delete_menu', id=m._id) }}', 'Delete?')"><i class="bi bi-trash"></i></button>
+                                        <button class="btn btn-link text-danger p-0 btn-sm" onclick="confirmAction(this.dataset.url, 'Delete?')" data-url="{{ url_for('admin.delete_menu', id=m._id) }}"><i class="bi bi-trash"></i></button>
                                     </div>
                                     {% else %}
                                     <div class="text-center py-4 bg-light rounded border border-dashed mb-3">
@@ -1104,8 +1110,8 @@
             <div class="modal-header border-bottom-0 p-4 pb-0"><h5 class="fw-bold">Create New User</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
             <form action="{{ url_for('admin.add_user') }}" method="POST">
                 <div class="modal-body p-4">
-                    <div class="mb-3"><label class="form-label">Email</label><input type="email" name="email" class="form-control" required></div>
-                    <div class="mb-3"><label class="form-label">Password</label><input type="password" name="password" class="form-control" required></div>
+                    <div class="mb-3"><label class="form-label">Email</label><input type="email" name="email" class="form-control" required autocomplete="email"></div>
+                    <div class="mb-3"><label class="form-label">Password</label><input type="password" name="password" class="form-control" required autocomplete="new-password"></div>
                     <div class="mb-3"><label class="form-label">Role</label><select name="role" class="form-select"><option value="cashier">Cashier</option><option value="owner">Owner / Admin</option></select></div>
                 </div>
                 <div class="modal-footer border-top-0 p-4 pt-0"><button type="submit" class="btn btn-success fw-bold w-100">Add Account</button></div>
@@ -1123,11 +1129,11 @@
                 <div class="modal-body p-4">
                     <div class="mb-3">
                         <label class="form-label">Email Address</label>
-                        <input type="email" name="email" id="editEmail" class="form-control" required>
+                        <input type="email" name="email" id="editEmail" class="form-control" required autocomplete="email">
                     </div>
                     <div class="mb-3">
                         <label class="form-label text-primary">Change Password</label>
-                        <input type="password" name="password" class="form-control" placeholder="Leave empty to keep current">
+                        <input type="password" name="password" class="form-control" placeholder="Leave empty to keep current" autocomplete="new-password">
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Account Role</label>
@@ -1177,6 +1183,10 @@
 
 {% block scripts %}
 <script>
+    const profileSession = {
+        isOwner: "{{ session.get('role') }}" === "owner"
+    };
+
     window.onload = function() {
         const urlParams = new URLSearchParams(window.location.search);
         const tab = urlParams.get('tab');
@@ -1192,7 +1202,7 @@
         
         const section = urlParams.get('section');
         if (section) {
-            const secLink = document.querySelector(`.settings-link[onclick*="'${section}'"]`);
+            const secLink = document.querySelector(`.settings-link[data-section='${section}']`);
             if (secLink) {
                 document.querySelectorAll('.settings-link').forEach(l => l.classList.remove('active'));
                 secLink.classList.add('active');
@@ -1201,7 +1211,7 @@
             }
         }
         
-        if ({{ 'true' if session.get('role') == 'owner' else 'false' }}) {
+        if (profileSession.isOwner) {
             updateServerStats();
             updateDatabaseStats();
             setInterval(updateServerStats, 10000);

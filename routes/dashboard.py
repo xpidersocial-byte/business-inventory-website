@@ -114,6 +114,10 @@ def dashboard():
     cold_stock = sorted([i for i in processed_items if i['stock'] > 0 and i.get('days_dormant', 0) > 30], key=lambda x: x.get('days_dormant', 0), reverse=True)[:5]
     sporadic_stock = sorted([i for i in processed_items if i['sold'] < 5], key=lambda x: x['sold'], reverse=True)[:5]
 
+    top_item_name = "N/A"
+    if star_performers:
+        top_item_name = star_performers[0]['name']
+
     return render_template('dashboard.html', 
                            email=session['email'], 
                            role=session.get('role'), 
@@ -123,7 +127,7 @@ def dashboard():
                            monthly_profit=period_profit,
                            monthly_qty=period_qty,
                            star_performers=star_performers,
-                           top_item_name=star_performers[0]['name'] if star_performers else "N/A", 
+                           top_item_name=top_item_name, 
                            current_month_display=display_label, 
                            chart_labels=chart_labels, 
                            chart_values=chart_values, 

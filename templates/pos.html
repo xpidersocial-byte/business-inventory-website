@@ -358,7 +358,7 @@
             allItems = await xpiderSync.getAllItems();
             if (allItems.length === 0 && navigator.onLine) {
                 // If DB empty, wait for sync or force it
-                await xpiderSync.syncItems();
+                await xpiderSync.pullItems();
                 allItems = await xpiderSync.getAllItems();
             }
             renderItems(allItems);
@@ -393,7 +393,7 @@
     // Initial Load
     document.addEventListener('DOMContentLoaded', loadItems);
     // Listen for background sync updates
-    window.addEventListener('items_synced', loadItems);
+    document.addEventListener('items_updated', loadItems);
 
     function filterItems() {
         const q = document.getElementById('itemSearch').value.toLowerCase();
