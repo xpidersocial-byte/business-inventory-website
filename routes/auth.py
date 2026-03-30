@@ -33,7 +33,9 @@ def get_status_string(last_active):
 
 @auth_bp.route('/')
 def index():
-    return redirect("https://thesis.fbihm.online/bejasadhev/FBIHM", 301)
+    if 'email' in session:
+        return redirect(url_for('dashboard.dashboard'))
+    return redirect(url_for('auth.login_page'))
 
 @auth_bp.route('/login', methods=['GET'])
 def login_page():
