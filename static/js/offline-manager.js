@@ -5,10 +5,31 @@
 
 class OfflineSyncManager {
     constructor() {
-        // Initialize PouchDB databases
-        this.itemsDB = new PouchDB('fbihm_items_v4');
-        this.syncDB = new PouchDB('fbihm_sync_queue_v4');
-        this.notesDB = new PouchDB('fbihm_notes_v4');
+        // Safe check for PouchDB to prevent ReferenceError: PouchDB is not defined
+        const ActivePouch = window.PouchDB || (typeof PouchDB !== 'undefined' ? PouchDB : null);
+        
+        if (!ActivePouch) {
+            console.error('❌ [OfflineManager] Critical Failure: PouchDB is not defined in any scope.');
+            const mockDB = () => ({
+                get: () => Promise.reject({ status: 404 }),
+                put: () => Promise.resolve({ ok: true }),
+                allDocs: () => Promise.resolve({ rows: [] }),
+                remove: () => Promise.resolve({ ok: true }),
+                info: () => Promise.resolve({ doc_count: 0 })
+            });
+            this.itemsDB = mockDB();
+            this.syncDB = mockDB();
+            this.notesDB = mockDB();
+        } else {
+            // Initialize PouchDB databases safely
+            try {
+                this.itemsDB = new ActivePouch('fbihm_items_v4');
+                this.syncDB = new ActivePouch('fbihm_sync_queue_v4');
+                this.notesDB = new ActivePouch('fbihm_notes_v4');
+            } catch (e) {
+                console.error('❌ [OfflineManager] PouchDB instantiation error:', e);
+            }
+        }
         
         this.isSyncing = false;
         this.init();

@@ -1183,7 +1183,7 @@
 
 {% block scripts %}
 <script>
-    const profileSession = {
+    window.profileSession = {
         isOwner: "{{ session.get('role') }}" === "owner"
     };
 

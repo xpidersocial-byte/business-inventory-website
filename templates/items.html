@@ -801,9 +801,15 @@
         cells[9].setAttribute('data-value', '0');
 
         // Flash the row green briefly to indicate success
-        row.style.transition = 'background-color 0.3s';
-        row.style.backgroundColor = 'rgba(25, 135, 84, 0.1)';
-        setTimeout(() => { row.style.backgroundColor = ''; }, 1500);
+        if (row && document.body.contains(row)) {
+            row.style.transition = 'background-color 0.3s';
+            row.style.backgroundColor = 'rgba(25, 135, 84, 0.1)';
+            setTimeout(() => { 
+                if (row && document.body.contains(row)) {
+                    row.style.backgroundColor = ''; 
+                }
+            }, 1500);
+        }
     }
 
     // ─── FRONTEND-ONLY DELETE ───────────────────────────────────────────────────
@@ -812,19 +818,21 @@
     function frontendDeleteItem(btn, name) {
         if (!confirm(`Hide '${name}' from this list?\n\nThis only hides it from your view — no database changes are made. Refresh the page to bring it back.`)) return;
         const row = btn.closest('tr');
-        if (!row) return;
+        if (row && document.body.contains(row)) {
+            row.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
+            row.style.opacity = '0';
+            row.style.transform = 'translateX(-20px)';
 
-        row.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
-        row.style.opacity = '0';
-        row.style.transform = 'translateX(-20px)';
-
-        setTimeout(() => {
-            row.style.display = 'none';
-            // Remove from filteredRows so pagination counts update
-            filteredRows = filteredRows.filter(r => r !== row);
-            updatePagination();
-            applyFilters();
-        }, 400);
+            setTimeout(() => {
+                if (row && document.body.contains(row)) {
+                    row.style.display = 'none';
+                    // Remove from filteredRows so pagination counts update
+                    filteredRows = filteredRows.filter(r => r !== row);
+                    updatePagination();
+                    applyFilters();
+                }
+            }, 400);
+        }
     }
     
     function validateAddItemForm() {
