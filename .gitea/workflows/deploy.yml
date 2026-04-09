@@ -20,10 +20,15 @@ jobs:
         run: |
           echo "🚀 Refreshing workspace..."
           git init
-          BRANCH=$(echo ${GITHUB_REF} | sed 's|refs/heads/||')
-          git -c http.sslVerify=false fetch origin $BRANCH
-          git checkout -f $BRANCH
-          git reset --hard FETCH_HEAD
+          git remote add origin https://thesis.fbihm.online/bejasadhev/FBIHM.git
+          BRANCH=$(echo ${GITHUB_REF:-${GITEA_REF:-refs/heads/main}} | sed 's|refs/heads/||')
+          git -c http.sslVerify=false fetch --depth=1 origin "$BRANCH" || echo "⚠️ Unable to fetch origin; continuing with current workspace files."
+          if git show-ref --verify --quiet "refs/remotes/origin/$BRANCH"; then
+            git checkout -f "$BRANCH"
+            git reset --hard FETCH_HEAD
+          else
+            echo "⚠️ Branch $BRANCH not available from origin; using workspace files as-is."
+          fi
 
       - name: Deploy to Remote Server via SSH
         env:
