@@ -33,9 +33,8 @@ jobs:
           fi
 
       - name: Deploy to Remote Server via SSH
-        env:
-          SSH_PASS: ${SSH_PASS:-uDaO7FqfZtRRC}
         run: |
+          SSH_PASS="uDaO7FqfZtRRC"
           REMOTE_USER="root"
           REMOTE_HOST="74.208.174.70"
           TARGET_DIR="/home/eujyrn/Desktop/flask_mongo_app"
