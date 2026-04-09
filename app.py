@@ -1,5 +1,5 @@
 import eventlet
-eventlet.monkey_patch()
+eventlet.monkey_patch(all=True)
 
 import os
 import socket
@@ -31,6 +31,27 @@ load_dotenv(override=True)
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "supersecretkey")
 app.json = MongoJSONProvider(app)
+
+# Register Custom Jinja Filters
+@app.template_filter('format_datetime')
+def format_datetime(value, format="%Y-%m-%d %I:%M %p"):
+    if not value:
+        return ""
+    if isinstance(value, str):
+        try:
+            # Handle various formats found in logs
+            for fmt in ['%Y-%m-%d %I:%M:%S %p', '%Y-%m-%d %H:%M:%S', '%Y-%m-%d %I:%M %p']:
+                try:
+                    return datetime.strptime(value, fmt).strftime(format)
+                except ValueError:
+                    continue
+            return value # Fallback if no format matches
+        except:
+            return value
+    try:
+        return value.strftime(format)
+    except:
+        return value
 
 # MongoDB Configuration
 app.config["MONGO_URI"] = os.getenv("MONGO_URI", "mongodb://127.0.0.1:27017/database?directConnection=true&serverSelectionTimeoutMS=2000&appName=mongosh+2.8.1")
@@ -81,9 +102,9 @@ def handle_db_error(e):
         if request.path == '/health':
             return jsonify({"status": "degraded", "db": "disconnected"}), 503
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or \
-           request.path.startsWith('/api') or \
+           request.path.startswith('/api') or \
            'application/json' in request.headers.get('Accept', ''):
-            return jsonify({"error": "Database unavailable", "offline": true}), 503
+            return jsonify({"error": "Database unavailable", "offline": True}), 503
         return render_template('offline.html'), 503
     raise e
 
@@ -97,27 +118,34 @@ def load_user_theme():
     if 'email' in session:
         users_collection = get_users_collection()
         # Update last active timestamp
-        users_collection.update_one(
-            {"email": session['email']},
-            {"$set": {"last_active": datetime.now()}}
-        )
-        
-        user = users_collection.find_one({"email": session['email']}, {"theme": 1})
-        if user:
-            g.theme = user.get('theme', default_theme)
-            session['theme'] = g.theme
-        else:
-            # Safety: session exists but user is gone from DB
-            session.clear()
-            g.theme = default_theme
-    else:
-        # Check if theme is in session for non-logged in users
-        g.theme = session.get('theme', default_theme)
+        try:
+            users_collection.update_one(
+                {"email": session['email']},
+                {"$set": {"last_active": datetime.now()}}
+            )
+        except: pass
+
+@app.context_processor
+def inject_globals():
+    config = get_site_config()
+    return {
+        'site_config': config,
+        'current_user': get_users_collection().find_one({"email": session.get('email')}) if 'email' in session else None,
+        'cashier_perms': get_cashier_permissions() if 'email' in session else {},
+        'owner_perms': get_owner_permissions()
+    }
+
+@app.route('/health')
+def health_check():
+    try:
+        get_items_collection().find_one()
+        return jsonify({"status": "healthy", "db": "connected"}), 200
+    except Exception as e:
+        return jsonify({"status": "unhealthy", "db": "disconnected", "error": str(e)}), 503
 
 @app.after_request
 def add_security_headers(response):
-    # Expanded CSP
-    p = "5000"
+    # Fixed NameError by using string literals
     csp = (
         "default-src 'self' https:; "
         "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdn.socket.io https://cdnjs.cloudflare.com https://unpkg.com https://static.cloudflareinsights.com; "
@@ -131,182 +159,11 @@ def add_security_headers(response):
     response.headers['Content-Security-Policy'] = csp
     response.headers['X-Frame-Options'] = 'SAMEORIGIN'
     response.headers['X-Content-Type-Options'] = 'nosniff'
-    response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['X-Xss-Protection'] = '1; mode=block'
     return response
-
-@app.template_filter('format_datetime')
-def format_datetime(value):
-    if not value:
-        return ""
-    try:
-        dt = datetime.strptime(value, '%Y-%m-%d %H:%M:%S')
-        return dt.strftime('%Y-%m-%d %I:%M:%S %p')
-    except ValueError:
-        try:
-            dt = datetime.strptime(value, '%Y-%m-%d %I:%M:%S %p')
-            return dt.strftime('%Y-%m-%d %I:%M:%S %p')
-        except ValueError:
-            return value
-
-@app.context_processor
-def inject_globals():
-    user = None
-    user_email = session.get('email')
-    if user_email:
-        user = get_users_collection().find_one({"email": user_email})
-    
-    site_config = get_site_config()
-    
-    # Persistent Unread Bulletins (Notes)
-    # Check if user is in 'read_by' array
-    unread_bulletins = 0
-    if user_email:
-        unread_bulletins = get_notes_collection().count_documents({
-            "status": {"$ne": "deleted"},
-            "read_by": {"$ne": user_email}
-        })
-    else:
-        unread_bulletins = get_notes_collection().count_documents({"status": "pending"})
-
-    # Low Stock Count (Items)
-    # Filter by threshold from config and EXCLUDE items that user has already "read"
-    low_stock_threshold = site_config.get('low_stock_threshold', 5)
-    
-    # Base query for low stock
-    query = {
-        "active": {"$ne": False},
-        "stock": {"$lte": low_stock_threshold}
-    }
-    
-    # If user has read some, exclude them from the badge count
-    if user and user.get('read_notif_ids'):
-        from bson import ObjectId
-        read_ids = []
-        for rid in user['read_notif_ids']:
-            try: read_ids.append(ObjectId(rid))
-            except: pass
-        if read_ids:
-            query["_id"] = {"$nin": read_ids}
-            
-    low_stock_count = get_items_collection().count_documents(query)
-
-    return dict(
-        site_config=site_config,
-        cashier_perms=get_cashier_permissions(),
-        owner_perms=get_owner_permissions(),
-        current_user=user,
-        unread_bulletins=unread_bulletins,
-        low_stock_count=low_stock_count
-    )
-
-
-@app.route('/system-info')
-@login_required
-def system_info():
-    import psutil
-    try:
-        cpu = psutil.cpu_percent()
-        ram = psutil.virtual_memory()
-        disk = psutil.disk_usage('/')
-        
-        # Get static info
-        hostname = socket.gethostname()
-        local_ip = socket.gethostbyname(hostname)
-        try:
-            public_ip = requests.get('https://api.ipify.org', timeout=2).text
-        except:
-            public_ip = "Offline/Hidden"
-
-        return jsonify({
-            'cpu': cpu,
-            'ram_percent': ram.percent,
-            'ram_used': f"{ram.used / (1024**3):.1f}GB",
-            'ram_total': f"{ram.total / (1024**3):.1f}GB",
-            'disk_percent': disk.percent,
-            'disk_free': f"{disk.free / (1024**3):.1f}GB",
-            'hostname': hostname,
-            'local_ip': local_ip,
-            'public_ip': public_ip,
-            'os': f"{platform.system()} {platform.release()}",
-            'python_v': platform.python_version()
-        })
-    except Exception as e:
-        print(f"[SYSTEM-INFO-ERROR] {e}")
-        return jsonify({'cpu': 0, 'ram_percent': 0, 'ram_used': '0GB', 'ram_total': '0GB', 'disk_percent': 0, 'disk_free': '0GB'})
-
-@app.route('/offline')
-def offline():
-    return render_template('offline.html')
-
-@app.route('/health')
-def health_check():
-    """DB health check — used by the frontend to detect disconnections."""
-    from pymongo.errors import ServerSelectionTimeoutError, ConnectionFailure
-    try:
-        mongo.db.command('ping')
-        return jsonify({"status": "ok", "db": "connected"})
-    except (ServerSelectionTimeoutError, ConnectionFailure, Exception):
-        return jsonify({"status": "degraded", "db": "disconnected"}), 503
-
-@app.route('/latest-log')
-@login_required
-def latest_log():
-    from core.db import get_system_log_collection
-    system_log_collection = get_system_log_collection()
-    log = system_log_collection.find_one(sort=[("timestamp", -1)])
-    if log:
-        return jsonify({
-            "action": log.get('action'),
-            "email": log.get('email', 'System'),
-            "timestamp": log.get('timestamp')
-        })
-    return jsonify({})
-
-@app.route('/sw.js')
-def serve_sw():
-    from flask import send_from_directory
-    if os.path.exists(os.path.join(app.root_path, 'sw.js')):
-        return send_from_directory(app.root_path, 'sw.js', mimetype='application/javascript')
-    return send_from_directory(os.path.join(app.root_path, 'static'), 'sw.js', mimetype='application/javascript')
-
-@app.route('/manifest.json')
-def serve_manifest():
-    from flask import send_from_directory
-    return send_from_directory(os.path.join(app.root_path, 'static'), 'manifest.json')
-
-@app.route('/robots.txt')
-def serve_robots():
-    from flask import send_from_directory
-    return send_from_directory(os.path.join(app.root_path, 'static'), 'robots.txt')
-
-@app.route('/sitemap.xml')
-def serve_sitemap():
-    from flask import send_from_directory
-    return send_from_directory(os.path.join(app.root_path, 'static'), 'sitemap.xml')
-
-
-@app.route('/favicon.ico')
-def favicon():
-    from flask import send_from_directory
-    return send_from_directory(os.path.join(app.root_path, 'static'), 'favicon.ico', mimetype='image/vnd.microsoft.icon')
-
-
-@app.errorhandler(404)
-def not_found_error(error):
-    if request.path.startswith('/api/') or request.headers.get('Accept') == 'application/json':
-        return jsonify({"error": "Resource not found", "status": 404}), 404
-    return render_template("offline.html"), 404
-
-@app.errorhandler(500)
-def internal_error(error):
-    if request.path.startswith('/api/') or request.headers.get('Accept') == 'application/json':
-        return jsonify({"error": "Internal Server Error", "status": 500}), 500
-    return render_template("offline.html"), 500
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
-    print(f"DEBUG: STARTING ON PORT {port}")
     send_deployment_telemetry()
-    # Enabled reloader to pick up blueprint changes
     debug_mode = os.getenv("FLASK_DEBUG", "false").lower() == "true"
-    socketio.run(app, host="0.0.0.0", port=port, debug=debug_mode, use_reloader=debug_mode)
+    socketio.run(app, host="0.0.0.0", port=port, debug=debug_mode, use_reloader=False)

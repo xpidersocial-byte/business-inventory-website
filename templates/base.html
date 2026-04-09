@@ -7,21 +7,27 @@
     <title>{% block title %}{% endblock %} | {{ site_config.business_name }}</title>
     <link rel="icon" type="image/webp" href="{{ url_for('static', filename='images/login_hero.webp') }}">
 
-    <!-- PWA Core Persistence (PouchDB) - Must load early -->
-    <script src="https://cdn.jsdelivr.net/npm/pouchdb@8.0.1/dist/pouchdb.min.js"></script>
+    <!-- PWA Core Persistence (PouchDB) - TEMPORARILY DISABLED -->
     <script>
-        // Critical PouchDB safety fallback
-        if (typeof window.PouchDB === 'undefined') {
-            console.warn('[PWA] PouchDB CDN failed. Applying safety mock to prevent crashes.');
-            window.PouchDB = function () {
-                this.info = () => Promise.resolve({ doc_count: 0 });
-                this.put = () => Promise.resolve({ ok: true });
-                this.get = () => Promise.reject({ status: 404, message: 'missing' });
-                this.allDocs = () => Promise.resolve({ rows: [] });
-                this.remove = () => Promise.resolve({ ok: true });
-                this.changes = () => ({ on: () => ({ on: () => { } }) }); // mock changes listener
-            };
+        // CRITICAL: Force unregister old service workers to clear console 503 errors immediately
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                for(let registration of registrations) {
+                    registration.unregister();
+                    console.log('[CLEANUP] Unregistered Service Worker to fix 503 errors');
+                }
+            });
         }
+
+        // Critical PouchDB safety fallback / MOCK for disabled state
+        window.PouchDB = function () {
+            this.info = () => Promise.resolve({ doc_count: 0 });
+            this.put = () => Promise.resolve({ ok: true });
+            this.get = () => Promise.reject({ status: 404, message: 'missing' });
+            this.allDocs = () => Promise.resolve({ rows: [] });
+            this.remove = () => Promise.resolve({ ok: true });
+            this.changes = () => ({ on: () => ({ on: () => { } }) }); 
+        };
     </script>
 
     <!-- UI Frameworks -->
@@ -546,8 +552,8 @@
         </div>
 
         <div class="ms-auto d-flex align-items-center gap-2">
-            <!-- Connectivity Badge -->
-            <div id="offline-sync-badge" class="me-2 fs-4 d-flex align-items-center">
+            <!-- Connectivity Badge - TEMPORARILY HIDDEN -->
+            <div id="offline-sync-badge" class="me-2 fs-4 d-none align-items-center">
                 <i class="bi bi-cloud-check-fill text-success" id="connectivity-icon" title="Online & Synced"></i><span
                     id="connectivity-text" class="ms-1 small fw-bold text-white"
                     style="font-size: 0.7rem;">ONLINE</span>
@@ -945,74 +951,8 @@
 
         // ── PWA Offline Capability ──────────────────────────────────────
         function updateConnectivityUI() {
-            const icon = document.getElementById('connectivity-icon');
-            const text = document.getElementById('connectivity-text');
-            const mainContent = document.getElementById('main-content');
-            let banner = document.getElementById('offline-banner');
-            const sidebarLinks = document.querySelectorAll('.sidebar-link');
-
-            if (navigator.onLine) {
-                if (icon) {
-                    icon.classList.remove('bi-cloud-slash-fill', 'text-warning', 'text-danger');
-                    icon.classList.add('bi-cloud-check-fill', 'text-success');
-                    icon.title = "Online & Synced";
-                }
-                if (text) {
-                    text.innerText = "ONLINE";
-                    text.classList.remove('text-warning');
-                    text.classList.add('text-white');
-                }
-
-                // Remove lock icons and re-enable links
-                sidebarLinks.forEach(link => {
-                    const lock = link.querySelector('.offline-lock');
-                    if (lock) lock.remove();
-                    link.style.pointerEvents = 'auto';
-                    link.style.opacity = '1';
-                });
-
-                if (banner) banner.remove();
-                console.log("[PWA] Back Online. Ready for sync.");
-            } else {
-                if (icon) {
-                    icon.classList.remove('bi-cloud-check-fill', 'text-success');
-                    icon.classList.add('bi-cloud-slash-fill', 'text-warning');
-                    icon.title = "Offline (Viewing Cached Data)";
-                }
-                if (text) {
-                    text.innerText = "OFFLINE";
-                    text.classList.remove('text-white');
-                    text.classList.add('text-warning');
-                }
-
-                // Add lock icons and disable restricted links
-                sidebarLinks.forEach(link => {
-                    if (link.getAttribute('data-offline') !== 'true') {
-                        if (!link.querySelector('.offline-lock')) {
-                            const lock = document.createElement('i');
-                            lock.className = 'bi bi-lock-fill ms-auto offline-lock small text-warning';
-                            link.appendChild(lock);
-                        }
-                        link.style.pointerEvents = 'none';
-                        link.style.opacity = '0.6';
-                    }
-                });
-
-                if (!banner) {
-                    banner = document.createElement('div');
-                    banner.id = 'offline-banner';
-                    banner.className = 'alert alert-warning py-2 mb-3 shadow-sm d-flex align-items-center justify-content-between';
-                    banner.innerHTML = `
-                        <div class="d-flex align-items-center">
-                            <i class="bi bi-exclamation-triangle-fill me-2"></i>
-                            <span class="small fw-bold">Offline Mode: Viewing cached data. Changes will sync when online.</span>
-                        </div>
-                        <button class="btn btn-sm btn-outline-dark py-0" onclick="window.location.reload()">Retry</button>
-                    `;
-                    if (mainContent) mainContent.prepend(banner);
-                }
-                console.warn("[PWA] Device is Offline. Serving cached content.");
-            }
+            // OFFLINE MODE TEMPORARILY DISABLED
+            return;
         }
 
         window.addEventListener('online', updateConnectivityUI);
@@ -1026,10 +966,11 @@
 
 
 
-    <!-- PWA / Offline Scripts -->
+    <!-- PWA / Offline Scripts - TEMPORARILY DISABLED -->
 
     <script>
-        // SERVICE WORKER REGISTRATION (Faster registration on DOMContentLoaded)
+        // SERVICE WORKER REGISTRATION - DISABLED
+        /*
         if ('serviceWorker' in navigator) {
             document.addEventListener('DOMContentLoaded', () => {
                 navigator.serviceWorker.register('/sw.js')
@@ -1037,9 +978,11 @@
                     .catch(err => console.error('[PWA] Service Worker failed:', err));
             });
         }
+        */
     </script>
     <script>
-        // DB HEALTH MONITOR — poll every 15s, redirect to /offline on 2 consecutive failures
+        // DB HEALTH MONITOR — poll every 15s - TEMPORARILY DISABLED
+        /*
         (function () {
             let dbFailures = 0;
             const badge = document.getElementById('offline-sync-badge');
@@ -1063,6 +1006,7 @@
 
             setInterval(checkDbHealth, 15000);
         })();
+        */
 
         // Global fix for preventing page jump when clicking empty hash links
         document.addEventListener('click', function (e) {

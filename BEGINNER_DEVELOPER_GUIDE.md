@@ -41,7 +41,6 @@ This website doesn't just live on a laptop; it's a professional-grade deployment
 
 | Component | Provider / Tool | URL |
 | :--- | :--- | :--- |
-| **Domain** | Cloudflare | `thesis.fbihm.online` |
 | **Server** | IONOS | `74.208.174.70` |
 | **Management**| Portainer | (Server GUI for Docker) |
 

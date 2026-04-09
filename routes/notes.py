@@ -69,6 +69,8 @@ def add_bulletin():
             f"A new bulletin was posted.\n\nTag: {tag}\nAuthor: {session.get('email')}\nContent: {content[:200]}{'...' if len(content) > 200 else ''}\nTime: {datetime.now().strftime('%Y-%m-%d %I:%M %p')}",
             notif_type="bulletin"
         )
+    if request.is_json or 'application/json' in request.headers.get('Accept', ''):
+        return jsonify({"success": True})
     return redirect(url_for('bulletin.bulletin'))
 
 @bulletin_bp.route('/bulletin/edit/<id>', methods=['POST'])
@@ -95,13 +97,20 @@ def edit_bulletin(id):
         log_action("EDIT_BULLETIN", "Updated a bulletin post.")
         flash("Bulletin updated!", "success")
 
+    if request.is_json or 'application/json' in request.headers.get('Accept', ''):
+        return jsonify({"success": True})
     return redirect(url_for('bulletin.bulletin'))
 
 @bulletin_bp.route('/bulletin/toggle_status/<id>', methods=['POST'])
 @login_required
 def toggle_bulletin_status(id):
     notes_collection = get_notes_collection()
-    note = notes_collection.find_one({"_id": ObjectId(id)})
+    try:
+        oid = ObjectId(id)
+    except:
+        return jsonify({"success": False, "error": "Invalid ID format"}), 400
+
+    note = notes_collection.find_one({"_id": oid})
     if note:
         current_status = note.get('status', 'pending')
         new_status = 'done' if current_status == 'pending' else 'pending'
@@ -109,7 +118,7 @@ def toggle_bulletin_status(id):
         done_by = session.get('email') if new_status == 'done' else None
 
         notes_collection.update_one(
-            {"_id": ObjectId(id)}, 
+            {"_id": oid}, 
             {"$set": {"status": new_status, "done_at": done_at, "done_by": done_by}}
         )
         log_action("UPDATE_BULLETIN_STATUS", f"Bulletin marked as {new_status} by {session.get('email')}.")
@@ -119,6 +128,8 @@ def toggle_bulletin_status(id):
                 f"A bulletin was marked as completed.\n\nContent: {note.get('content', '')[:200]}\nCompleted by: {session.get('email')}\nTime: {datetime.now().strftime('%Y-%m-%d %I:%M %p')}",
                 notif_type="bulletin"
             )
+    if request.is_json or 'application/json' in request.headers.get('Accept', ''):
+        return jsonify({"success": True})
     return redirect(url_for('bulletin.bulletin'))
 
 @bulletin_bp.route('/bulletin/update_color/<id>', methods=['POST'])
@@ -142,21 +153,35 @@ def update_bulletin_color(id):
 @login_required
 def pin_bulletin(id):
     notes_collection = get_notes_collection()
-    note = notes_collection.find_one({"_id": ObjectId(id)})
+    try:
+        oid = ObjectId(id)
+    except:
+        return jsonify({"success": False, "error": "Invalid ID format"}), 400
+
+    note = notes_collection.find_one({"_id": oid})
     if note:
         new_status = not note.get('pinned', False)
-        notes_collection.update_one({"_id": ObjectId(id)}, {"$set": {"pinned": new_status}})
+        notes_collection.update_one({"_id": oid}, {"$set": {"pinned": new_status}})
+    if request.is_json or 'application/json' in request.headers.get('Accept', ''):
+        return jsonify({"success": True})
     return redirect(url_for('bulletin.bulletin'))
 
 @bulletin_bp.route('/bulletin/delete/<id>', methods=['POST'])
 @login_required
 def delete_bulletin(id):
     notes_collection = get_notes_collection()
-    note = notes_collection.find_one({"_id": ObjectId(id)})
+    try:
+        oid = ObjectId(id)
+    except:
+        return jsonify({"success": False, "error": "Invalid ID format"}), 400
+
+    note = notes_collection.find_one({"_id": oid})
     if note and note.get('author') == session.get('email'):
-        notes_collection.delete_one({"_id": ObjectId(id)})
+        notes_collection.delete_one({"_id": oid})
         log_action("DELETE_BULLETIN", "Author removed a bulletin.")
         flash("Bulletin removed.", "info")
     else:
-        flash("Unauthorized deletion attempt.", "danger")
+        flash("Unauthorized deletion attempt or post not found.", "danger")
+    if request.is_json or 'application/json' in request.headers.get('Accept', ''):
+        return jsonify({"success": True})
     return redirect(url_for('bulletin.bulletin'))

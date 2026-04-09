@@ -267,7 +267,6 @@
 
     // Real-time Dashboard Updates
     socket.on('dashboard_update', function() {
-        console.log('[Dashboard] Live metrics update triggered');
         const url = new URL(window.location.href);
         fetch(url)
             .then(res => res.text())
@@ -296,8 +295,7 @@
                     topSellers.innerHTML = newTopSellers.innerHTML;
                 }
 
-                // Extract new chart data from the parsed document by looking for chart_labels and chart_values
-                // Since this is injected via Jinja2 into the script tag, we can extract the arrays using Regex
+                // Extract new chart data
                 const scriptTags = newDoc.querySelectorAll('script');
                 for (let script of scriptTags) {
                     if (script.innerText.includes('new Chart(ctx')) {
@@ -311,13 +309,13 @@
                                 salesChart.data.labels = newLabels;
                                 salesChart.data.datasets[0].data = newData;
                                 salesChart.update();
-                            } catch (e) { console.error('Error parsing chart data', e); }
+                            } catch (e) { /* Silently fail to keep console clean */ }
                         }
                         break;
                     }
                 }
             })
-            .catch(err => console.error('[Dashboard] Update failed', err));
+            .catch(err => { /* Silently fail to keep console clean */ });
     });
 </script>
 {% endblock %}

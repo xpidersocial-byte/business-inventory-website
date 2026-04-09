@@ -1259,8 +1259,13 @@
 
     function updateServerStats() {
         fetch('/system-info')
-            .then(r => r.json())
+            .then(r => {
+                if (!r.ok) throw new Error(`System info request failed with status ${r.status}`);
+                return r.json();
+            })
             .then(data => {
+                if (data.error) throw new Error(data.error || 'Unknown server info error');
+
                 document.getElementById('cpu_val').innerText = data.cpu + '%';
                 document.getElementById('cpu_bar').style.width = data.cpu + '%';
                 
@@ -1396,9 +1401,14 @@
         window.history.pushState({}, '', url);
     }
 
-    function confirmAction(url, msg) {
-        if(confirm(msg)) {
-            const f = document.createElement('form'); f.method='POST'; f.action=url; document.body.appendChild(f); f.submit();
+    async function confirmAction(url, msg) {
+        if (confirm(msg)) {
+            const res = await offlineSafePost(url, {});
+            if (res.ok || res.offline) {
+                location.reload();
+            } else {
+                alert("Action failed. Please try again.");
+            }
         }
     }
 

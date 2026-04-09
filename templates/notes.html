@@ -328,76 +328,74 @@
 
 {% block scripts %}
 <script>
-    async function refreshNotes() {
-        if (typeof xpiderSync === "undefined") return;
-        try {
-            const pending = await xpiderSync.getPendingActions("/bulletin/add");
-            const container = document.querySelector("#pendingNotesContainer");
-            if (!container) return;
-            
-            // Remove existing offline temp notes to avoid duplicates
-            container.querySelectorAll(".offline-temp-note").forEach(n => n.remove());
-            
-            pending.forEach(action => {
-                const data = action.body;
-                const col = document.createElement("div");
-                col.className = "col-xl-4 col-md-6 mb-4 offline-temp-note";
-                col.innerHTML = `
-                    <div class="card note-card border-warning">
-                        <div class="note-body">
-                            <div class="d-flex justify-content-between mb-3">
-                                <span class="badge bg-warning text-dark uppercase small fw-bold">SYNC PENDING</span>
-                            </div>
-                            <p class="note-text text-theme-main">${data.content}</p>
-                            <div class="mt-auto pt-3 border-top d-flex justify-content-between">
-                                <span class="small text-theme-muted"><i class="bi bi-clock me-1"></i>Offline Saved</span>
-                                <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 px-2 py-1">${data.tag || "Normal"}</span>
-                            </div>
-                        </div>
-                    </div>`;
-                container.prepend(col);
-            });
-        } catch (e) { console.error("Refresh Error:", e); }
-    }
-
     async function handleBulletinSubmit(event, url) {
         event.preventDefault();
         const formData = new FormData(event.target);
-        await offlineSafePost(url, formData);
-        bootstrap.Modal.getInstance(event.target.closest(".modal")).hide();
-        event.target.reset();
-        refreshNotes();
-        if (!navigator.onLine) {
-            alert("Note saved locally. It will sync once you are back online.");
-        } else {
+        const res = await offlineSafePost(url, formData);
+        
+        if (res.ok) {
+            bootstrap.Modal.getInstance(event.target.closest(".modal")).hide();
+            event.target.reset();
             location.reload();
+        } else {
+            const data = await res.json().catch(() => ({}));
+            alert(data.message || "Failed to save bulletin.");
         }
     }
 
     async function markDone(id) {
-        if (!confirm("Move this to completed items?")) return;
+        const result = await Swal.fire({
+            title: 'Complete Task?',
+            text: "Move this bulletin to the completed items section?",
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Yes, Mark as Done'
+        });
+        if (!result.isConfirmed) return;
+
         const url = `/bulletin/toggle_status/${id}`;
-        await offlineSafePost(url, {});
-        location.reload();
+        const res = await offlineSafePost(url, {});
+        if (res.ok) {
+            location.reload();
+        } else {
+            Swal.fire('Error', 'Failed to update bulletin status.', 'error');
+        }
     }
 
     async function pinNote(id) {
         const url = `/bulletin/pin/${id}`;
-        await offlineSafePost(url, {});
-        location.reload();
+        const res = await offlineSafePost(url, {});
+        if (res.ok) location.reload();
     }
 
     async function deleteNote(id) {
-        if (!confirm("Are you sure you want to permanently delete this bulletin?")) return;
+        const result = await Swal.fire({
+            title: 'Delete Permanently?',
+            text: "This bulletin will be removed forever. This cannot be undone.",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            confirmButtonText: 'Yes, Delete It'
+        });
+        if (!result.isConfirmed) return;
+
         const url = `/bulletin/delete/${id}`;
-        await offlineSafePost(url, {});
-        location.reload();
+        const res = await offlineSafePost(url, {});
+        if (res.ok) {
+            location.reload();
+        } else {
+            Swal.fire('Error', 'Failed to delete bulletin.', 'error');
+        }
     }
 
     async function toggleStatus(id) {
         const url = `/bulletin/toggle_status/${id}`;
-        await offlineSafePost(url, {});
-        location.reload();
+        const res = await offlineSafePost(url, {});
+        if (res.ok) {
+            location.reload();
+        } else {
+            Swal.fire('Error', 'Failed to restore bulletin.', 'error');
+        }
     }
 
     function prepareEditModal(dataset) {
@@ -417,8 +415,5 @@
         if (badge) badge.remove();
         element.classList.remove('border-primary');
     }
-
-    document.addEventListener("DOMContentLoaded", refreshNotes);
-    document.addEventListener("offlineActionQueued", refreshNotes);
 </script>
 {% endblock %}

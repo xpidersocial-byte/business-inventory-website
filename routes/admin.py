@@ -166,11 +166,18 @@ def add_category():
 @login_required
 @role_required('owner')
 def delete_category(id):
-    cat = get_categories_collection().find_one({"_id": ObjectId(id)})
+    try:
+        oid = ObjectId(id)
+    except:
+        return jsonify({"success": False, "error": "Invalid ID format"}), 400
+
+    cat = get_categories_collection().find_one({"_id": oid})
     if cat:
-        get_categories_collection().delete_one({"_id": ObjectId(id)})
+        get_categories_collection().delete_one({"_id": oid})
         log_action("DELETE_CATEGORY", f"Deleted category: {cat['name']}")
         flash("Category deleted.", "info")
+    if request.is_json or 'application/json' in request.headers.get('Accept', ''):
+        return jsonify({"success": True})
     return redirect(url_for('auth.profile', tab='settings'))
 
 @admin_bp.route('/settings/user/add', methods=['POST'])
@@ -191,14 +198,23 @@ def add_user():
 @login_required
 @role_required('owner')
 def delete_user(id):
-    user = get_users_collection().find_one({"_id": ObjectId(id)})
+    try:
+        oid = ObjectId(id)
+    except:
+        return jsonify({"success": False, "error": "Invalid ID format"}), 400
+
+    user = get_users_collection().find_one({"_id": oid})
     if user:
         if user['email'] == 'admin@inventory.com':
             flash("Cannot delete the main admin account!", "danger")
+            if request.is_json or 'application/json' in request.headers.get('Accept', ''):
+                return jsonify({"success": False, "message": "Cannot delete main admin"}), 403
         else:
-            get_users_collection().delete_one({"_id": ObjectId(id)})
+            get_users_collection().delete_one({"_id": oid})
             log_action("DELETE_USER", f"Deleted user: {user['email']}")
             flash("User deleted.", "info")
+    if request.is_json or 'application/json' in request.headers.get('Accept', ''):
+        return jsonify({"success": True})
     return redirect(url_for('auth.profile', tab='settings'))
 
 @admin_bp.route('/settings/user/edit/<id>', methods=['POST'])
@@ -268,16 +284,22 @@ def reorder_menus():
 @login_required
 @role_required('owner')
 def delete_menu(id):
-    menu = get_menus_collection().find_one({"_id": ObjectId(id)})
+    try:
+        oid = ObjectId(id)
+    except:
+        return jsonify({"success": False, "error": "Invalid ID format"}), 400
+
+    menu = get_menus_collection().find_one({"_id": oid})
     if menu:
-        get_menus_collection().delete_one({"_id": ObjectId(id)})
+        get_menus_collection().delete_one({"_id": oid})
         log_action("DELETE_MENU", f"Deleted menu: {menu['name']}")
         flash("Menu deleted.", "info")
+    if request.is_json or 'application/json' in request.headers.get('Accept', ''):
+        return jsonify({"success": True})
     return redirect(url_for('auth.profile', tab='settings'))
 
 @admin_bp.route('/settings/menu/thresholds', methods=['POST'])
 @login_required
-@role_required('owner')
 def update_menu_thresholds():
     data = request.json
     type_ = data.get('type')

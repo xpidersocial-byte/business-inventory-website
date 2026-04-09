@@ -1,12 +1,16 @@
 from flask import Blueprint, render_template, request, jsonify, session, current_app, Response, flash, redirect, url_for
 import os
+import socket
+import platform
+import subprocess
+import importlib.metadata
+import json
+from datetime import datetime
+import requests
+import psutil
 from core.utils import log_action, MongoJSONProvider
 from core.middleware import login_required
 from core.db import get_dev_updates_collection, get_items_collection, get_categories_collection, get_purchase_collection, get_inventory_log_collection, get_system_log_collection, get_notes_collection, get_subscriptions_collection
-import subprocess
-import importlib.metadata
-from datetime import datetime
-import json
 from bson.objectid import ObjectId
 
 developer_bp = Blueprint('developer', __name__)
@@ -67,6 +71,50 @@ def developer_portal():
                            tech_files=tech_files,
                            watchdog_active=watchdog_active,
                            flask_debug=os.getenv("FLASK_DEBUG", "false").lower() == "true")
+
+def format_bytes(value):
+    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+        if value < 1024:
+            return f"{value:.1f}{unit}"
+        value /= 1024
+    return f"{value:.1f}PB"
+
+@developer_bp.route('/system-info')
+@login_required
+def system_info():
+    try:
+        cpu_percent = round(psutil.cpu_percent(interval=0.3), 1)
+        mem = psutil.virtual_memory()
+        disk = psutil.disk_usage('/')
+
+        public_ip = 'Unavailable'
+        try:
+            public_ip = requests.get('https://api.ipify.org?format=json', timeout=2).json().get('ip', public_ip)
+        except Exception:
+            pass
+
+        local_ip = 'Unknown'
+        try:
+            local_ip = socket.gethostbyname(socket.gethostname())
+        except Exception:
+            pass
+
+        return jsonify({
+            'cpu': cpu_percent,
+            'ram_percent': round(mem.percent, 1),
+            'ram_used': format_bytes(mem.used),
+            'ram_total': format_bytes(mem.total),
+            'disk_percent': round(disk.percent, 1),
+            'disk_free': format_bytes(disk.free),
+            'public_ip': public_ip,
+            'local_ip': local_ip,
+            'hostname': socket.gethostname(),
+            'os': platform.platform(),
+            'python_v': platform.python_version()
+        })
+    except Exception as e:
+        current_app.logger.exception('Failed to collect system info')
+        return jsonify({'error': 'Unable to fetch system metrics', 'details': str(e)}), 500
 
 @developer_bp.route('/dev-updates/add', methods=['POST'])
 @login_required

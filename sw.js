@@ -1,9 +1,9 @@
 /**
-* FBIHM Service Worker v9.0 (PouchDB-Ready)
+* FBIHM Service Worker v11.0 (Enterprise Stability)
  * Optimized for performance with Stale-While-Revalidate API caching.
  */
 
-const CACHE_NAME = 'fbihm-v9.0';
+const CACHE_NAME = 'fbihm-v11.0';
 const OFFLINE_URL = '/offline';
 const SYNC_CHANNEL = new BroadcastChannel('offline_sync_status');
 
@@ -13,6 +13,8 @@ const ASSETS_TO_CACHE = [
     '/static/manifest.json',
     '/favicon.ico',
     '/static/js/offline-manager.js',
+    '/static/sounds/notification.mp3',
+    '/static/images/login_hero.webp',
     'https://cdn.jsdelivr.net/npm/pouchdb@8.0.1/dist/pouchdb.min.js',
     'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css',
     'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css',
@@ -42,7 +44,6 @@ self.addEventListener('activate', (event) => {
     );
 });
 
-// Helper to ensure we ALWAYS return a valid Response object
 function offlineResponse(status = 503) {
     return new Response('', { status: status, statusText: 'Offline' });
 }
@@ -51,6 +52,8 @@ self.addEventListener('fetch', (event) => {
     if (event.request.method !== 'GET') return;
 
     const url = new URL(event.request.url);
+    
+    // Explicitly bypass Socket.IO and health checks
     if (url.pathname.includes('socket.io') || url.pathname.startsWith('/health')) return;
 
     // 1. API Synchronization Cache (Stale-While-Revalidate)
@@ -59,7 +62,6 @@ self.addEventListener('fetch', (event) => {
             caches.open(CACHE_NAME).then(async (cache) => {
                 const cachedRes = await cache.match(event.request);
                 const fetchPromise = fetch(event.request).then((networkRes) => {
-                    // Only cache full responses, not partial 206 responses.
                     if (networkRes.status === 200) {
                         cache.put(event.request, networkRes.clone());
                     }
@@ -75,7 +77,6 @@ self.addEventListener('fetch', (event) => {
     if (event.request.mode === 'navigate') {
         event.respondWith(
             fetch(event.request).then(res => {
-                // Only cache full responses, not partial 206 responses.
                 if (res.status === 200) {
                     const copy = res.clone();
                     caches.open(CACHE_NAME).then(c => c.put(event.request, copy));
@@ -96,8 +97,8 @@ self.addEventListener('fetch', (event) => {
         caches.match(event.request).then(cached => {
             if (cached) return cached;
             return fetch(event.request).then(res => {
-                // Only cache full responses, not partial 206 responses.
-                if (res.status === 200) {
+                // Cache any successful static resource retrieval
+                if (res.status === 200 || res.status === 0) {
                     const copy = res.clone();
                     caches.open(CACHE_NAME).then(c => c.put(event.request, copy));
                 }

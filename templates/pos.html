@@ -232,7 +232,7 @@
                 <h5 id="viewTitle" class="mb-0 fw-bold text-theme-main small text-uppercase ls-1">Items</h5>
             </div>
             <div class="items-grid" id="itemsGrid">
-                <!-- Items will be rendered here by JavaScript via PouchDB -->
+                <!-- Items will be rendered here by JavaScript -->
                 <div class="text-center py-5 w-100 opacity-50">
                     <div class="spinner-border spinner-border-sm mb-2"></div>
                     <div class="small fw-bold text-uppercase">Loading Inventory...</div>
@@ -351,25 +351,22 @@
         filterItems();
     }
 
-    let allItems = []; // Local cache of PouchDB items
+    let allItems = []; // Local cache of items
 
     async function loadItems() {
         try {
-            allItems = await xpiderSync.getAllItems();
-            if (allItems.length === 0 && navigator.onLine) {
-                // If DB empty, wait for sync or force it
-                await xpiderSync.pullItems();
-                allItems = await xpiderSync.getAllItems();
-            }
+            // Revert to direct API fetch when offline mode is disabled
+            const res = await fetch('/api/items/sync');
+            allItems = await res.json();
             renderItems(allItems);
         } catch (e) {
-            console.error('Failed to load items from PouchDB:', e);
+            /* Silently handle errors to keep console clean */
         }
     }
 
     function renderItems(itemsToRender) {
         const grid = document.getElementById('itemsGrid');
-        if (itemsToRender.length === 0) {
+        if (!itemsToRender || itemsToRender.length === 0) {
             grid.innerHTML = '<div class="text-center py-5 w-100 opacity-50"><i class="bi bi-box-seam display-4 d-block mb-3"></i>No items found.</div>';
             return;
         }
@@ -391,9 +388,9 @@
     }
 
     // Initial Load
-    document.addEventListener('DOMContentLoaded', loadItems);
-    // Listen for background sync updates
-    document.addEventListener('items_updated', loadItems);
+    document.addEventListener('DOMContentLoaded', () => {
+        loadItems();
+    });
 
     function filterItems() {
         const q = document.getElementById('itemSearch').value.toLowerCase();
@@ -471,6 +468,8 @@
 
     async function processCheckout() {
         const btn = document.getElementById('confirmPaymentBtn');
+        if (btn.disabled && btn.innerHTML.includes('Processing')) return; // Extra safety
+        
         const checkoutModal = bootstrap.Modal.getInstance(document.getElementById('checkoutModal'));
         
         btn.disabled = true;
@@ -484,31 +483,16 @@
         try {
             const res = await offlineSafePost("{{ url_for('pos.pos_checkout') }}", payload);
             
-            if (res.offline) {
-                // Handle offline case
+            // Check success from response
+            const data = await res.json();
+            if (data.success) {
                 checkoutModal.hide();
-                Swal.fire({
-                    icon: "success",
-                    title: "Transaction Queued",
-                    text: "You are offline. This sale will be synced to the server automatically when you reconnect.",
-                    confirmButtonColor: "#1877f2"
-                });
-                cart = [];
-                updateCartUI();
-                document.getElementById("cashTendered").value = "";
+                generateReceipt(data);
+                new bootstrap.Modal(document.getElementById('receiptModal')).show();
             } else {
-                // Online response
-                const data = await res.json();
-                if (data.success) {
-                    checkoutModal.hide();
-                    generateReceipt(data);
-                    new bootstrap.Modal(document.getElementById('receiptModal')).show();
-                } else {
-                    alert(data.message || "Checkout failed");
-                }
+                alert(data.message || "Checkout failed");
             }
         } catch (err) {
-            console.error('Checkout error:', err);
             alert("An error occurred during checkout.");
         } finally {
             btn.disabled = false;

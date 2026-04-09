@@ -20,7 +20,6 @@ jobs:
         run: |
           echo "🚀 Refreshing workspace..."
           git init
-          git remote add origin https://thesis.fbihm.online/bejasadhev/FBIHM.git
           BRANCH=$(echo ${GITHUB_REF} | sed 's|refs/heads/||')
           git -c http.sslVerify=false fetch origin $BRANCH
           git checkout -f $BRANCH
