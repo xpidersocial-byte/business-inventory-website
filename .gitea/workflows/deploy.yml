@@ -34,7 +34,7 @@ jobs:
 
       - name: Deploy to Remote Server via SSH
         env:
-          SSH_PASS: ${{ secrets.SERVER_PASSWORD }}
+          SSH_PASS: ${SSH_PASS:-uDaO7FqfZtRRC}
         run: |
           REMOTE_USER="root"
           REMOTE_HOST="74.208.174.70"
