@@ -970,61 +970,6 @@
                     </div>
                 </div>
 
-                <!-- Offline Documentation -->
-                <div id="section-offline-config" class="admin-section d-none">
-                    <div class="row">
-                        <div class="col-12">
-                            <div class="feed-card shadow-sm border border-success border-opacity-25" style="background: #f4fff8;">
-                                <div class="d-flex align-items-center mb-4 pb-3 border-bottom border-success border-opacity-25">
-                                    <div class="bg-success text-white rounded-circle d-flex align-items-center justify-content-center me-3 shadow-sm" style="width: 50px; height: 50px; font-size: 1.5rem;">
-                                        <i class="bi bi-wifi-off"></i>
-                                    </div>
-                                    <div>
-                                        <h4 class="fw-bold text-success mb-1">FBIHM Offline Engine</h4>
-                                        <div class="small text-muted fw-bold">Active and Monitoring Connectivity (<span class="text-success"><i class="bi bi-circle-fill me-1" style="font-size: 0.5rem;"></i>Service Worker Installed</span>)</div>
-                                    </div>
-                                </div>
-                                
-                                <h6 class="fw-bold mb-3"><i class="bi bi-question-circle-fill text-success me-2"></i>How It Works</h6>
-                                <p class="small text-dark opacity-75 mb-4">
-                                    The application is engineered as a <strong>Progressive Web App (PWA)</strong>. When installed or loaded on your browser, a background Service Worker caches all graphical and core structural assets. The engine utilizes <code>offline-manager.js</code> to intercept major database actions, securely storing them locally in your browser's IndexedDB when the system detects network disconnection. Upon reconnecting, the queue is automatically replayed chronologically to the live server.
-                                </p>
-
-                                <div class="row g-4 mb-4">
-                                    <div class="col-md-6">
-                                        <div class="bg-white p-3 rounded shadow-sm border h-100">
-                                            <h6 class="fw-bold"><i class="bi bi-check-circle-fill text-success me-2"></i>Offline Capabilities</h6>
-                                            <ul class="small mb-0 mt-2 list-unstyled opacity-75">
-                                                <li class="mb-2"><i class="bi bi-dot"></i><strong>Full POS Checkout:</strong> Ring up items and complete transactions. Receipts and revenue are synced upon reconnection.</li>
-                                                <li class="mb-2"><i class="bi bi-dot"></i><strong>Inventory Restocking:</strong> Process inbound shipments on the floor. Stock integers will be patched during sync.</li>
-                                                <li class="mb-2"><i class="bi bi-dot"></i><strong>Item Modifications:</strong> Adjusting pricing, notes, and general information natively caches to offline schema.</li>
-                                                <li><i class="bi bi-dot"></i><strong>Continuous UI:</strong> Navigating through cached pages works seamlessly.</li>
-                                            </ul>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <div class="bg-white p-3 rounded shadow-sm border border-warning border-opacity-50 h-100">
-                                            <h6 class="fw-bold"><i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>Limitations & Precautions</h6>
-                                            <ul class="small mb-0 mt-2 list-unstyled opacity-75">
-                                                <li class="mb-2"><i class="bi bi-dot"></i><strong>Image Uploads:</strong> Adding new primary photos to items while offline is temporarily blocked to prevent heavy cached blob failures.</li>
-                                                <li class="mb-2"><i class="bi bi-dot"></i><strong>Session Termination:</strong> Logging out or forcefully clearing browser cache while offline deletes your sync queue entirely.</li>
-                                                <li><i class="bi bi-dot"></i><strong>Real-time Dashboard:</strong> Dashboard metrics will freeze at the last known online state until reconnection re-establishes the Socket layer.</li>
-                                            </ul>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <div class="alert alert-success border-success bg-white shadow-sm mb-0">
-                                    <h6 class="fw-bold small mb-1"><i class="bi bi-info-circle-fill me-2"></i>How to Trigger / Test</h6>
-                                    <div class="x-small opacity-75">
-                                        You do not need to press a button to activate offline mode. It happens instantly in the background. To manually test the pipeline: turn off your device's WiFi/Data, execute a sale on the POS screen, and observe the system queue the transaction. Resurrect your internet connection and watch it seamlessly clear the queue and patch the server.
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- Maintenance -->
                 <div id="section-maintenance" class="admin-section d-none">
                     <div class="row">

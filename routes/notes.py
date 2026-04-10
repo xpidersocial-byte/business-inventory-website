@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, session, flash
+from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify
 from core.utils import log_action, send_email_notification
 from core.middleware import login_required
 from core.db import get_notes_collection
@@ -45,10 +45,11 @@ def bulletin():
 @login_required
 def add_bulletin():
     notes_collection = get_notes_collection()
-    data = request.get_json() if request.is_json else request.form
-    content = data.get('content')
-    color = data.get('color', 'blue')
-    tag = data.get('tag', 'Normal') # Urgent, Normal, Pending
+    data = request.get_json(silent=True) if request.is_json else request.form
+    content = data.get('content') if data else None
+    color = data.get('color', 'blue') if data else 'blue'
+    tag = data.get('tag', 'Normal') if data else 'Normal'  # Urgent, Normal, Pending
+
     if content:
         notes_collection.insert_one({
             "title": content[:30] + ('...' if len(content) > 30 else ''),
@@ -69,6 +70,7 @@ def add_bulletin():
             f"A new bulletin was posted.\n\nTag: {tag}\nAuthor: {session.get('email')}\nContent: {content[:200]}{'...' if len(content) > 200 else ''}\nTime: {datetime.now().strftime('%Y-%m-%d %I:%M %p')}",
             notif_type="bulletin"
         )
+
     if request.is_json or 'application/json' in request.headers.get('Accept', ''):
         return jsonify({"success": True})
     return redirect(url_for('bulletin.bulletin'))
@@ -106,28 +108,35 @@ def edit_bulletin(id):
 def toggle_bulletin_status(id):
     notes_collection = get_notes_collection()
     try:
-        oid = ObjectId(id)
-    except:
+        clean_id = str(id).split(':')[0]
+        if len(clean_id) != 24 or any(c not in '0123456789abcdefABCDEF' for c in clean_id):
+            raise ValueError("Invalid ID format")
+        oid = ObjectId(clean_id)
+    except Exception:
         return jsonify({"success": False, "error": "Invalid ID format"}), 400
 
-    note = notes_collection.find_one({"_id": oid})
-    if note:
-        current_status = note.get('status', 'pending')
-        new_status = 'done' if current_status == 'pending' else 'pending'
-        done_at = datetime.now() if new_status == 'done' else None
-        done_by = session.get('email') if new_status == 'done' else None
+    try:
+        note = notes_collection.find_one({"_id": oid})
+        if note:
+            current_status = note.get('status', 'pending')
+            new_status = 'done' if current_status == 'pending' else 'pending'
+            done_at = datetime.now() if new_status == 'done' else None
+            done_by = session.get('email') if new_status == 'done' else None
 
-        notes_collection.update_one(
-            {"_id": oid}, 
-            {"$set": {"status": new_status, "done_at": done_at, "done_by": done_by}}
-        )
-        log_action("UPDATE_BULLETIN_STATUS", f"Bulletin marked as {new_status} by {session.get('email')}.")
-        if new_status == 'done':
-            send_email_notification(
-                "Bulletin Marked as Done",
-                f"A bulletin was marked as completed.\n\nContent: {note.get('content', '')[:200]}\nCompleted by: {session.get('email')}\nTime: {datetime.now().strftime('%Y-%m-%d %I:%M %p')}",
-                notif_type="bulletin"
+            notes_collection.update_one(
+                {"_id": oid}, 
+                {"$set": {"status": new_status, "done_at": done_at, "done_by": done_by}}
             )
+            log_action("UPDATE_BULLETIN_STATUS", f"Bulletin marked as {new_status} by {session.get('email')}.")
+            if new_status == 'done':
+                send_email_notification(
+                    "Bulletin Marked as Done",
+                    f"A bulletin was marked as completed.\n\nContent: {note.get('content', '')[:200]}\nCompleted by: {session.get('email')}\nTime: {datetime.now().strftime('%Y-%m-%d %I:%M %p')}",
+                    notif_type="bulletin"
+                )
+    except Exception as e:
+        return jsonify({"success": False, "error": f"Server error: {str(e)}"}), 500
+
     if request.is_json or 'application/json' in request.headers.get('Accept', ''):
         return jsonify({"success": True})
     return redirect(url_for('bulletin.bulletin'))

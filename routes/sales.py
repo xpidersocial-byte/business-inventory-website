@@ -80,6 +80,7 @@ def add_sale():
 
                 purchase_doc = {
                     "date": ts,
+                    "item_id": str(item['_id']),
                     "item_name": item['name'],
                     "qty": qty,
                     "previous_stock": previous_stock,
@@ -115,8 +116,10 @@ def add_sale():
 
 @sales_bp.route('/sales/refund/<id>', methods=['POST'])
 @login_required
-@role_required('owner')
 def refund_sale(id):
+    if session.get('role') == 'owner':
+        return jsonify({"success": False, "error": "Refunds are restricted to cashier access."}), 403
+
     purchase_collection = get_purchase_collection()
     items_collection = get_items_collection()
     inventory_log_collection = get_inventory_log_collection()
@@ -135,12 +138,20 @@ def refund_sale(id):
     
     item_name = purchase['item_name']
     qty = purchase['qty']
+    item_id = purchase.get('item_id')
     
     # 1. Update purchase status
-    purchase_collection.update_one({'_id': oid}, {'$set': {'status': 'Refunded'}})
+    purchase_collection.update_one({'_id': oid}, {'$set': {'status': 'Refunded', 'refunded_at': datetime.now().strftime('%Y-%m-%d %I:%M:%S %p')}})
     
     # 2. Return stock to item
-    item = items_collection.find_one({'name': item_name})
+    item = None
+    if item_id:
+        try:
+            item = items_collection.find_one({'_id': ObjectId(item_id)})
+        except:
+            item = None
+    if not item:
+        item = items_collection.find_one({'name': item_name})
     if item:
         new_stock = item.get('stock', 0) + qty
         items_collection.update_one(
@@ -184,73 +195,98 @@ def sales_summary():
     now = datetime.now()
     current_year = now.year
 
-    all_logs = list(inventory_log_collection.find({"type": "OUT"}))
+    def parse_timestamp(timestamp):
+        for fmt in ['%Y-%m-%d %I:%M:%S %p', '%Y-%m-%d %H:%M:%S', '%Y-%m-%d %I:%M %p']:
+            try:
+                return datetime.strptime(timestamp, fmt)
+            except Exception:
+                continue
+        return None
+
+    all_logs = list(inventory_log_collection.find({"type": {"$in": ["OUT", "IN"]}}))
     items_by_name = {item['name']: item for item in items_collection.find()}
 
     months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-    monthly_revenue = [0] * 12
-    monthly_profit = [0] * 12
-
-    for log in all_logs:
-        try:
-            log_date = datetime.strptime(log['timestamp'], '%Y-%m-%d %I:%M:%S %p')
-            if log_date.year == current_year:
-                item = items_by_name.get(log['item_name'])
-                if item:
-                    qty = log.get('qty', 0)
-                    month_idx = log_date.month - 1
-                    monthly_revenue[month_idx] += qty * item.get('retail_price', 0)
-                    profit_per_unit = abs(item.get('retail_price', 0) - item.get('cost_price', 0))
-                    monthly_profit[month_idx] += qty * profit_per_unit
-        except: continue
-
-    weeks_labels = []
+    monthly_revenue = [0.0] * 12
+    monthly_profit = [0.0] * 12
     weekly_revenue = []
     weekly_profit = []
-    
+    weeks_labels = []
+    daily_labels = []
+    daily_revenue = []
+    daily_profit = []
+
+    for log in all_logs:
+        timestamp = log.get('timestamp')
+        if not timestamp:
+            continue
+        log_date = parse_timestamp(timestamp)
+        if not log_date or log_date.year != current_year:
+            continue
+
+        item = items_by_name.get(log.get('item_name'))
+        if not item:
+            continue
+
+        qty = log.get('qty', 0)
+        sign = -1 if log.get('type') == 'IN' and 'refund' in log.get('reason', '').lower() else 1
+        month_idx = log_date.month - 1
+        monthly_revenue[month_idx] += sign * qty * item.get('retail_price', 0)
+        profit_per_unit = abs(item.get('retail_price', 0) - item.get('cost_price', 0))
+        monthly_profit[month_idx] += sign * qty * profit_per_unit
+
     for i in range(11, -1, -1):
         start_date = now - timedelta(weeks=i+1)
         end_date = now - timedelta(weeks=i)
         weeks_labels.append(start_date.strftime('%-m/%-d/%y'))
-        
-        week_rev = 0
-        week_prof = 0
+
+        week_rev = 0.0
+        week_prof = 0.0
         for log in all_logs:
-            try:
-                log_date = datetime.strptime(log['timestamp'], '%Y-%m-%d %I:%M:%S %p')
-                if start_date <= log_date < end_date:
-                    item = items_by_name.get(log['item_name'])
-                    if item:
-                        qty = log.get('qty', 0)
-                        week_rev += qty * item.get('retail_price', 0)
-                        profit_per_unit = abs(item.get('retail_price', 0) - item.get('cost_price', 0))
-                        week_prof += qty * profit_per_unit
-            except: continue
-        
+            timestamp = log.get('timestamp')
+            if not timestamp:
+                continue
+            log_date = parse_timestamp(timestamp)
+            if not log_date or not (start_date <= log_date < end_date):
+                continue
+
+            item = items_by_name.get(log.get('item_name'))
+            if not item:
+                continue
+
+            qty = log.get('qty', 0)
+            sign = -1 if log.get('type') == 'IN' and 'refund' in log.get('reason', '').lower() else 1
+            week_rev += sign * qty * item.get('retail_price', 0)
+            profit_per_unit = abs(item.get('retail_price', 0) - item.get('cost_price', 0))
+            week_prof += sign * qty * profit_per_unit
+
         weekly_revenue.append(week_rev)
         weekly_profit.append(week_prof)
 
-    daily_labels = []
-    daily_revenue = []
-    daily_profit = []
     for i in range(29, -1, -1):
         target_date = now - timedelta(days=i)
         daily_labels.append(target_date.strftime('%-m/%-d/%y'))
-        
-        day_rev = 0
-        day_prof = 0
+
+        day_rev = 0.0
+        day_prof = 0.0
         for log in all_logs:
-            try:
-                log_date = datetime.strptime(log['timestamp'], '%Y-%m-%d %I:%M:%S %p')
-                if log_date.date() == target_date.date():
-                    item = items_by_name.get(log['item_name'])
-                    if item:
-                        qty = log.get('qty', 0)
-                        day_rev += qty * item.get('retail_price', 0)
-                        profit_per_unit = abs(item.get('retail_price', 0) - item.get('cost_price', 0))
-                        day_prof += qty * profit_per_unit
-            except: continue
-                
+            timestamp = log.get('timestamp')
+            if not timestamp:
+                continue
+            log_date = parse_timestamp(timestamp)
+            if not log_date or log_date.date() != target_date.date():
+                continue
+
+            item = items_by_name.get(log.get('item_name'))
+            if not item:
+                continue
+
+            qty = log.get('qty', 0)
+            sign = -1 if log.get('type') == 'IN' and 'refund' in log.get('reason', '').lower() else 1
+            day_rev += sign * qty * item.get('retail_price', 0)
+            profit_per_unit = abs(item.get('retail_price', 0) - item.get('cost_price', 0))
+            day_prof += sign * qty * profit_per_unit
+
         daily_revenue.append(day_rev)
         daily_profit.append(day_prof)
 
@@ -269,14 +305,14 @@ def sales_summary():
         data_points = [r for r in daily_revenue if r > 0]
         avg_revenue = total_revenue / len(data_points) if data_points else 0
     elif view_type == 'monthly':
-        current_month_rev = monthly_revenue[now.month-1]
-        current_month_prof = monthly_profit[now.month-1]
+        current_month_rev = monthly_revenue[now.month - 1]
+        current_month_prof = monthly_profit[now.month - 1]
         total_revenue = current_month_rev
         total_profit = current_month_prof
         avg_label = "Current Month Revenue"
         total_label = "Current Month Profit"
         avg_revenue = current_month_rev
-    else: # yearly
+    else:
         total_revenue = sum(monthly_revenue)
         total_profit = sum(monthly_profit)
         avg_label = "Avg. Monthly Revenue"
@@ -316,7 +352,7 @@ def generate_report():
     try:
         inventory_log_collection = get_inventory_log_collection()
         items_collection = get_items_collection()
-        all_logs = list(inventory_log_collection.find({"type": "OUT"}))
+        all_logs = list(inventory_log_collection.find({"type": {"$in": ["OUT", "IN"]}}))
         items_by_name = {item['name']: item for item in items_collection.find()}
         
         report_data = []
@@ -354,10 +390,11 @@ def generate_report():
                     item = items_by_name.get(log['item_name'])
                     if item:
                         qty = log.get('qty', 0)
+                        sign = -1 if log.get('type') == 'IN' and 'refund' in log.get('reason', '').lower() else 1
                         retail = item.get('retail_price', 0)
                         cost = item.get('cost_price', 0)
-                        revenue = qty * retail
-                        profit = qty * (retail - cost)
+                        revenue = sign * qty * retail
+                        profit = sign * qty * (retail - cost)
                         report_data.append({
                             "Date": log['timestamp'],
                             "Item Name": log['item_name'],
@@ -441,7 +478,7 @@ def generate_report():
                 return None
 
             items_by_name2 = {item['name']: item for item in get_items_collection().find()}
-            all_out_logs = list(get_inventory_log_collection().find({"type": "OUT"}))
+            all_out_logs = list(get_inventory_log_collection().find({"type": {"$in": ["OUT", "IN"]}}))
 
             # Monthly
             for log in all_out_logs:
@@ -450,10 +487,11 @@ def generate_report():
                     item = items_by_name2.get(log['item_name'])
                     if item:
                         q = log.get('qty', 0)
+                        sign = -1 if log.get('type') == 'IN' and 'refund' in log.get('reason', '').lower() else 1
                         r = item.get('retail_price', 0)
                         c = item.get('cost_price', 0)
-                        monthly_rev[ld.month - 1]  += q * r
-                        monthly_prof[ld.month - 1] += q * abs(r - c)
+                        monthly_rev[ld.month - 1]  += sign * q * r
+                        monthly_prof[ld.month - 1] += sign * q * abs(r - c)
 
             # Weekly (last 12 weeks)
             for i in range(11, -1, -1):
@@ -467,9 +505,10 @@ def generate_report():
                         item = items_by_name2.get(log['item_name'])
                         if item:
                             q = log.get('qty', 0)
+                            sign = -1 if log.get('type') == 'IN' and 'refund' in log.get('reason', '').lower() else 1
                             r = item.get('retail_price', 0)
                             c = item.get('cost_price', 0)
-                            wr += q * r; wp += q * abs(r - c)
+                            wr += sign * q * r; wp += sign * q * abs(r - c)
                 weekly_rev.append(wr); weekly_profit_vals.append(wp)
 
             # Daily (last 30 days)
@@ -483,9 +522,10 @@ def generate_report():
                         item = items_by_name2.get(log['item_name'])
                         if item:
                             q = log.get('qty', 0)
+                            sign = -1 if log.get('type') == 'IN' and 'refund' in log.get('reason', '').lower() else 1
                             r = item.get('retail_price', 0)
                             c = item.get('cost_price', 0)
-                            dr += q * r; dp += q * abs(r - c)
+                            dr += sign * q * r; dp += sign * q * abs(r - c)
                 daily_rev.append(dr); daily_profit_vals.append(dp)
 
             # Choose main & trend data — same logic as the frontend

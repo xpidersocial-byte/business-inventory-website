@@ -145,7 +145,6 @@
                                 <span class="tag-badge tag-{{ (note.tag or 'normal')|lower }}">{{ note.tag or 'NORMAL' }}</span>
                                 <span class="color-dot dot-{{ note.color or 'blue' }}"></span>
                                 {% if note.pinned %}<i class="bi bi-pin-angle-fill text-warning small"></i>{% endif %}
-                                {% if note.unread %}<span class="badge bg-danger rounded-pill" style="font-size: 0.5rem; vertical-align: middle;">NEW</span>{% endif %}
                             </div>
                             <div class="dropdown" onclick="event.stopPropagation()">
                                 <button class="btn btn-link p-0 opacity-50" data-bs-toggle="dropdown" style="color: var(--text-main);">
@@ -344,6 +343,7 @@
     }
 
     async function markDone(id) {
+        id = String(id).split(':')[0];
         const result = await Swal.fire({
             title: 'Complete Task?',
             text: "Move this bulletin to the completed items section?",
@@ -363,12 +363,14 @@
     }
 
     async function pinNote(id) {
+        id = String(id).split(':')[0];
         const url = `/bulletin/pin/${id}`;
         const res = await offlineSafePost(url, {});
         if (res.ok) location.reload();
     }
 
     async function deleteNote(id) {
+        id = String(id).split(':')[0];
         const result = await Swal.fire({
             title: 'Delete Permanently?',
             text: "This bulletin will be removed forever. This cannot be undone.",
@@ -389,6 +391,7 @@
     }
 
     async function toggleStatus(id) {
+        id = String(id).split(':')[0];
         const url = `/bulletin/toggle_status/${id}`;
         const res = await offlineSafePost(url, {});
         if (res.ok) {
@@ -415,5 +418,47 @@
         if (badge) badge.remove();
         element.classList.remove('border-primary');
     }
+
+    function parseDoneAt(value) {
+        if (!value) return null;
+        let normalized = String(value).trim().replace(' ', 'T');
+        if (normalized.includes('.')) {
+            normalized = normalized.replace(/\.(\d{3})\d*$/, '.$1');
+        }
+        return new Date(normalized);
+    }
+
+    function formatDuration(ms) {
+        if (ms <= 0) return 'Deleting soon';
+        const totalSeconds = Math.floor(ms / 1000);
+        const days = Math.floor(totalSeconds / 86400);
+        const hours = Math.floor((totalSeconds % 86400) / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const parts = [];
+        if (days > 0) parts.push(`${days}d`);
+        if (hours > 0) parts.push(`${hours}h`);
+        if (minutes > 0 || parts.length === 0) parts.push(`${minutes}m`);
+        return `Delete in ${parts.join(' ')}`;
+    }
+
+    function updateDoneCountdowns() {
+        const timers = document.querySelectorAll('.countdown-timer[data-done-at]');
+        timers.forEach(timer => {
+            const doneAt = parseDoneAt(timer.dataset.doneAt);
+            if (!(doneAt instanceof Date) || isNaN(doneAt.getTime())) {
+                timer.innerHTML = '<i class="bi bi-clock-history"></i> Invalid date';
+                return;
+            }
+            const expiresAt = doneAt.getTime() + 7 * 24 * 60 * 60 * 1000;
+            const remaining = expiresAt - Date.now();
+            timer.innerHTML = `<i class="bi bi-clock-history"></i> ${formatDuration(remaining)}`;
+            if (remaining <= 0) {
+                timer.classList.add('text-danger');
+            }
+        });
+    }
+
+    updateDoneCountdowns();
+    setInterval(updateDoneCountdowns, 60000);
 </script>
 {% endblock %}

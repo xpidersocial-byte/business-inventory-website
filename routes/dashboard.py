@@ -81,6 +81,13 @@ def dashboard():
     period_qty = 0
     period_item_sales = {}
 
+    refund_logs = [log for log in period_in_logs if 'refund' in log.get('reason', '').lower()]
+    refund_by_name = {}
+    for log in refund_logs:
+        refund_by_name.setdefault(log.get('item_name'), 0)
+        refund_by_name[log.get('item_name')] += log.get('qty', 0)
+
+    sale_aggregates = {}
     for log in period_sales_logs:
         name = log.get('item_name')
         qty = log.get('qty', 0)
@@ -88,18 +95,36 @@ def dashboard():
             details = item_details_map[name]
             retail = float(details.get('retail_price', 0))
             cost = float(details.get('cost_price', 0))
-            
-            period_revenue += qty * retail
-            period_profit += qty * (retail - cost)
-            period_qty += qty
-            
-            if name not in period_item_sales:
-                period_item_sales[name] = {"qty": 0, "revenue": 0, "profit": 0, "name": name}
-            period_item_sales[name]["qty"] += qty
-            period_item_sales[name]["revenue"] += qty * retail
-            period_item_sales[name]["profit"] += qty * (retail - cost)
 
-    period_inventory_added_value = sum(log.get('qty', 0) * float(item_details_map.get(log.get('item_name'), {}).get('cost_price', 0)) for log in period_in_logs if log.get('item_name') in item_details_map)
+            sale_aggregates.setdefault(name, {"qty": 0, "revenue": 0.0, "profit": 0.0, "retail": retail, "cost": cost})
+            sale_aggregates[name]["qty"] += qty
+            sale_aggregates[name]["revenue"] += qty * retail
+            sale_aggregates[name]["profit"] += qty * (retail - cost)
+
+    for name, data in sale_aggregates.items():
+        refund_qty = refund_by_name.get(name, 0)
+        adjusted_qty = max(data["qty"] - refund_qty, 0)
+        if adjusted_qty <= 0:
+            continue
+
+        retail = data["retail"]
+        cost = data["cost"]
+        period_revenue += adjusted_qty * retail
+        period_profit += adjusted_qty * (retail - cost)
+        period_qty += adjusted_qty
+
+        period_item_sales[name] = {
+            "qty": adjusted_qty,
+            "revenue": adjusted_qty * retail,
+            "profit": adjusted_qty * (retail - cost),
+            "name": name
+        }
+
+    period_inventory_added_value = sum(
+        log.get('qty', 0) * float(item_details_map.get(log.get('item_name'), {}).get('cost_price', 0))
+        for log in period_in_logs
+        if log.get('item_name') in item_details_map and 'refund' not in log.get('reason', '').lower()
+    )
 
     star_performers = sorted(period_item_sales.values(), key=lambda x: x['qty'], reverse=True)[:10]
     
