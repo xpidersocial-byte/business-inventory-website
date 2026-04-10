@@ -20,16 +20,16 @@ jobs:
         run: |
           echo "🚀 Refreshing workspace..."
           git init
-          GITEA_USER=\${GITEA_USER:-bejasadhev}
-          GITEA_PASS=\${GITEA_PASS:-c9c26cbf2848ed0fae42be648099b028e005e0fd}
-          git remote add origin "https://\${GITEA_USER}:\${GITEA_PASS}@thesis.fbihm.online/bejasadhev/FBIHM.git"
-          BRANCH=\$(echo \${GITHUB_REF:-\${GITEA_REF:-refs/heads/main}} | sed 's|refs/heads/||')
-          git -c http.sslVerify=false fetch --depth=1 origin "\$BRANCH" || echo "⚠️ Unable to fetch origin; continuing with current workspace files."
-          if git show-ref --verify --quiet "refs/remotes/origin/\$BRANCH"; then
-            git checkout -f "\$BRANCH"
+          GITEA_USER=${GITEA_USER:-bejasadhev}
+          GITEA_PASS=${GITEA_PASS:-c9c26cbf2848ed0fae42be648099b028e005e0fd}
+          git remote add origin "https://${GITEA_USER}:${GITEA_PASS}@thesis.fbihm.online/bejasadhev/FBIHM.git"
+          BRANCH=$(echo ${GITHUB_REF:-${GITEA_REF:-refs/heads/main}} | sed 's|refs/heads/||')
+          git -c http.sslVerify=false fetch --depth=1 origin "$BRANCH" || echo "⚠️ Unable to fetch origin; continuing with current workspace files."
+          if git show-ref --verify --quiet "refs/remotes/origin/$BRANCH"; then
+            git checkout -f "$BRANCH"
             git reset --hard FETCH_HEAD
           else
-            echo "⚠️ Branch \$BRANCH not available from origin; using workspace files as-is."
+            echo "⚠️ Branch $BRANCH not available from origin; using workspace files as-is."
           fi
 
       - name: Deploy to Remote Server via SSH
