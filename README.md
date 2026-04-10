@@ -9,15 +9,15 @@ The fbihm team Inventory Engine (v2.5.1) is a high-performance, real-time invent
 
 ```mermaid
 graph TD
-    A["User Access"] --> B["Flask Web Server (app.py)"]
-    B --> C["Role-Based Access Control"]
-    B --> D["Socket.io WebSockets"]
-    D --> E["Connected Users & Dashboards"]
-    B --> F["MongoDB"]
-    F --> G["Sales, Items, System Logs, Settings"]
-    B --> H["Background Watchdog"]
-    H --> I["Auto-Recovery / Restart"]
-    B --> J["Notifications / Alerts"]
+    UA[User Access] --> FS[Flask Server]
+    FS --> RB[RBAC]
+    FS --> WS[WebSockets]
+    WS --> CD[Connected Dashboards]
+    FS --> DB[MongoDB]
+    DB --> SI[Sales / Inventory]
+    FS --> WD[Watchdog]
+    WD --> AR[Auto-Restart]
+    FS --> NA[Notifications]
 ```
 
 ---
