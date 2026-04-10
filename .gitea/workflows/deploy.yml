@@ -20,16 +20,16 @@ jobs:
         run: |
           echo "🚀 Refreshing workspace..."
           git init
-          GITEA_USER=${GITEA_USER:-bejasadhev}
-          GITEA_PASS=${GITEA_PASS:-c9c26cbf2848ed0fae42be648099b028e005e0fd}
-          git remote add origin "https://${GITEA_USER}:${GITEA_PASS}@thesis.fbihm.online/bejasadhev/FBIHM.git"
-          BRANCH=$(echo ${GITHUB_REF:-${GITEA_REF:-refs/heads/main}} | sed 's|refs/heads/||')
-          git -c http.sslVerify=false fetch --depth=1 origin "$BRANCH" || echo "⚠️ Unable to fetch origin; continuing with current workspace files."
-          if git show-ref --verify --quiet "refs/remotes/origin/$BRANCH"; then
-            git checkout -f "$BRANCH"
+          GITEA_USER=\${GITEA_USER:-bejasadhev}
+          GITEA_PASS=\${GITEA_PASS:-c9c26cbf2848ed0fae42be648099b028e005e0fd}
+          git remote add origin "https://\${GITEA_USER}:\${GITEA_PASS}@thesis.fbihm.online/bejasadhev/FBIHM.git"
+          BRANCH=\$(echo \${GITHUB_REF:-\${GITEA_REF:-refs/heads/main}} | sed 's|refs/heads/||')
+          git -c http.sslVerify=false fetch --depth=1 origin "\$BRANCH" || echo "⚠️ Unable to fetch origin; continuing with current workspace files."
+          if git show-ref --verify --quiet "refs/remotes/origin/\$BRANCH"; then
+            git checkout -f "\$BRANCH"
             git reset --hard FETCH_HEAD
           else
-            echo "⚠️ Branch $BRANCH not available from origin; using workspace files as-is."
+            echo "⚠️ Branch \$BRANCH not available from origin; using workspace files as-is."
           fi
 
       - name: Deploy to Remote Server via SSH
@@ -39,42 +39,56 @@ jobs:
           REMOTE_HOST="74.208.174.70"
           TARGET_DIR="/home/eujyrn/Desktop/flask_mongo_app"
           
-          echo "🚀 Syncing to $REMOTE_HOST..."
-          # Protect .env and logs, but clear old code
-          sshpass -p "$SSH_PASS" ssh -o StrictHostKeyChecking=no $REMOTE_USER@$REMOTE_HOST \
-            "find $TARGET_DIR -maxdepth 1 -type f -not -name 'app.log' -not -name '.env' -not -name 'watchdog.log' -delete"
+          echo "🚀 Syncing to \$REMOTE_HOST..."
           
-          sshpass -p "$SSH_PASS" rsync -avzc -e "ssh -o StrictHostKeyChecking=no" \
-            --exclude 'venv/' --exclude 'data/' --exclude '.git/' \
-            ./ $REMOTE_USER@$REMOTE_HOST:$TARGET_DIR/
-          
-          sshpass -p "$SSH_PASS" ssh -o StrictHostKeyChecking=no $REMOTE_USER@$REMOTE_HOST "
-            cd /home/eujyrn/Desktop/flask_mongo_app
-            
-            # Kill existing watchdog and app to ensure fresh start
+          # 1. STOP EVERYTHING FIRST (Prevents file locks during rsync)
+          sshpass -p "\$SSH_PASS" ssh -o StrictHostKeyChecking=no \$REMOTE_USER@\$REMOTE_HOST "
             pkill -f 'watchdog.sh' || true
+            pkill -f 'gunicorn' || true
             pkill -f 'app.py' || true
+            pkill -f 'wsgi.py' || true
             fuser -k 5000/tcp || true
+          "
+
+          # 2. SYNC NEW CODE (Excluding runtime artifacts)
+          sshpass -p "\$SSH_PASS" rsync -avzc -e "ssh -o StrictHostKeyChecking=no" \
+            --exclude 'venv/' --exclude 'data/' --exclude '.git/' \
+            --exclude 'app.log' --exclude 'watchdog.log' --exclude '.env' \
+            ./ \$REMOTE_USER@\$REMOTE_HOST:\$TARGET_DIR/
+          
+          # 3. INITIALIZE ENVIRONMENT AND START WATCHDOG
+          sshpass -p "\$SSH_PASS" ssh -o StrictHostKeyChecking=no \$REMOTE_USER@\$REMOTE_HOST "
+            cd \$TARGET_DIR
             
-            if [ ! -d 'venv' ]; then python3 -m venv venv; fi
+            # Ensure virtual environment
+            if [ ! -d 'venv' ]; then 
+                echo '📦 Creating Virtual Environment...'
+                python3 -m venv venv
+            fi
+            
             source venv/bin/activate
-            pip install -r requirements.txt
+            echo '📦 Installing Dependencies...'
+            pip install --quiet -r requirements.txt
             
-            echo '🔄 Starting System Watchdog...'
+            echo '🔄 Starting System Watchdog v3.0...'
             chmod +x watchdog.sh
-            # Start watchdog in background, fully detached
+            
+            # Start watchdog in background, fully detached from this SSH session
             nohup ./watchdog.sh > watchdog.log 2>&1 < /dev/null &
             
-            echo '⌛ Waiting for watchdog to start the app...'
+            echo '⌛ Waiting for watchdog to initialize Gunicorn...'
             sleep 15
             
-            if pgrep -f 'venv/bin/python3 app.py' > /dev/null; then
-              echo '✅ SUCCESS: Watchdog has started the App.'
-              echo '--- Recent app.log ---'
-              tail -n 10 app.log
+            # 4. VALIDATION
+            if pgrep -f 'gunicorn' > /dev/null; then
+              echo '✅ SUCCESS: Gunicorn is running on Port 5000.'
+              curl -I http://127.0.0.1:5000/health
             else
-              echo '❌ ERROR: App not started yet. Check watchdog.log:'
+              echo '❌ ERROR: App failed to start. Check logs below:'
+              echo '--- watchdog.log ---'
               tail -n 20 watchdog.log
+              echo '--- app.log ---'
+              tail -n 20 app.log
               exit 1
             fi
           "
