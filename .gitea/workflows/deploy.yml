@@ -39,10 +39,10 @@ jobs:
           REMOTE_HOST="74.208.174.70"
           TARGET_DIR="/home/eujyrn/Desktop/flask_mongo_app"
           
-          echo "🚀 Syncing to \$REMOTE_HOST..."
+          echo "🚀 Syncing to $REMOTE_HOST..."
           
           # 1. STOP EVERYTHING FIRST (Prevents file locks during rsync)
-          sshpass -p "\$SSH_PASS" ssh -o StrictHostKeyChecking=no \$REMOTE_USER@\$REMOTE_HOST "
+          sshpass -p "$SSH_PASS" ssh -o StrictHostKeyChecking=no $REMOTE_USER@$REMOTE_HOST "
             pkill -f 'watchdog.sh' || true
             pkill -f 'gunicorn' || true
             pkill -f 'app.py' || true
@@ -51,14 +51,14 @@ jobs:
           "
 
           # 2. SYNC NEW CODE (Excluding runtime artifacts)
-          sshpass -p "\$SSH_PASS" rsync -avzc -e "ssh -o StrictHostKeyChecking=no" \
+          sshpass -p "$SSH_PASS" rsync -avzc -e "ssh -o StrictHostKeyChecking=no" \
             --exclude 'venv/' --exclude 'data/' --exclude '.git/' \
             --exclude 'app.log' --exclude 'watchdog.log' --exclude '.env' \
-            ./ \$REMOTE_USER@\$REMOTE_HOST:\$TARGET_DIR/
+            ./ $REMOTE_USER@$REMOTE_HOST:$TARGET_DIR/
           
           # 3. INITIALIZE ENVIRONMENT AND START WATCHDOG
-          sshpass -p "\$SSH_PASS" ssh -o StrictHostKeyChecking=no \$REMOTE_USER@\$REMOTE_HOST "
-            cd \$TARGET_DIR
+          sshpass -p "$SSH_PASS" ssh -o StrictHostKeyChecking=no $REMOTE_USER@$REMOTE_HOST "
+            cd $TARGET_DIR
             
             # Ensure virtual environment
             if [ ! -d 'venv' ]; then 
