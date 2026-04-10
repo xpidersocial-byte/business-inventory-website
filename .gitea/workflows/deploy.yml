@@ -56,7 +56,7 @@ jobs:
             --exclude 'app.log' --exclude 'watchdog.log' --exclude '.env' \
             ./ $REMOTE_USER@$REMOTE_HOST:$TARGET_DIR/
           
-          # 3. INITIALIZE ENVIRONMENT AND START WATCHDOG
+          # 3. INITIALIZE ENVIRONMENT AND START FLASK APP
           sshpass -p "$SSH_PASS" ssh -o StrictHostKeyChecking=no $REMOTE_USER@$REMOTE_HOST "
             cd $TARGET_DIR
             
@@ -70,23 +70,18 @@ jobs:
             echo '📦 Installing Dependencies...'
             pip install --quiet -r requirements.txt
             
-            echo '🔄 Starting System Watchdog v3.0...'
-            chmod +x watchdog.sh
+            echo '🔄 Starting Flask Application...'
+            nohup venv/bin/python3 app.py > app.log 2>&1 < /dev/null &
             
-            # Start watchdog in background, fully detached from this SSH session
-            nohup ./watchdog.sh > watchdog.log 2>&1 < /dev/null &
-            
-            echo '⌛ Waiting for watchdog to initialize Gunicorn...'
-            sleep 15
+            echo '⌛ Waiting for the app to initialize...'
+            sleep 10
             
             # 4. VALIDATION
-            if pgrep -f 'gunicorn' > /dev/null; then
-              echo '✅ SUCCESS: Gunicorn is running on Port 5000.'
+            if pgrep -f 'venv/bin/python3 app.py' > /dev/null; then
+              echo '✅ SUCCESS: Flask app is running on Port 5000.'
               curl -I http://127.0.0.1:5000/health
             else
               echo '❌ ERROR: App failed to start. Check logs below:'
-              echo '--- watchdog.log ---'
-              tail -n 20 watchdog.log
               echo '--- app.log ---'
               tail -n 20 app.log
               exit 1
