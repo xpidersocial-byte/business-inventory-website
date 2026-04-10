@@ -21,7 +21,14 @@ cd "$PROJECT_DIR" || exit 1
 echo "$(date): Watchdog v3.0 started monitoring..." >> "$LOG_FILE"
 
 compute_code_hash() {
-    find "$PROJECT_DIR" ${EXCLUDE_PATHS[@]/#/ -path } -prune -o -type f $WATCH_EXTENSIONS -print0 \
+    local find_excludes=()
+    for path in "${EXCLUDE_PATHS[@]}"; do
+        find_excludes+=( -path "$path" -o )
+    done
+    # Remove trailing -o
+    unset 'find_excludes[${#find_excludes[@]}-1]'
+
+    find "$PROJECT_DIR" \( "${find_excludes[@]}" \) -prune -o -type f $WATCH_EXTENSIONS -print0 \
       | sort -z \
       | xargs -0 sha1sum 2>/dev/null \
       | sha1sum \
