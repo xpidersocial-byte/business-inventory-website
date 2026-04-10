@@ -199,18 +199,22 @@
     <!-- Sidebar: Done Items -->
     <div class="col-lg-3">
         <div class="done-sidebar">
-            <h6 class="text-uppercase fw-bold small mb-4 d-flex justify-content-between" style="color: var(--text-muted);">
+            <h6 class="text-uppercase fw-bold small mb-4 d-flex justify-content-between align-items-center" style="color: var(--text-muted);">
                 <span><i class="bi bi-check2-all me-2"></i>Completed</span>
-                <i class="bi bi-archive"></i>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="purgeDone()">
+                        <i class="bi bi-trash-fill me-1"></i>Purge All
+                    </button>
+                    <i class="bi bi-archive"></i>
+                </div>
             </h6>
 
             {% set done_count = 0 %}
-            {% for note in notes %}
-            {% if note.status == 'done' %}
+            {% for note in done_notes %}
             {% set done_count = done_count + 1 %}
             <div class="done-card">
                 <div class="d-flex justify-content-between align-items-start mb-2">
-                    <span class="countdown-timer" data-done-at="{{ note.done_at }}">
+                    <span class="countdown-timer" data-done-at="{{ note.done_at_str }}">
                         <i class="bi bi-clock-history"></i> ...
                     </span>
                     <button class="btn btn-link p-0 small" onclick="toggleStatus(this.dataset.id)" data-id="{{ note._id }}" style="color: var(--text-muted);" title="Restore">
@@ -223,7 +227,6 @@
                     <div class="text-success"><i class="bi bi-check-all me-1"></i>{{ note.done_by.split('@')[0] if note.done_by else 'Unknown' }}</div>
                 </div>
             </div>
-            {% endif %}
             {% endfor %}
 
             {% if done_count == 0 %}
@@ -273,7 +276,9 @@
                 </div>
                 <div class="modal-footer border-0 p-4 pt-0">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary px-4 fw-bold">Post Bulletin</button>
+                    <button type="submit" class="btn btn-primary px-4 fw-bold" id="addBulletinButton">
+                        <span class="button-label">Post Bulletin</span>
+                    </button>
                 </div>
             </form>
         </div>
@@ -329,14 +334,26 @@
 <script>
     async function handleBulletinSubmit(event, url) {
         event.preventDefault();
+        const submitButton = event.target.querySelector('button[type="submit"]');
+        const buttonLabel = submitButton ? submitButton.innerHTML : 'Saving...';
+
+        if (submitButton) {
+            submitButton.disabled = true;
+            submitButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Saving...';
+        }
+
         const formData = new FormData(event.target);
         const res = await offlineSafePost(url, formData);
-        
+
         if (res.ok) {
             bootstrap.Modal.getInstance(event.target.closest(".modal")).hide();
             event.target.reset();
             location.reload();
         } else {
+            if (submitButton) {
+                submitButton.disabled = false;
+                submitButton.innerHTML = buttonLabel;
+            }
             const data = await res.json().catch(() => ({}));
             alert(data.message || "Failed to save bulletin.");
         }
@@ -401,6 +418,25 @@
         }
     }
 
+    async function purgeDone() {
+        const result = await Swal.fire({
+            title: 'Purge all completed bulletins?',
+            text: 'This will permanently delete every completed bulletin.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            confirmButtonText: 'Yes, Purge All'
+        });
+        if (!result.isConfirmed) return;
+
+        const res = await offlineSafePost('/bulletin/purge_done', {});
+        if (res.ok) {
+            location.reload();
+        } else {
+            Swal.fire('Error', 'Failed to purge completed bulletins.', 'error');
+        }
+    }
+
     function prepareEditModal(dataset) {
         const modal = document.getElementById('editNoteModal');
         const form = document.getElementById('editNoteForm');
@@ -421,11 +457,43 @@
 
     function parseDoneAt(value) {
         if (!value) return null;
-        let normalized = String(value).trim().replace(' ', 'T');
-        if (normalized.includes('.')) {
-            normalized = normalized.replace(/\.(\d{3})\d*$/, '.$1');
+        if (value instanceof Date) return value;
+
+        let normalized = value;
+        if (typeof normalized === 'object' && normalized !== null) {
+            if (normalized.$date) {
+                normalized = normalized.$date;
+            } else {
+                normalized = JSON.stringify(normalized);
+            }
         }
-        return new Date(normalized);
+
+        normalized = String(normalized).trim();
+        if (!normalized) return null;
+
+        const mongoDateMatch = normalized.match(/\{\s*['\"]\$date['\"]\s*:\s*['\"]([^'\"]+)['\"]\s*\}/);
+        if (mongoDateMatch) {
+            normalized = mongoDateMatch[1];
+        }
+
+        if (/^\d{4}-\d{2}-\d{2}T/.test(normalized)) {
+            const parsedIso = new Date(normalized);
+            if (!isNaN(parsedIso.getTime())) {
+                return parsedIso;
+            }
+        }
+
+        normalized = normalized.replace(/\s+/, 'T');
+        let parsed = new Date(normalized);
+        if (!isNaN(parsed.getTime())) return parsed;
+
+        if (normalized.includes('T')) {
+            const alt = normalized.replace('T', ' ');
+            const parsedAlt = new Date(alt);
+            return isNaN(parsedAlt.getTime()) ? null : parsedAlt;
+        }
+
+        return null;
     }
 
     function formatDuration(ms) {
