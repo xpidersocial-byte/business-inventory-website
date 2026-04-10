@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - v2
+      - main
 
 jobs:
   deploy:
@@ -46,15 +47,15 @@ jobs:
             pip install -r requirements.txt
             
             echo "🔄 Restarting Flask Application..."
-            # Force kill any process on 5000
+            # Stop existing app processes and free port 5000
+            pkill -f "venv/bin/python3 app.py" || true
             fuser -k 5000/tcp || true
-            
+
             # Start the app and fully detach
             # Redirecting stdin (< /dev/null) is the key to preventing SSH hangs
             nohup venv/bin/python3 app.py > app.log 2>&1 < /dev/null &
             
-            # Brief wait to ensure it didn't immediate crash
-            sleep 3
+            # Brief wait to ensure it did not immediately crash
             if pgrep -f "venv/bin/python3 app.py" > /dev/null; then
               echo "✅ App is successfully running in background."
             else

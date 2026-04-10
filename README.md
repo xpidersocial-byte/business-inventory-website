@@ -22,7 +22,8 @@ The website itself is hosted **locally on the server** (outside of a container).
 ### 3. Automation Layer (Gitea Actions)
 We utilize **Workflows (CI/CD)** to make updating the website seamless.
 *   **Process:** Whenever code is pushed to the `v2` or `main` branches on Gitea, a workflow automatically triggers.
-*   **Method:** The workflow uses **Secure SSH and Rsync** to sync the latest files to the server and restart the application with zero manual intervention.
+*   **Method:** The workflow uses **Secure SSH and Rsync** to sync the latest files to the server, install any required Python dependencies, and restart the Flask application automatically.
+*   **Auto-Restart:** The remote deploy step stops any running app on port `5000`, launches the Flask app in the server virtual environment, and verifies that the process started successfully.
 
 ---
 
