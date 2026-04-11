@@ -9,28 +9,31 @@ The study employed an **Applied Research** design using the **Experimental Softw
 
 ## 2. Software Development Life Cycle (SDLC)
 We utilized the **Agile Development Model**, specifically **Scrum**, which allowed for:
-- **Sprints:** Developing individual modules (Auth, Inventory, POS) in 2-week cycles.
+- **Sprints:** Developing individual modules (Auth, Inventory, POS, Reporting) in 2-week cycles.
 - **Continuous Feedback:** Testing the UI with potential users early in the process.
-- **Flexibility:** Easily migrating from SQLite to MongoDB when scalability requirements became clear.
+- **Flexibility:** Migrating from SQLite to MongoDB Atlas and implementing strict ISO 8601 data standards when precision requirements became clear.
 
 ## 3. Data Collection Methods
-- **Interviews:** Informal discussions with 3 small business owners to identify "pain points" in their current manual systems.
-- **Observation:** Watching the current checkout process in local "Sari-sari" stores to understand high-speed transaction needs.
-- **System Logs:** Automatically generated logs during the testing phase to identify common user errors and system crashes.
+- **Interviews:** Informal discussions with small business owners to identify "pain points" in their current manual systems.
+- **Observation:** Watching the current checkout process in local stores to understand high-speed transaction needs.
+- **System Logs:** Automatically generated logs with ISO 8601 timestamps used to identify common user errors and system crashes during the pilot phase.
 
 ## 4. Technical Stack Justification
-- **Python (Flask):** Chosen for its rapid development capabilities and extensive library support for data processing (Pandas).
-- **MongoDB:** Chosen over SQL to handle the "Unstructured" nature of retail items (where different items have different metadata).
-- **SocketIO:** Chosen to fulfill the requirement for **Real-Time Visibility**, essential for preventing double-selling of the last stock item.
+- **Python (Flask):** Chosen for its rapid development and extensive library support for data processing (Pandas) and imaging (Pillow).
+- **MongoDB Atlas:** Chosen to handle the "Unstructured" nature of retail items and provide cloud-native data persistence.
+- **ISO 8601 Standardization:** Implemented to ensure global sortability and prevent date-parsing errors in business analytics.
+- **SocketIO:** Chosen to fulfill the requirement for **Real-Time Visibility**, essential for preventing double-selling.
 
 ## 5. Development Phases
-1.  **Requirement Analysis:** Defining the core features (Stock tracking, POS, Reporting).
-2.  **System Design:** Drafting the NoSQL schema and the "Facebook-style" UI wireframes.
+1.  **Requirement Analysis:** Defining core features (Stock tracking, POS, Reporting).
+2.  **System Design:** Drafting the NoSQL schema and "Facebook-style" wireframes.
 3.  **Implementation:** Coding the Flask backend and dynamic JavaScript frontend.
-4.  **Integration & Testing:** Connecting the modules and running stress tests on the database.
-5.  **Deployment:** Setting up the GitHub Actions CI/CD and the 24/7 Watchdog daemon.
+4.  **Branding Engine:** Integrating Pillow for dynamic logo and profile picture embedding in reports.
+5.  **Integration & Testing:** Connecting modules and running stress tests on the database.
+6.  **Deployment:** Setting up the Gitea CI/CD workflow and the 24/7 Watchdog daemon.
 
 ## 6. Verification & Validation
 - **Functional Testing:** Ensuring every button and route performs its intended action.
-- **Performance Testing:** Measuring the response time of the POS checkout under simulated load.
-- **User Validation:** A final walkthrough with a store manager to confirm that the system meets business needs.
+- **Data Integrity Audit:** Verifying that all transactions follow the ISO 8601 standard.
+- **Performance Testing:** Measuring response time of the POS checkout under simulated load.
+- **User Validation:** A final walkthrough with a store manager to confirm that the system meets branded reporting needs.
