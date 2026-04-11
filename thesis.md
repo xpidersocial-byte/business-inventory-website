@@ -123,5 +123,25 @@ sequenceDiagram
 
 **A5:** While GitHub is standard for public projects, Gitea was chosen for this thesis to demonstrate **self-hosted infrastructure control**. By managing our own Git remote (`thesis.fbihm.online`), we ensure that the business source code remains private and that the owner has 100% control over the deployment pipeline. This aligns with the "privacy-first" approach of small business software.
 
+**Q6: What is the purpose of the "Watchdog Daemon" (`watchdog.sh`) and why is it superior to manual restarts?**
+
+**A6:** The Watchdog is a **resilience mechanism**. In a production environment, small errors (like a momentary MongoDB timeout or memory spike) could crash the Flask process. Manual restarts lead to downtime and lost sales. Our Watchdog script runs as a background process that monitors the **PID (Process ID)** of the web server. If it detects the server is down, it automatically kills any hanging sockets and relaunches the application in under 3 seconds. This ensures **High Availability** for the business.
+
+**Q7: How does the system handle "Offline Mode" and why is it important for small businesses?**
+
+**A7:** We implemented a **Service Worker (PWA)** strategy. Small businesses often face unstable internet. When the system is loaded once, the Service Worker caches the core UI (HTML/CSS/JS). If the internet drops, the user sees a professional "Offline Dashboard" rather than a browser error page. While sales require a database connection, the ability to view documentation and cached inventory lists offline ensures the business doesn't "go dark" during a technical outage.
+
+**Q8: Explain the security implications of the Role-Based Access Control (RBAC) implemented in the middleware.**
+
+**A8:** Security is handled at the **Blueprint level** using Python decorators (`@role_required`). We don't just hide buttons in the UI; we validate the user's session role on the server before every request. For example, if a Cashier tries to manually type the URL for the `/admin` settings, the middleware intercepts the request, logs the unauthorized attempt, and redirects them to the dashboard. This prevents **Privilege Escalation** attacks.
+
+**Q9: Why did you choose Flask over larger frameworks like Django for this specific project?**
+
+**A9:** Flask was chosen for its **micro-architecture** and flexibility. Inventory systems for small businesses need to be fast and lightweight. Flask allowed us to build only what we needed (REST API + WebSockets) without the overhead of a massive built-in ORM. It also allowed students to gain a deeper understanding of how HTTP requests, sessions, and routing work "under the hood," which is more educationally valuable than using a "batteries-included" framework where much of the logic is hidden.
+
+**Q10: How does the system ensure "Atomic Operations" during a sale?**
+
+**A10:** In inventory management, "Race Conditions" occur if two cashiers sell the last item at the exact same millisecond. We use **MongoDB Atomic Operators** like `$inc` (increment/decrement). When a sale happens, the database command tells MongoDB to "subtract 1 from stock" directly on the server. This is an atomic operation, meaning the database guarantees that even if 100 sales happen at once, the stock count will always be perfectly accurate.
+
 ---
 **Last Updated: 2026-04-11 | Thesis Version 2.6.0**
