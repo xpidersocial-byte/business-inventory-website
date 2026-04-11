@@ -101,6 +101,19 @@ def add_item():
         })
         undo_id = save_undo_log("ADD_ITEM", res.inserted_id)
         log_action("ADD_ITEM", f"Added: {name}")
+        
+        # If initial stock is > 0, record it in inventory_log so dashboard reflects 'Stock Added'
+        if stock > 0:
+            ts = datetime.now().strftime('%Y-%m-%d %I:%M:%S %p')
+            get_inventory_log_collection().insert_one({
+                "item_name": name,
+                "type": "IN",
+                "qty": stock,
+                "user": session.get('email', 'System'),
+                "timestamp": ts,
+                "new_stock": stock,
+                "details": "Initial stock upon item creation"
+            })
         send_email_notification(
             "New Item Added",
             f"A new inventory item was added.\n\nItem: {name}\nCategory: {category}\nMenu: {menu}\nCost: ₱{cost_price:.2f} | Retail: ₱{retail_price:.2f}\nAdded by: {session.get('email')}\nTime: {datetime.now().strftime('%Y-%m-%d %I:%M %p')}",
