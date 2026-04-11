@@ -105,7 +105,8 @@ def add_sale():
                 log_action("SALE", f"Sold: {qty} x {item['name']} for ₱{total}")
 
                 send_email_notification("New Sale Recorded", f"A new sale was recorded: {qty} x '{item['name']}' for {total}.", notif_type="sales")
-                
+    
+    # 4. Tag the original OUT log as refunded so it is excluded from dashboard/summaries
                 undo_url = url_for('inventory.undo_action', undo_id=undo_id)
                 flash(Markup(f"Sale recorded! Stock deducted for {item['name']}. <a href='{undo_url}' class='alert-link fw-bold ms-2 text-decoration-underline'>Undo</a>"), "success")
             else:
@@ -164,6 +165,12 @@ def refund_sale(id):
     log_action("SALE_REFUND", f"Refunded: {qty} x {item_name} (Trans ID: {id})")
     send_email_notification("Transaction Refunded", f"A transaction was refunded by {session['email']}: {qty} x '{item_name}'.", notif_type="sales")
     
+    # 4. Tag the original OUT log as refunded so it is excluded from dashboard/summaries
+    inventory_log_collection.update_one(
+        {"item_name": item_name, "qty": qty, "type": "OUT", "timestamp": sale.get('date')},
+        {"$set": {"refunded": True}}
+    )
+    
     flash(f"Transaction for {item_name} has been refunded and items returned to stock.", "success")
     return redirect(url_for('sales.sales_list'))
 @sales_bp.route('/sales-summary')
@@ -175,7 +182,7 @@ def sales_summary():
     now = datetime.now()
     current_year = now.year
 
-    all_logs = list(inventory_log_collection.find({"type": "OUT"}))
+    all_logs = list(inventory_log_collection.find({"type": "OUT", "refunded": {"$ne": True}}))
     items_by_name = {item['name']: item for item in items_collection.find()}
 
     months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
@@ -306,7 +313,7 @@ def generate_report():
     
     inventory_log_collection = get_inventory_log_collection()
     items_collection = get_items_collection()
-    all_logs = list(inventory_log_collection.find({"type": "OUT"}))
+    all_logs = list(inventory_log_collection.find({"type": "OUT", "refunded": {"$ne": True}}))
     items_by_name = {item['name']: item for item in items_collection.find()}
     
     report_data = []

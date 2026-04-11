@@ -50,7 +50,7 @@ def dashboard():
     processed_items = [calculate_item_metrics(item) for item in raw_items]
     item_details_map = {item['name']: item for item in processed_items}
     
-    sales_logs = list(inventory_log_collection.find({"type": "OUT"}))
+    sales_logs = list(inventory_log_collection.find({"type": "OUT", "refunded": {"$ne": True}}))
     in_logs = list(inventory_log_collection.find({"type": "IN"}))
     
     now = datetime.now()
