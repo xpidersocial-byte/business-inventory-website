@@ -1,7 +1,7 @@
-# fbihm team Inventory Engine: System Summary & Process Map
+# FBIHM team Inventory Engine: System Summary & Process Map
 
 ## 🚀 Overview
-The fbihm team Inventory Engine (v2.5.1) is a high-performance, real-time inventory management and POS system. It is built using a modern technical stack featuring Flask, MongoDB, and WebSockets (Socket.io), designed with a "Hacker-Aesthetic" and enterprise-grade security.
+The FBIHM team Inventory Engine (v2.6.0) is a high-performance, real-time inventory management and POS system. It features a professional "Facebook-inspired" aesthetic with glassmorphism, standardized ISO 8601 data integrity, and enterprise-grade reporting capabilities including custom business branding.
 
 ---
 
@@ -13,81 +13,87 @@ graph TD
     FS --> RB[RBAC]
     FS --> WS[WebSockets]
     WS --> CD[Connected Dashboards]
-    FS --> DB[MongoDB]
+    FS --> DB[MongoDB Atlas]
     DB --> SI[Sales / Inventory]
     FS --> WD[Watchdog]
     WD --> AR[Auto-Restart]
     FS --> NA[Notifications]
+    GT[Gitea Repo] --> FS
 ```
 
 ---
 
-## 🌐 How the System Works: A 6-Step Breakdown
-The fbihm team Inventory Engine operates through a layered architecture designed for high speed and reliability.
+## 🌐 How the System Works: A 7-Step Breakdown
+The FBIHM team Inventory Engine operates through a layered architecture designed for professional environments and high-speed data integrity.
 
-1. The Entry Point (User Access)
-   * Authentication: The Flask Web Server (`app.py`) uses decorators to ensure only authorized users access the system.
-   * Dynamic RBAC: Once logged in, the Role-Based Access Control checks if you are an Owner or Cashier. Owners can dynamically toggle menu visibility for Cashiers through a custom permission matrix.
-2. The "Heartbeat" (Real-time Sync)
-   * WebSockets: The system uses Socket.io for bi-directional communication.
-   * Instant Telemetry: When a sale is made on one device, the server emits a signal that updates the dashboards and stock levels of all other connected users instantly—no page refresh required.
-3. The Data Engine (MongoDB)
-   * Flexible Documents: Every product and sale is stored as a JSON-like document in MongoDB.
-   * Automated Logic: The engine automatically calculates profit, margins, and revenue for every item during a sale, updating the database in real-time.
-4. The Security Guard (Code 67)
-   * Critical Override: Sensitive modifications (like changing Owner account details) require a specialized Security Authorization Code (67). This provides an additional layer of protection against unauthorized local access.
-5. The Self-Healing Brain (Watchdog)
-   * 24/7 Supervision: A background Bash Watchdog Daemon monitors the Flask and MongoDB processes every 10 seconds.
-   * Auto-Recovery: If any core service crashes, the watchdog identifies the failure and restarts the engine automatically within seconds.
-6. Proactive Alerts
-   * Notification Hub: The system monitors inventory thresholds and instantly "pushes" alerts to the Owner via SMTP (Email) and VAPID (Web Push) when stock reaches critical levels.
+1. **Professional Entry Point (User Access)**
+   * **Authentication:** The Flask Web Server (`app.py`) uses specialized decorators to ensure only authorized users access the system.
+   * **Custom UI:** The interface follows a modernized Blue-Light aesthetic with high-density layouts optimized for large-screen monitoring.
+
+2. **Data Integrity Standard (ISO 8601)**
+   * **Global Standard:** The system utilizes strict ISO 8601 sortable date-time formats (`YYYY-MM-DDTHH:MM:SS`) across all business logs.
+   * **Robust Parsing:** A centralized utility ensures legacy and new date formats are parsed safely, preventing application crashes during data migration.
+
+3. **The "Heartbeat" (Real-time Sync)**
+   * **WebSockets:** Uses Socket.io for bi-directional communication.
+   * **Instant Badge Updates:** Sidebar notifications for low stock and system alerts are pushed instantly and clear persistently across all connected sessions.
+
+4. **The Data Engine (MongoDB Atlas)**
+   * **Hybrid Schema:** Stores diverse collections including `items`, `sales`, `menus`, and `notes`.
+   * **Standardized Logic:** Atomic updates handle profit margins and automated stock movements to prevent "race conditions" during peak POS hours.
+
+5. **Branded Intelligence (Reporting Engine)**
+   * **Dynamic Reports:** Generates professional PDF, Word, and Excel sales summaries.
+   * **Custom Branding:** Owners can upload business logos and profile pictures that are automatically embedded into generated reports using the Pillow imaging engine.
+
+6. **The Self-Healing Brain (Watchdog)**
+   * **24/7 Supervision:** A background Bash daemon monitors the Flask and MongoDB processes every 10 seconds.
+   * **Auto-Recovery:** If any core service crashes, the watchdog identifies the failure and restarts the engine automatically.
+
+7. **Proactive Alerts & Maintenance**
+   * **Notification Hub:** Pushes real-time alerts for low stock thresholds.
+   * **Data Purge:** A master maintenance mode allows for clean system resets, wiping all business history while preserving user accounts and settings.
 
 ---
 
 ## 🤖 Automation & Self-Healing
-The system is designed for Zero-Intervention Operations, using background daemons and automated logic to maintain 24/7 uptime and data integrity.
+The system is designed for **Zero-Intervention Operations**, maintaining 24/7 uptime through background automation.
 
-1. Self-Healing Watchdog (`watchdog.sh`)
-   * Continuous Monitoring: A background Bash daemon polls the system every 10 seconds.
-   * Auto-Recovery:
-     * MongoDB: If the database service crashes, the watchdog auto-forks a new mongod instance.
-     * Flask Engine: If the web server dies, the watchdog triggers a nohup restart immediately.
-2. Automated Health Scanner (`scanner.py`)
-   * Crawler Logic: Systematically traverses the internal site structure (up to 50 pages).
-   * Broken Link Detection: Automatically identifies 404 errors and 500 server errors across all routes.
-   * Security Audit: Proactively checks for missing headers and probes for exposed sensitive files.
+1. **Self-Healing Watchdog (`watchdog.sh`)**
+   * **Process Monitoring:** Continuous polling ensures the server engine remains active.
+   * **Session Persistence:** Notification badges and UI states are maintained through server-side state management.
+
+2. **Automated Health Scanner (`scanner.py`)**
+   * **Crawler Logic:** Automatically identifies 404/500 errors across all routes.
+   * **Security Audit:** Proactively checks for missing headers and prevents sensitive file exposure.
 
 ---
 
-## 🎓 Educational Advantages: Why this Stack for Students?
-The fbihm team Inventory Engine is an ideal learning platform for students exploring full-stack engineering.
+## 🎓 Educational Advantages
+The FBIHM team Inventory Engine is an ideal learning platform for students exploring full-stack engineering and professional system standards.
 
-1. Python & Flask (The "Micro" Advantage)
-   * Readability: Python's clean syntax allows students to focus on logic rather than boilerplate.
-   * Fundamentals: Flask is a "micro-framework" that teaches the core principles of HTTP, routing, and middleware.
-2. MongoDB (Schema Flexibility)
-   * NoSQL Learning: Students can explore data relationships without the steep learning curve of complex SQL joins.
-   * JSON-Native: Seamless data flow between the frontend (JS) and backend (Python).
-3. Real-World Patterns
-   * WebSockets: Teaches real-time bi-directional communication.
-   * Reliability: Introduces concepts of system monitoring and process auto-recovery.
+1. **Python & Flask (The "Micro" Advantage)**
+   * **Modular Blueprints:** Teaches students how to break down complex apps into manageable sections (Auth, Sales, Inventory, Admin).
+   * **Async Patterns:** Demonstrates how to handle concurrent real-time events.
+
+2. **Standardized Data Handling**
+   * **ISO Standards:** Teaches the importance of sortable, global date-time formats in business software.
+   * **Imaging Logic:** Shows how to manipulate media (Pillow) for professional output generation.
 
 ---
 
 ## 🛠️ Technical Components
-1. Backend Layer (Flask 3.x)
-   * Eventlet: Monkey-patched for high concurrency and async execution.
-   * Socket.io: Powers real-time telemetry and instant synchronization.
-2. Storage Layer (MongoDB)
-   * Collections: users, items, sales, system_logs, categories, notes, subscriptions, settings.
+1. **Backend Layer:** Flask 3.x, Socket.io, Pillow (Imaging), FPDF (PDF Generation).
+2. **Storage Layer:** MongoDB Atlas (Remote Cluster).
+3. **CI/CD:** Integrated Gitea deployment workflow.
 
 ---
 
 ## 🔑 Security & Guardrails
-* Code 67: A specialized security authorization code for critical account changes.
-* Audit Integrity: Proxy-aware IP address tracking for every system modification.
-* Maintenance Mode: Owner-controlled lock for updates and data restoration.
+* **Master Authorization:** Critical overrides require specialized codes and owner-level role checks.
+* **Master Purge:** Surgical deletion of business records to ensure data privacy during handover.
+* **Audit Integrity:** Comprehensive tracking of IP addresses and timestamps for every system modification.
 
 ---
 
-Created on 2026-03-12 | fbihm team Technical Documentation
+**Last Updated: 2026-04-11 | FBIHM team Technical Documentation v2.6.0**

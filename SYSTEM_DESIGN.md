@@ -1,57 +1,60 @@
 # System Design & Architecture: FBIHM Inventory Engine
 
-This document provides a technical blueprint of the **FBIHM Inventory Engine**, explaining how the different components interact.
+This document provides a technical blueprint of the **FBIHM Inventory Engine**, explaining the interaction between its professional data layers and real-time event systems.
 
 ---
 
 ## 1. High-Level Architecture
-The system follows a **Monolithic Modular Architecture** built on the **Model-View-Controller (MVC)** pattern.
+The system follows a **Monolithic Modular Architecture** built on the **Model-View-Controller (MVC)** pattern, optimized for professional performance.
 
-- **Model:** MongoDB Collections (Data storage).
-- **View:** HTML Templates rendered via Jinja2 (User interface).
-- **Controller:** Flask Routes and Blueprints (Business logic).
+- **Model:** MongoDB Atlas Collections (Hybrid BSON data storage).
+- **View:** HTML Templates rendered via Jinja2 with modern Blue-Light / Facebook styling.
+- **Controller:** Flask Blueprints (`auth`, `pos`, `sales`, `inventory`, `admin`, `developer`).
 
 ---
 
-## 2. Data Flow Diagram (DFD)
+## 2. Professional Data Flow (ISO 8601)
 1.  **Input:** A cashier clicks "Sell" on the POS screen.
 2.  **Processing:** 
-    - The Frontend (JS) sends a JSON payload to `/pos/checkout`.
-    - The Backend (Flask) validates the stock in MongoDB.
-    - If valid, the Backend deducts stock using `$inc`.
-    - A record is added to the `purchase` and `inventory_log` collections.
+    - The Backend validates stock and Issuer credentials.
+    - Every transaction is timestamped using a **Strict ISO 8601 Format** (`YYYY-MM-DDTHH:MM:SS`).
+    - A specialized utility, `core.utils.parse_timestamp`, ensures all historical and incoming data is handled safely across modules.
 3.  **Real-time Update:** 
-    - The server emits a `dashboard_update` event via SocketIO.
-    - All connected clients refresh their charts and badges instantly.
-4.  **Output:** A PDF receipt is generated, and an email alert is sent if stock is low.
+    - The server emits `dashboard_update` and `notification_clear` events via SocketIO.
+    - System badges and charts update instantly across all active sessions.
+4.  **Reporting:** 
+    - The Reporting Engine pulls clean ISO data.
+    - **Pillow (PIL)** processes business logos and profile pics.
+    - Professional PDFs, Word docx, and Excel files are generated with full branding.
 
 ---
 
 ## 3. Database Schema (NoSQL)
-The system uses **MongoDB**, which stores data in flexible BSON documents.
-
 ### Key Collections:
-- **`users`:** Stores login credentials, roles (Owner/Cashier), and profile preferences.
-- **`items`:** Central inventory repository (name, cost, retail, current stock, category).
-- **`purchase`:** Transaction history (linked to items and user emails).
-- **`inventory_log`:** Audit trail for every stock movement ("IN" or "OUT").
-- **`settings`:** Global system configuration (Business name, thresholds, SMTP).
+- **`users`:** Credentials, RBAC roles, and individual `profile_pic` paths.
+- **`items`:** Central inventory with dynamic categories.
+- **`purchase` / `sales`:** Transaction logs with revenue and profit metrics.
+- **`menus`:** Structural data for the navigation system.
+- **`inventory_log`:** Detailed audit trail of all "IN" and "OUT" movements.
+- **`settings`:** Global config storage, including `business_logo` and `thresholds`.
 
 ---
 
-## 4. Frontend Components
-- **Dashboard:** Uses **Chart.js** to render data visualization layers.
-- **POS Screen:** A single-page interface managed by vanilla JavaScript for fast cart interactions.
-- **Service Worker (`sw.js`):** Manages the PWA cache for offline availability.
+## 4. Professional Frontend Components
+- **Dashboard:** Chart.js integration for real-time sales telemetry.
+- **Sidebar Persistence:** Dynamic badge management for low stock and messages.
+- **Glassmorphic UI:** Modern CSS architecture using variables for themed "Facebook" aesthetics.
 
 ---
 
-## 5. Backend Service Modules
-- **Metric Engine:** A specialized module (`calculate_item_metrics`) that computes profit margins and stock status on-the-fly.
-- **Communication Layer:** Handles SMTP (Email) and VAPID (Web Push) protocols.
-- **Security Layer:** Implements RBAC checks and CSP header injection.
+## 5. Security & Processing Modules
+- **Metric Engine:** computes real-time profit and sales performance.
+- **Branding Engine:** Utilizing Pillow for RGBA to PNG conversion for report embedding.
+- **Standardization Utility:** `parse_timestamp` provides a global safeguard against malformed date strings.
 
 ---
 
-## 6. Self-Healing Mechanism
-- **The Watchdog:** A background bash script that monitors the `PID` of the Flask app and MongoDB. If a process stops, the script auto-restarts it to maintain 99.9% uptime.
+## 6. Self-Healing & Deployment
+- **Watchdog Daemon:** Monitors PIDs for Flask and MongoDB, providing auto-restart capabilities.
+- **Gitea Integration:** Automated push/repush workflows for continuous integration and versioning.
+- **Master Purge Controller:** Logic for surgical business wipes without compromising system infrastructure.

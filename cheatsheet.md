@@ -6,33 +6,67 @@ This is your "Quick Reference" guide for the defense panel. Use this to find tec
 
 ## 🚀 1. The Project "DNA" (Fast Facts)
 - **Official Name:** FBIHM Inventory Engine
-- **Version:** 2.5.1 (Stable Core)
+- **Version:** 2.6.0 (Stable Core)
 - **Primary Goal:** To bridge the gap between manual record-keeping and complex enterprise software for local SMEs.
 - **Port:** 5000 (Internal)
-- **Deployment:** Local Linux Server with Cloud-Synchronized Database (MongoDB Atlas).
+- **Deployment:** Linux Server with Gitea CI/CD and Remote MongoDB Atlas Cluster.
 
 ---
 
 ## 💻 2. Technology Stack (The "How")
 | Layer | Technology Used | Why? |
 | :--- | :--- | :--- |
-| **Backend** | **Python 3.13** | Powerful for data logic and math. |
-| **Framework** | **Flask 3.1.3** | Micro-framework; lightweight and modular. |
-| **Database** | **MongoDB (NoSQL)** | Flexible; handles diverse item categories easily. |
-| **Real-Time** | **Socket.io** | Instant updates across all connected screens. |
-| **Frontend** | **Vanilla JS (ES6+)** | Fast browser performance without heavy frameworks. |
-| **UI Styling** | **Bootstrap 5.3** | Responsive design; works on tablets and desktops. |
-| **Server Engine** | **Eventlet** | Handles high-concurrency (multiple POS terminals). |
+| **Backend** | **Python 3.13** | Powerful for data logic, imaging, and math. |
+| **Framework** | **Flask 3.1.3** | Modular; clean separation of Auth, POS, and Admin. |
+| **Database** | **MongoDB Atlas** | Cloud-native BSON storage; flexible for dynamic item types. |
+| **Real-Time** | **Socket.io** | Bi-directional pipes for instant state updates. |
+| **Frontend** | **Modern Vanilla JS** | Zero-dependency high speed for POS operations. |
+| **UI Styling** | **CSS3 Glassmorphism**| Professional Blue-Light aesthetic (Facebook-inspired).|
+| **Imaging** | **Pillow (PIL)** | Dynamic branding logic for sales reports. |
 
 ---
 
 ## 🏗️ 3. Architecture & Logic (The "Brain")
+- **Standardization:** **ISO 8601** (`YYYY-MM-DDTHH:MM:SS`). Prevents data corruption and ensures global sortability of business logs.
 - **Pattern:** **MVC (Model-View-Controller)**. 
-    - *Model:* MongoDB documents. 
-    - *View:* Jinja2 HTML templates. 
-    - *Controller:* Flask Blueprints (`auth`, `pos`, `sales`, `inventory`).
-- **PWA (Progressive Web App):** Uses a **Service Worker** (`sw.js`) to cache the store UI, enabling basic navigation even if the server blips.
-- **Self-Healing:** The `watchdog.sh` script polls the system every **10 seconds** to ensure the database and server are always running.
+- **Resilient Logic:** The `watchdog.sh` script monitors the system every **10 seconds**, auto-restarting orphaned Flask processes.
+- **Sync Logic:** Centralized `parse_timestamp` utility handles cross-module date parsing safely.
+
+---
+
+## 🔒 4. Security Shield
+- **RBAC:** Dynamic permissions matrix for Cashiers controlled by the Owner.
+- **Code 67:** Security authorization code required for master account overrides.
+- **Persistent State:** Notification badges are tracked server-side and cleared via Socket.io events to ensure sync across devices.
+
+---
+
+## 📊 5. Key Modules & "Killer" Features
+1.  **Reporting Engine:** Branded PDF, Word, and Excel generation with custom business logos.
+2.  **Notification Hub:** Real-time, persistent badges for low stock and system alerts.
+3.  **POS Standard:** Atomic `$inc` updates and real-time inventory telemetry.
+4.  **Audit Trail:** The `system_logs` and `inventory_log` provide a forensic record with IP and ISO timestamps.
+5.  **Master Purge:** Complete removal of business records while preserving system settings (Owner control).
+
+---
+
+## 🗣️ 6. Vocabulary for the Panel (Glossary)
+- **ISO 8601:** The international standard for date/time (used to ensure our data works worldwide).
+- **Atomic Update:** An all-or-nothing database change (prevents stock errors if the internet blips).
+- **BSON:** Binary JSON (How MongoDB stores our flexible document records).
+- **Socket.io:** The "always-on" connection for instant dashboard updates.
+- **CI/CD:** Continuous Integration/Deployment (Our automated Gitea workflow).
+
+---
+
+## 💡 7. Common "Why" Questions
+- **Why ISO 8601?** "To ensure that reports are always chronologically accurate and to avoid errors caused by different regional date formats."
+- **Why NoSQL?** "Retail products often have different attributes. NoSQL lets a Drink (volume) and a T-shirt (size) live in the same database without complex table joins."
+- **Why Vanilla JS?** "React/Next.js are heavy. Vanilla JS provides the fastest possible response time for a busy Cashier at the POS terminal."
+- **Why local server + Cloud DB?** "The local server keeps the UI fast, while the Cloud DB ensures the data is backed up and safe from hardware failure."
+
+---
+**Last Updated: 2026-04-11 | Thesis Version 2.6.0**
 
 ---
 
