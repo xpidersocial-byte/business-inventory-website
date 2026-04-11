@@ -686,13 +686,27 @@
                 <div id="section-biz-identity" class="admin-section d-none">
                     <div class="feed-card shadow-sm">
                         <h5 class="fw-bold mb-4">Business Profile</h5>
-                        <form action="{{ url_for('admin.update_profile') }}" method="POST">
+                        <form action="{{ url_for('admin.update_profile') }}" method="POST" enctype="multipart/form-data">
                             <input type="hidden" name="form_id" value="identity">
                             <div class="row g-3">
                                 <div class="col-md-6"><label class="form-label">Business Name</label><input type="text" name="business_name" class="form-control" value="{{ site_config.business_name }}"></div>
                                 <div class="col-md-6"><label class="form-label">Contact Email</label><input type="email" name="contact_email" class="form-control" value="{{ site_config.contact_email }}"></div>
                                 <div class="col-md-6"><label class="form-label">Contact Phone</label><input type="text" name="contact_phone" class="form-control" value="{{ site_config.contact_phone }}" placeholder="+63 9XX XXX XXXX"></div>
                                 <div class="col-md-6"><label class="form-label">Business Identifier/Icon</label><input type="text" name="business_icon" class="form-control" value="{{ site_config.business_icon }}" placeholder="bi-box-seam"></div>
+                                <div class="col-md-12">
+                                    <label class="form-label">Business Logo</label>
+                                    <div class="d-flex align-items-center gap-3">
+                                        <div class="border rounded p-1" style="width: 60px; height: 60px;">
+                                            {% if site_config.business_logo %}
+                                                <img src="{{ url_for('static', filename=site_config.business_logo) }}" style="width: 100%; height: 100%; object-fit: contain;">
+                                            {% else %}
+                                                <div class="w-100 h-100 d-flex align-items-center justify-content-center bg-light text-muted small"><i class="bi bi-image"></i></div>
+                                            {% endif %}
+                                        </div>
+                                        <input type="file" name="business_logo" class="form-control" accept="image/*">
+                                    </div>
+                                    <div class="x-small text-muted mt-1">Recommended: 200x200 PNG or JPG. This logo will appear on reports.</div>
+                                </div>
                                 <div class="col-md-12"><label class="form-label">Business Address</label><textarea name="contact_address" class="form-control" rows="2">{{ site_config.contact_address }}</textarea></div>
                                 <div class="col-12 text-end mt-4"><button type="submit" class="btn btn-primary fw-bold">Update Identity</button></div>
                             </div>

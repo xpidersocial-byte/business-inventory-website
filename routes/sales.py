@@ -437,22 +437,33 @@ def generate_report():
         
         filename = f"Sales_Report_{view_type}_{now.strftime('%Y%m%d_%H%M%S')}"
         
-        from flask import current_app
-        logo_path = os.path.join(current_app.root_path, 'static', 'images', 'login_hero.webp')
-        png_path = "/tmp/site_logo.png"
-        
-        if os.path.exists(logo_path) and not os.path.exists(png_path):
-            try:
-                from PIL import Image
-                Image.open(logo_path).convert("RGBA").save(png_path, "PNG")
-            except: pass
-
         # Fetch Site Settings and User Data
         site_config = get_site_config()
         business_name = site_config.get('business_name', 'FBIHM Inventory')
         issuer_email = session.get('email', 'Unknown')
         issuer_ip = request.remote_addr or 'Unknown IP'
+
+        from flask import current_app
+        from PIL import Image
         
+        # 1. Prepare Business Logo
+        logo_path = None
+        if site_config.get('business_logo'):
+            logo_path = os.path.join(current_app.root_path, 'static', site_config.get('business_logo'))
+        else:
+            logo_path = os.path.join(current_app.root_path, 'static', 'images', 'login_hero.webp')
+            
+        png_path = "/tmp/site_logo.png"
+        if os.path.exists(logo_path):
+            try:
+                Image.open(logo_path).convert("RGBA").save(png_path, "PNG")
+            except Exception as e:
+                print(f"DEBUG: Logo conversion failed: {e}")
+                png_path = None
+        else:
+            png_path = None
+
+        # 2. Prepare Issuer Profile Pic
         user_doc = get_users_collection().find_one({"email": issuer_email})
         profile_png = "/tmp/issuer_profile.png"
         profile_pic = None
@@ -460,10 +471,11 @@ def generate_report():
             raw_pic_path = os.path.join(current_app.root_path, 'static', user_doc.get('profile_pic'))
             if os.path.exists(raw_pic_path):
                 try:
-                    from PIL import Image
                     Image.open(raw_pic_path).convert("RGBA").save(profile_png, "PNG")
                     profile_pic = profile_png
-                except: pass
+                except Exception as e:
+                    print(f"DEBUG: Profile pic conversion failed: {e}")
+                    profile_pic = None
 
         # ── Generate chart images matching the sales-summary page ────────────────
         chart_main_path = "/tmp/report_chart_main.png"
@@ -703,9 +715,9 @@ def generate_report():
             try:
                 p = doc.add_paragraph()
                 r = p.add_run()
-                if os.path.exists(png_path):
+                if png_path and os.path.exists(png_path):
                     r.add_picture(png_path, width=Inches(1.0))
-                if profile_pic:
+                if profile_pic and os.path.exists(profile_pic):
                     r.add_text("      ") # Spacer
                     r.add_picture(profile_pic, width=Inches(0.6))
             except Exception as e: print("DEBUG: Word image adding failed -", e)
@@ -744,9 +756,9 @@ def generate_report():
             
             # Add logos on top corners
             try:
-                if os.path.exists(png_path):
+                if png_path and os.path.exists(png_path):
                     pdf.image(png_path, x=10, y=8, w=22)
-                if profile_pic:
+                if profile_pic and os.path.exists(profile_pic):
                     pdf.image(profile_pic, x=175, y=8, w=15)
             except Exception as e: print("DEBUG: PDF image adding failed -", e)
 

@@ -128,6 +128,19 @@ def update_profile():
 
     if update_fields:
         update_fields["updated_at"] = datetime.now()
+        
+        # Identity Section - Handle Logo Upload
+        if form_section == 'identity':
+            logo_file = request.files.get('business_logo')
+            if logo_file and logo_file.filename != '':
+                from werkzeug.utils import secure_filename
+                filename = secure_filename(logo_file.filename)
+                ext = filename.rsplit('.', 1)[1].lower() if '.' in filename else 'png'
+                new_filename = f"business_logo_{int(datetime.now().timestamp())}.{ext}"
+                target_path = os.path.join(current_app.root_path, 'static', 'images', new_filename)
+                logo_file.save(target_path)
+                update_fields["business_logo"] = f"images/{new_filename}"
+
         settings_collection.update_one({"type": "general"}, {"$set": update_fields}, upsert=True)
         log_action("UPDATE_CONFIG", f"Updated settings section: {form_section or 'generic'}")
     
