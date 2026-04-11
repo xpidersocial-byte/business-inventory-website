@@ -365,7 +365,8 @@ def download_backup():
             "system_logs": list(get_system_log_collection().find({}, {'_id': 0})),
             "notes": list(get_notes_collection().find({}, {'_id': 0})),
             "users": list(get_users_collection().find({}, {'_id': 0})),
-            "settings": list(get_settings_collection().find({}, {'_id': 0}))
+            "settings": list(get_settings_collection().find({}, {'_id': 0})),
+            "menus": list(get_menus_collection().find({}, {'_id': 0}))
         }
         filename = f"xpider_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
         from flask import json
@@ -407,7 +408,8 @@ def import_backup():
             "sales": get_sales_collection(),
             "inventory_log": get_inventory_log_collection(),
             "system_logs": get_system_log_collection(),
-            "notes": get_notes_collection()
+            "notes": get_notes_collection(),
+            "menus": get_menus_collection()
         }
         
         for key, coll in collections_map.items():
