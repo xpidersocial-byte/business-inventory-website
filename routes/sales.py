@@ -112,6 +112,60 @@ def add_sale():
                 flash(f"Insufficient stock for {item['name']}!", "danger")
     return redirect(url_for('sales.sales_list'))
 
+
+@sales_bp.route('/sales/refund/<id>', methods=['POST'])
+@login_required
+@role_required('owner')
+def refund_sale(id):
+    purchase_collection = get_purchase_collection()
+    items_collection = get_items_collection()
+    inventory_log_collection = get_inventory_log_collection()
+    
+    sale = purchase_collection.find_one({"_id": ObjectId(id)})
+    if not sale:
+        flash("Transaction not found.", "danger")
+        return redirect(url_for('sales.sales_list'))
+        
+    if sale.get('status') == 'Refunded':
+        flash("This transaction has already been refunded.", "warning")
+        return redirect(url_for('sales.sales_list'))
+        
+    item_name = sale.get('item_name')
+    qty = sale.get('qty', 0)
+    
+    # 1. Update items collection (Restore stock, reverse sold/inventory_out)
+    items_collection.update_one(
+        {"name": item_name},
+        {"$inc": {"stock": qty, "sold": -qty, "inventory_out": -qty}}
+    )
+    
+    # 2. Insert Inventory Log (IN event for return)
+    ts = datetime.now().strftime('%Y-%m-%d %I:%M:%S %p')
+    # Fetch new stock for the log
+    updated_item = items_collection.find_one({"name": item_name})
+    new_stock = updated_item.get('stock', 0) if updated_item else 0
+    
+    inventory_log_collection.insert_one({
+        "item_name": item_name,
+        "type": "IN",
+        "qty": qty,
+        "user": session['email'],
+        "timestamp": ts,
+        "details": f"Refund for transaction {id}",
+        "new_stock": new_stock
+    })
+    
+    # 3. Mark sale as Refunded
+    purchase_collection.update_one(
+        {"_id": ObjectId(id)},
+        {"$set": {"status": "Refunded", "refunded_at": ts, "refunded_by": session['email']}}
+    )
+    
+    log_action("SALE_REFUND", f"Refunded: {qty} x {item_name} (Trans ID: {id})")
+    send_email_notification("Transaction Refunded", f"A transaction was refunded by {session['email']}: {qty} x '{item_name}'.", notif_type="sales")
+    
+    flash(f"Transaction for {item_name} has been refunded and items returned to stock.", "success")
+    return redirect(url_for('sales.sales_list'))
 @sales_bp.route('/sales-summary')
 @login_required
 def sales_summary():
