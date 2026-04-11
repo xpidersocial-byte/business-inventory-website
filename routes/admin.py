@@ -128,19 +128,6 @@ def update_profile():
 
     if update_fields:
         update_fields["updated_at"] = datetime.now()
-        
-        # Identity Section - Handle Logo Upload
-        if form_section == 'identity':
-            logo_file = request.files.get('business_logo')
-            if logo_file and logo_file.filename != '':
-                from werkzeug.utils import secure_filename
-                filename = secure_filename(logo_file.filename)
-                ext = filename.rsplit('.', 1)[1].lower() if '.' in filename else 'png'
-                new_filename = f"business_logo_{int(datetime.now().timestamp())}.{ext}"
-                target_path = os.path.join(current_app.root_path, 'static', 'images', new_filename)
-                logo_file.save(target_path)
-                update_fields["business_logo"] = f"images/{new_filename}"
-
         settings_collection.update_one({"type": "general"}, {"$set": update_fields}, upsert=True)
         log_action("UPDATE_CONFIG", f"Updated settings section: {form_section or 'generic'}")
     
@@ -179,18 +166,11 @@ def add_category():
 @login_required
 @role_required('owner')
 def delete_category(id):
-    try:
-        oid = ObjectId(id)
-    except:
-        return jsonify({"success": False, "error": "Invalid ID format"}), 400
-
-    cat = get_categories_collection().find_one({"_id": oid})
+    cat = get_categories_collection().find_one({"_id": ObjectId(id)})
     if cat:
-        get_categories_collection().delete_one({"_id": oid})
+        get_categories_collection().delete_one({"_id": ObjectId(id)})
         log_action("DELETE_CATEGORY", f"Deleted category: {cat['name']}")
         flash("Category deleted.", "info")
-    if request.is_json or 'application/json' in request.headers.get('Accept', ''):
-        return jsonify({"success": True})
     return redirect(url_for('auth.profile', tab='settings'))
 
 @admin_bp.route('/settings/user/add', methods=['POST'])
@@ -211,23 +191,14 @@ def add_user():
 @login_required
 @role_required('owner')
 def delete_user(id):
-    try:
-        oid = ObjectId(id)
-    except:
-        return jsonify({"success": False, "error": "Invalid ID format"}), 400
-
-    user = get_users_collection().find_one({"_id": oid})
+    user = get_users_collection().find_one({"_id": ObjectId(id)})
     if user:
         if user['email'] == 'admin@inventory.com':
             flash("Cannot delete the main admin account!", "danger")
-            if request.is_json or 'application/json' in request.headers.get('Accept', ''):
-                return jsonify({"success": False, "message": "Cannot delete main admin"}), 403
         else:
-            get_users_collection().delete_one({"_id": oid})
+            get_users_collection().delete_one({"_id": ObjectId(id)})
             log_action("DELETE_USER", f"Deleted user: {user['email']}")
             flash("User deleted.", "info")
-    if request.is_json or 'application/json' in request.headers.get('Accept', ''):
-        return jsonify({"success": True})
     return redirect(url_for('auth.profile', tab='settings'))
 
 @admin_bp.route('/settings/user/edit/<id>', methods=['POST'])
@@ -297,22 +268,16 @@ def reorder_menus():
 @login_required
 @role_required('owner')
 def delete_menu(id):
-    try:
-        oid = ObjectId(id)
-    except:
-        return jsonify({"success": False, "error": "Invalid ID format"}), 400
-
-    menu = get_menus_collection().find_one({"_id": oid})
+    menu = get_menus_collection().find_one({"_id": ObjectId(id)})
     if menu:
-        get_menus_collection().delete_one({"_id": oid})
+        get_menus_collection().delete_one({"_id": ObjectId(id)})
         log_action("DELETE_MENU", f"Deleted menu: {menu['name']}")
         flash("Menu deleted.", "info")
-    if request.is_json or 'application/json' in request.headers.get('Accept', ''):
-        return jsonify({"success": True})
     return redirect(url_for('auth.profile', tab='settings'))
 
 @admin_bp.route('/settings/menu/thresholds', methods=['POST'])
 @login_required
+@role_required('owner')
 def update_menu_thresholds():
     data = request.json
     type_ = data.get('type')
@@ -340,28 +305,14 @@ def update_menu_thresholds():
 @login_required
 @role_required('owner')
 def clear_all_data():
-    # Clear all business-related collections
-    from core.db import (
-        get_items_collection, get_purchase_collection, get_sales_collection,
-        get_inventory_log_collection, get_system_log_collection,
-        get_categories_collection, get_notes_collection, get_undo_logs_collection,
-        get_menus_collection, get_todos_collection, get_subscriptions_collection
-    )
-    
+    # Removed authorization code requirement as requested
     get_items_collection().delete_many({})
     get_purchase_collection().delete_many({})
-    get_sales_collection().delete_many({})
     get_inventory_log_collection().delete_many({})
     get_system_log_collection().delete_many({})
-    get_categories_collection().delete_many({})
-    get_notes_collection().delete_many({})
-    get_undo_logs_collection().delete_many({})
-    get_menus_collection().delete_many({})
-    get_todos_collection().delete_many({})
-    get_subscriptions_collection().delete_many({})
     
-    log_action("CLEAR_DATABASE", "Owner wiped all business records including summary sales, categories, and logs.")
-    flash("The database has been fully purged! Only user accounts and core settings remain.", "warning")
+    log_action("CLEAR_DATABASE", "Owner wiped all business records without code.")
+    flash("All data has been cleared successfully!", "warning")
     return redirect(url_for('auth.profile', tab='settings'))
 
 @admin_bp.route('/settings/backup/download')
@@ -378,8 +329,7 @@ def download_backup():
             "system_logs": list(get_system_log_collection().find({}, {'_id': 0})),
             "notes": list(get_notes_collection().find({}, {'_id': 0})),
             "users": list(get_users_collection().find({}, {'_id': 0})),
-            "settings": list(get_settings_collection().find({}, {'_id': 0})),
-            "menus": list(get_menus_collection().find({}, {'_id': 0}))
+            "settings": list(get_settings_collection().find({}, {'_id': 0}))
         }
         filename = f"xpider_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
         from flask import json
@@ -421,8 +371,7 @@ def import_backup():
             "sales": get_sales_collection(),
             "inventory_log": get_inventory_log_collection(),
             "system_logs": get_system_log_collection(),
-            "notes": get_notes_collection(),
-            "menus": get_menus_collection()
+            "notes": get_notes_collection()
         }
         
         for key, coll in collections_map.items():
@@ -702,14 +651,14 @@ def get_notifications():
             "created_at": {"$gt": ts_items}
         })
         
-        # New Sales (using ISO format for sorting)
-        last_sales_str = ts_sales.strftime('%Y-%m-%dT%H:%M:%S')
+        # New Sales (purchase has 'date' string in "%Y-%m-%d %I:%M:%S %p")
+        last_sales_str = ts_sales.strftime('%Y-%m-%d %I:%M:%S %p')
         new_sales_count = purchase_col.count_documents({
             "date": {"$gt": last_sales_str}
         })
         
-        # New Restocks
-        last_restock_str = ts_restocks.strftime('%Y-%m-%dT%H:%M:%S')
+        # New Restocks (log has 'timestamp' string in "%Y-%m-%d %I:%M:%S %p")
+        last_restock_str = ts_restocks.strftime('%Y-%m-%d %I:%M:%S %p')
         new_restocks_count = log_col.count_documents({
             "type": {"$in": ["IN", "DAMAGE"]},
             "timestamp": {"$gt": last_restock_str}
@@ -726,21 +675,20 @@ def get_notifications():
         config = get_site_config()
         warn_threshold = config.get('warning_threshold', 10)
         
-        # All items currently in Warning or Low state (including Out of Stock)
+        # All items currently in Warning/Low state
         current_alerts = list(items_col.find({
             "active": {"$ne": False},
-            "stock": {"$lte": warn_threshold} 
+            "stock": {"$gt": 0, "$lte": warn_threshold} 
         }, {"name": 1}))
         
         legend_alerts = 0
         if current_alerts:
-            # For each alerting item, check if there was ANY activity since last visit
-            # Using ISO format for correct lexicographical sorting: %Y-%m-%dT%H:%M:%S
-            last_legend_str = ts_legend.strftime('%Y-%m-%dT%H:%M:%S')
+            # For each alerting item, check if its most recent 'OUT' log is newer than ts_legend
+            last_legend_str = ts_legend.strftime('%Y-%m-%d %H:%M:%S')
             for alert_item in current_alerts:
                 has_new_activity = log_col.find_one({
                     "item_name": alert_item['name'],
-                    "type": {"$in": ["OUT", "DAMAGE", "ADJUST", "EXPIRED"]},
+                    "type": "OUT",
                     "timestamp": {"$gt": last_legend_str}
                 })
                 if has_new_activity:
@@ -767,29 +715,6 @@ def get_notifications():
             "settings": 0
         }
     })
-
-
-@admin_bp.route('/api/notifications/mark-view', methods=['POST'])
-@login_required
-def mark_notification_view():
-    """Update last_views timestamp for a specific view (sidebar section)."""
-    try:
-        data = request.get_json() or {}
-        view = data.get('view')
-        user_email = session.get('email', '')
-        
-        if not user_email or not view:
-            return jsonify({"success": False}), 400
-            
-        now = datetime.now()
-        get_users_collection().update_one(
-            {"email": user_email},
-            {"$set": {f"last_views.{view}": now}}
-        )
-        return jsonify({"success": True})
-    except Exception as e:
-        print(f"[Mark View Error] {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
 
 
 @admin_bp.route('/api/notifications/mark-read', methods=['POST'])

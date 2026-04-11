@@ -1,16 +1,12 @@
 from flask import Blueprint, render_template, request, jsonify, session, current_app, Response, flash, redirect, url_for
 import os
-import socket
-import platform
-import subprocess
-import importlib.metadata
-import json
-from datetime import datetime
-import requests
-import psutil
 from core.utils import log_action, MongoJSONProvider
 from core.middleware import login_required
-from core.db import get_dev_updates_collection, get_items_collection, get_categories_collection, get_purchase_collection, get_sales_collection, get_inventory_log_collection, get_system_log_collection, get_notes_collection, get_subscriptions_collection, get_menus_collection, get_undo_logs_collection, get_users_collection, get_settings_collection
+from core.db import get_dev_updates_collection, get_items_collection, get_categories_collection, get_purchase_collection, get_inventory_log_collection, get_system_log_collection, get_notes_collection, get_subscriptions_collection
+import subprocess
+import importlib.metadata
+from datetime import datetime
+import json
 from bson.objectid import ObjectId
 
 developer_bp = Blueprint('developer', __name__)
@@ -72,50 +68,6 @@ def developer_portal():
                            watchdog_active=watchdog_active,
                            flask_debug=os.getenv("FLASK_DEBUG", "false").lower() == "true")
 
-def format_bytes(value):
-    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
-        if value < 1024:
-            return f"{value:.1f}{unit}"
-        value /= 1024
-    return f"{value:.1f}PB"
-
-@developer_bp.route('/system-info')
-@login_required
-def system_info():
-    try:
-        cpu_percent = round(psutil.cpu_percent(interval=0.3), 1)
-        mem = psutil.virtual_memory()
-        disk = psutil.disk_usage('/')
-
-        public_ip = 'Unavailable'
-        try:
-            public_ip = requests.get('https://api.ipify.org?format=json', timeout=2).json().get('ip', public_ip)
-        except Exception:
-            pass
-
-        local_ip = 'Unknown'
-        try:
-            local_ip = socket.gethostbyname(socket.gethostname())
-        except Exception:
-            pass
-
-        return jsonify({
-            'cpu': cpu_percent,
-            'ram_percent': round(mem.percent, 1),
-            'ram_used': format_bytes(mem.used),
-            'ram_total': format_bytes(mem.total),
-            'disk_percent': round(disk.percent, 1),
-            'disk_free': format_bytes(disk.free),
-            'public_ip': public_ip,
-            'local_ip': local_ip,
-            'hostname': socket.gethostname(),
-            'os': platform.platform(),
-            'python_v': platform.python_version()
-        })
-    except Exception as e:
-        current_app.logger.exception('Failed to collect system info')
-        return jsonify({'error': 'Unable to fetch system metrics', 'details': str(e)}), 500
-
 @developer_bp.route('/dev-updates/add', methods=['POST'])
 @login_required
 def add_dev_update():
@@ -126,7 +78,7 @@ def add_dev_update():
         dev_updates_collection.insert_one({
             "content": content,
             "tag": tag,
-            "timestamp": datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
+            "timestamp": datetime.now().strftime('%Y-%m-%d %I:%M:%S %p')
         })
         flash("Development update posted!", "success")
     return redirect(url_for('developer.developer_portal'))
@@ -225,16 +177,11 @@ def developer_backup():
             "items": list(get_items_collection().find({}, {'_id': 0})),
             "categories": list(get_categories_collection().find({}, {'_id': 0})),
             "purchase": list(get_purchase_collection().find({}, {'_id': 0})),
-            "sales": list(get_sales_collection().find({}, {'_id': 0})),
             "inventory_log": list(get_inventory_log_collection().find({}, {'_id': 0})),
             "system_logs": list(get_system_log_collection().find({}, {'_id': 0})),
             "notes": list(get_notes_collection().find({}, {'_id': 0})),
             "subscriptions": list(get_subscriptions_collection().find({}, {'_id': 0})),
-            "dev_updates": list(get_dev_updates_collection().find({}, {'_id': 0})),
-            "menus": list(get_menus_collection().find({}, {'_id': 0})),
-            "undo_logs": list(get_undo_logs_collection().find({}, {'_id': 0})),
-            "users": list(get_users_collection().find({}, {'_id': 0})),
-            "settings": list(get_settings_collection().find({}, {'_id': 0}))
+            "dev_updates": list(get_dev_updates_collection().find({}, {'_id': 0}))
         }
         filename = f"xpider_backup_{datetime.now().strftime('%Y%m%d')}.json"
         return Response(
@@ -266,7 +213,7 @@ def server_restart():
     log_action("SERVER_RESTART", "Developer triggered remote server restart.")
     import sys
     import time
-    import gevent
+    import eventlet
     
     def perform_restart():
         time.sleep(1)
@@ -278,7 +225,7 @@ def server_restart():
         subprocess.Popen(['/bin/bash', '-c', cmd], cwd=cwd, start_new_session=True)
         os._exit(0)
     
-    gevent.spawn_later(0.5, perform_restart)
+    eventlet.spawn_after(0.5, perform_restart)
     return jsonify({"success": True, "message": "Server rebooting... reconnecting in 5s."})
 
 @developer_bp.route('/developer/server/toggle-debug', methods=['POST'])

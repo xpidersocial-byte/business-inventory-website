@@ -54,7 +54,7 @@ def pos_checkout():
     
     total_amount = 0
     transaction_id = "TXN" + datetime.now().strftime("%Y%m%d%H%M%S")
-    ts = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
+    ts = datetime.now().strftime('%Y-%m-%d %I:%M:%S %p')
     
     # Validation step
     for cart_item in cart:

@@ -4,11 +4,38 @@ import re
 import requests
 from flask import Blueprint, render_template, request, session, jsonify, url_for, abort
 from datetime import datetime, timedelta
-from core.utils import calculate_item_metrics, parse_timestamp
+from core.utils import calculate_item_metrics
 from core.middleware import login_required
 from core.db import get_items_collection, get_dev_updates_collection, get_inventory_log_collection, get_purchase_collection, get_notes_collection
 
 dashboard_bp = Blueprint('dashboard', __name__)
+
+@dashboard_bp.route('/docs/view/<path:filename>')
+def view_markdown(filename):
+    """Renders any .md file in the root directory as HTML for AI public access."""
+    if not filename.endswith('.md'):
+        abort(404)
+        
+    # Security: prevent path traversal by taking only the basename
+    safe_filename = os.path.basename(filename)
+    root_dir = os.path.dirname(os.path.abspath(__file__)) + "/.."
+    file_path = os.path.join(root_dir, safe_filename)
+    
+    if not os.path.isfile(file_path):
+        abort(404)
+        
+    with open(file_path, 'r', encoding='utf-8') as f:
+        text = f.read()
+        
+    # Convert markdown to HTML with common extensions
+    html_body = markdown.markdown(text, extensions=['fenced_code', 'tables', 'nl2br', 'toc'])
+    
+    return render_template('md_view.html', 
+                           filename=safe_filename, 
+                           content=html_body,
+                           email=session.get('email'),
+                           role=session.get('role'))
+
 
 @dashboard_bp.route('/dashboard')
 @login_required
@@ -43,8 +70,8 @@ def dashboard():
 
     if view == 'weekly':
         week_ago = now - timedelta(days=7)
-        period_sales_logs = [log for log in sales_logs if (parse_timestamp(log.get('timestamp')) or datetime(2000,1,1)) >= week_ago]
-        period_in_logs = [log for log in in_logs if (parse_timestamp(log.get('timestamp')) or datetime(2000,1,1)) >= week_ago]
+        period_sales_logs = [log for log in sales_logs if datetime.strptime(log['timestamp'], '%Y-%m-%d %I:%M:%S %p') >= week_ago]
+        period_in_logs = [log for log in in_logs if datetime.strptime(log['timestamp'], '%Y-%m-%d %I:%M:%S %p') >= week_ago]
     else:
         period_sales_logs = [log for log in sales_logs if log['timestamp'].startswith(period_str)]
         period_in_logs = [log for log in in_logs if log['timestamp'].startswith(period_str)]
@@ -54,13 +81,6 @@ def dashboard():
     period_qty = 0
     period_item_sales = {}
 
-    refund_logs = [log for log in period_in_logs if 'refund' in log.get('reason', '').lower()]
-    refund_by_name = {}
-    for log in refund_logs:
-        refund_by_name.setdefault(log.get('item_name'), 0)
-        refund_by_name[log.get('item_name')] += log.get('qty', 0)
-
-    sale_aggregates = {}
     for log in period_sales_logs:
         name = log.get('item_name')
         qty = log.get('qty', 0)
@@ -68,36 +88,18 @@ def dashboard():
             details = item_details_map[name]
             retail = float(details.get('retail_price', 0))
             cost = float(details.get('cost_price', 0))
+            
+            period_revenue += qty * retail
+            period_profit += qty * (retail - cost)
+            period_qty += qty
+            
+            if name not in period_item_sales:
+                period_item_sales[name] = {"qty": 0, "revenue": 0, "profit": 0, "name": name}
+            period_item_sales[name]["qty"] += qty
+            period_item_sales[name]["revenue"] += qty * retail
+            period_item_sales[name]["profit"] += qty * (retail - cost)
 
-            sale_aggregates.setdefault(name, {"qty": 0, "revenue": 0.0, "profit": 0.0, "retail": retail, "cost": cost})
-            sale_aggregates[name]["qty"] += qty
-            sale_aggregates[name]["revenue"] += qty * retail
-            sale_aggregates[name]["profit"] += qty * (retail - cost)
-
-    for name, data in sale_aggregates.items():
-        refund_qty = refund_by_name.get(name, 0)
-        adjusted_qty = max(data["qty"] - refund_qty, 0)
-        if adjusted_qty <= 0:
-            continue
-
-        retail = data["retail"]
-        cost = data["cost"]
-        period_revenue += adjusted_qty * retail
-        period_profit += adjusted_qty * (retail - cost)
-        period_qty += adjusted_qty
-
-        period_item_sales[name] = {
-            "qty": adjusted_qty,
-            "revenue": adjusted_qty * retail,
-            "profit": adjusted_qty * (retail - cost),
-            "name": name
-        }
-
-    period_inventory_added_value = sum(
-        log.get('qty', 0) * float(item_details_map.get(log.get('item_name'), {}).get('cost_price', 0))
-        for log in period_in_logs
-        if log.get('item_name') in item_details_map and 'refund' not in log.get('reason', '').lower()
-    )
+    period_inventory_added_value = sum(log.get('qty', 0) * float(item_details_map.get(log.get('item_name'), {}).get('cost_price', 0)) for log in period_in_logs if log.get('item_name') in item_details_map)
 
     star_performers = sorted(period_item_sales.values(), key=lambda x: x['qty'], reverse=True)[:10]
     
@@ -112,10 +114,6 @@ def dashboard():
     cold_stock = sorted([i for i in processed_items if i['stock'] > 0 and i.get('days_dormant', 0) > 30], key=lambda x: x.get('days_dormant', 0), reverse=True)[:5]
     sporadic_stock = sorted([i for i in processed_items if i['sold'] < 5], key=lambda x: x['sold'], reverse=True)[:5]
 
-    top_item_name = "N/A"
-    if star_performers:
-        top_item_name = star_performers[0]['name']
-
     return render_template('dashboard.html', 
                            email=session['email'], 
                            role=session.get('role'), 
@@ -125,7 +123,7 @@ def dashboard():
                            monthly_profit=period_profit,
                            monthly_qty=period_qty,
                            star_performers=star_performers,
-                           top_item_name=top_item_name, 
+                           top_item_name=star_performers[0]['name'] if star_performers else "N/A", 
                            current_month_display=display_label, 
                            chart_labels=chart_labels, 
                            chart_values=chart_values, 

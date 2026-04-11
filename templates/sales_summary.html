@@ -230,59 +230,33 @@
 
 <!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Chart Data -->
-    <script id="salesChartData" type="application/json">
-        {
-            "viewType": "{{ view_type }}",
-            "weekly": {
-                "labels": {{ weeks_labels|tojson|safe }},
-                "revenue": {{ weekly_revenue|tojson|safe }},
-                "profit": {{ weekly_profit_values|tojson|safe }}
-            },
-            "daily": {
-                "labels": {{ daily_labels|tojson|safe }},
-                "revenue": {{ daily_revenue|tojson|safe }},
-                "profit": {{ daily_profit_values|tojson|safe }}
-            },
-            "monthly": {
-                "labels": {{ months_labels|tojson|safe }},
-                "revenue": {{ revenue_values|tojson|safe }},
-                "profit": {{ profit_values|tojson|safe }}
-            }
-        }
-    </script>
+<script>
+    const isFacebook = document.documentElement.getAttribute('data-theme') === 'facebook';
+    Chart.defaults.color = isFacebook ? '#65676b' : '#e0e0e0';
+    Chart.defaults.borderColor = isFacebook ? '#e4e6eb' : '#333';
 
-    <script>
-        const salesData = JSON.parse(document.getElementById('salesChartData').textContent);
-        const viewType = salesData.viewType;
-
-        const isFacebook = document.documentElement.getAttribute('data-theme') === 'facebook';
-        Chart.defaults.color = isFacebook ? '#65676b' : '#e0e0e0';
-        Chart.defaults.borderColor = isFacebook ? '#e4e6eb' : '#333';
-
-        // Decide which labels and values to use
-        let mainLabels, mainRevenue, mainProfit, trendLabels, trendValues;
-        
-        if (viewType === 'weekly') {
-            mainLabels = salesData.weekly.labels;
-            mainRevenue = salesData.weekly.revenue;
-            mainProfit = salesData.weekly.profit;
-            trendLabels = salesData.weekly.labels;
-            trendValues = salesData.weekly.revenue;
-        } else if (viewType === 'daily') {
-            mainLabels = salesData.daily.labels;
-            mainRevenue = salesData.daily.revenue;
-            mainProfit = salesData.daily.profit;
-            trendLabels = salesData.daily.labels;
-            trendValues = salesData.daily.revenue;
-        } else {
-            mainLabels = salesData.monthly.labels;
-            mainRevenue = salesData.monthly.revenue;
-            mainProfit = salesData.monthly.profit;
-            trendLabels = salesData.weekly.labels;
-            trendValues = salesData.weekly.revenue;
-        }
-
+    // Decide which labels and values to use
+    let mainLabels, mainRevenue, mainProfit, trendLabels, trendValues;
+    
+    {% if view_type == 'weekly' %}
+        mainLabels = {{ weeks_labels|tojson }};
+        mainRevenue = {{ weekly_revenue|tojson }};
+        mainProfit = {{ weekly_profit_values|tojson }};
+        trendLabels = {{ weeks_labels|tojson }};
+        trendValues = {{ weekly_revenue|tojson }};
+    {% elif view_type == 'daily' %}
+        mainLabels = {{ daily_labels|tojson }};
+        mainRevenue = {{ daily_revenue|tojson }};
+        mainProfit = {{ daily_profit_values|tojson }};
+        trendLabels = {{ daily_labels|tojson }};
+        trendValues = {{ daily_revenue|tojson }};
+    {% else %}
+        mainLabels = {{ months_labels|tojson }};
+        mainRevenue = {{ revenue_values|tojson }};
+        mainProfit = {{ profit_values|tojson }};
+        trendLabels = {{ weeks_labels|tojson }};
+        trendValues = {{ weekly_revenue|tojson }};
+    {% endif %}
 
     // 1. Main Comparison Chart
     const mainCtx = document.getElementById('mainChart').getContext('2d');

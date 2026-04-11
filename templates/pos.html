@@ -232,11 +232,20 @@
                 <h5 id="viewTitle" class="mb-0 fw-bold text-theme-main small text-uppercase ls-1">Items</h5>
             </div>
             <div class="items-grid" id="itemsGrid">
-                <!-- Items will be rendered here by JavaScript -->
-                <div class="text-center py-5 w-100 opacity-50">
-                    <div class="spinner-border spinner-border-sm mb-2"></div>
-                    <div class="small fw-bold text-uppercase">Loading Inventory...</div>
+                {% for item in items %}
+                <div class="item-card pos-item" 
+                     data-id="{{ item._id }}" 
+                     data-name="{{ item.name }}" 
+                     data-price="{{ item.retail_price }}" 
+                     data-stock="{{ item.stock }}" 
+                     data-category="{{ item.category }}"
+                     data-menu="{{ item.menu or 'None' }}" 
+                     onclick="handlePosClick(this)">
+                    <span class="item-stock">Stock: {{ item.stock }}</span>
+                    <div class="fw-bold text-theme-main small mb-2" style="height: 2.5rem; overflow: hidden; line-height: 1.2;">{{ item.name }}</div>
+                    <div class="fw-bold text-primary">{{ site_config.currency_symbol }}{{ "%.2f"|format(item.retail_price) }}</div>
                 </div>
+                {% endfor %}
             </div>
         </div>
     </div>
@@ -351,58 +360,16 @@
         filterItems();
     }
 
-    let allItems = []; // Local cache of items
-
-    async function loadItems() {
-        try {
-            // Revert to direct API fetch when offline mode is disabled
-            const res = await fetch('/api/items/sync');
-            allItems = await res.json();
-            renderItems(allItems);
-        } catch (e) {
-            /* Silently handle errors to keep console clean */
-        }
-    }
-
-    function renderItems(itemsToRender) {
-        const grid = document.getElementById('itemsGrid');
-        if (!itemsToRender || itemsToRender.length === 0) {
-            grid.innerHTML = '<div class="text-center py-5 w-100 opacity-50"><i class="bi bi-box-seam display-4 d-block mb-3"></i>No items found.</div>';
-            return;
-        }
-        
-        grid.innerHTML = itemsToRender.map(item => `
-            <div class="item-card pos-item" 
-                 data-id="${item._id}" 
-                 data-name="${item.name}" 
-                 data-price="${item.retail_price}" 
-                 data-stock="${item.stock}" 
-                 data-category="${item.category}"
-                 data-menu="${item.menu || 'None'}" 
-                 onclick="handlePosClick(this)">
-                <span class="item-stock">Stock: ${item.stock}</span>
-                <div class="fw-bold text-theme-main small mb-2" style="height: 2.5rem; overflow: hidden; line-height: 1.2;">${item.name}</div>
-                <div class="fw-bold text-primary">{{ site_config.currency_symbol }}${item.retail_price.toFixed(2)}</div>
-            </div>
-        `).join('');
-    }
-
-    // Initial Load
-    document.addEventListener('DOMContentLoaded', () => {
-        loadItems();
-    });
-
     function filterItems() {
         const q = document.getElementById('itemSearch').value.toLowerCase();
-        
-        const filtered = allItems.filter(item => {
-            if (filterType === 'SEARCH') return item.name.toLowerCase().includes(q);
-            if (filterType === 'MENU') return item.menu === filterValue;
-            if (filterType === 'CATEGORY') return item.category === filterValue;
-            return true;
+        const cards = document.querySelectorAll('.pos-item');
+        cards.forEach(card => {
+            let match = false;
+            if (filterType === 'SEARCH') match = card.getAttribute('data-name').toLowerCase().includes(q);
+            else if (filterType === 'MENU') match = card.getAttribute('data-menu') === filterValue;
+            else if (filterType === 'CATEGORY') match = card.getAttribute('data-category') === filterValue;
+            card.style.display = match ? 'block' : 'none';
         });
-        
-        renderItems(filtered);
     }
 
     function addToCart(id, name, price, maxStock) {
@@ -468,8 +435,6 @@
 
     async function processCheckout() {
         const btn = document.getElementById('confirmPaymentBtn');
-        if (btn.disabled && btn.innerHTML.includes('Processing')) return; // Extra safety
-        
         const checkoutModal = bootstrap.Modal.getInstance(document.getElementById('checkoutModal'));
         
         btn.disabled = true;
@@ -483,16 +448,24 @@
         try {
             const res = await offlineSafePost("{{ url_for('pos.pos_checkout') }}", payload);
             
-            // Check success from response
-            const data = await res.json();
-            if (data.success) {
+            if (res.offline) {
+                // Handle offline case
                 checkoutModal.hide();
-                generateReceipt(data);
-                new bootstrap.Modal(document.getElementById('receiptModal')).show();
+                alert("You are offline. Transaction queued and will sync when reconnected.");
+                resetPOS();
             } else {
-                alert(data.message || "Checkout failed");
+                // Online response
+                const data = await res.json();
+                if (data.success) {
+                    checkoutModal.hide();
+                    generateReceipt(data);
+                    new bootstrap.Modal(document.getElementById('receiptModal')).show();
+                } else {
+                    alert(data.message || "Checkout failed");
+                }
             }
         } catch (err) {
+            console.error('Checkout error:', err);
             alert("An error occurred during checkout.");
         } finally {
             btn.disabled = false;
@@ -514,6 +487,6 @@
             <div style="text-align:center;margin-top:20px;font-size:0.7rem">THANK YOU!</div>`;
     }
 
-    function resetPOS() { cart = []; updateCartUI(); document.getElementById("cashTendered").value = ""; }
+    function resetPOS() { window.location.reload(); }
 </script>
 {% endblock %}

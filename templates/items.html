@@ -26,14 +26,6 @@
     .item-row:hover { background-color: var(--glass-bg) !important; cursor: pointer; }
     .item-row.hidden { display: none !important; }
     
-    /* Ensure buttons are ALWAYS clickable regardless of row styling */
-    .item-row .btn {
-        position: relative;
-        z-index: 500; /* Higher z-index */
-        pointer-events: auto !important;
-        padding: 0.4rem 0.6rem !important; /* Larger hit area */
-    }
-
     /* Category Navigation Styling */
     .category-nav { 
         background: var(--card-bg); 
@@ -300,7 +292,7 @@
                         <span class="input-group-text bg-light border-theme-soft text-danger" style="font-size: 0.75rem;"><i class="bi bi-exclamation-triangle me-1"></i> Low Stock</span>
                         <input type="number" id="menuLowInput" class="form-control bg-white border-theme-soft text-theme-main text-center fw-bold" value="{{ site_config.low_stock_threshold or 5 }}" min="0">
                     </div>
-                    <button id="menuUpdateBtn" class="btn btn-primary btn-sm px-3 fw-bold shadow-sm" onclick="updateActiveMenuThresholds()" type="button">
+                    <button id="menuUpdateBtn" class="btn btn-primary btn-sm px-3 fw-bold shadow-sm" onclick="updateActiveMenuThresholds()">
                         Save Changes
                     </button>
                 </div>
@@ -329,7 +321,7 @@
                         </thead>
                         <tbody>
                             {% for item in items %}
-                            <tr class="item-row" id="item-row-{{ item._id|string }}" data-item-id="{{ item._id|string }}" data-category="{{ item.category }}" data-menu="{{ item.menu or 'None' }}" data-status="{{ item.status_label }}">
+                            <tr class="item-row" id="item-row-{{ item._id }}" data-item-id="{{ item._id }}" data-category="{{ item.category }}" data-menu="{{ item.menu or 'None' }}" data-status="{{ item.status_label }}">
                                 <td class="fw-bold text-theme-main">{{ item.name }}</td>
                                 <td class="hide-mobile">{% if item.menu %}<span class="badge bg-warning text-dark">{{ item.menu }}</span>{% endif %}</td>
                                 <td class="hide-mobile"><span class="badge bg-secondary">{{ item.category }}</span></td>
@@ -350,31 +342,20 @@
                                 <td class="text-center">
                                     {% if role == 'owner' %}
                                     <div class="d-flex justify-content-center align-items-center gap-1">
-                                        <a href="{{ url_for('inventory.restock', item_id=item._id|string) }}" class="btn btn-sm btn-outline-info border-0" title="Restock Item">
+                                        <a href="{{ url_for('inventory.restock', item_id=item._id) }}" class="btn btn-sm btn-outline-info border-0" title="Restock Item">
                                             <i class="bi bi-arrow-left-right"></i>
                                         </a>
                                         <button class="btn btn-sm btn-outline-primary border-0" 
-                                            data-id="{{ item._id|string }}"
-                                            data-name="{{ item.name|e }}"
-                                            data-category="{{ item.category|e }}"
-                                            data-menu="{{ (item.menu or 'None')|e }}"
-                                            data-cost="{{ item.cost_price }}"
-                                            data-retail="{{ item.retail_price }}"
-                                            onclick="openEditModalFromBtn(this); event.stopPropagation();"
-                                            title="Edit Item">
+                                            onclick="openEditModal('{{ item._id }}', '{{ item.name|e }}', '{{ item.category|e }}', '{{ (item.menu or 'None')|e }}', '{{ item.cost_price }}', '{{ item.retail_price }}')" title="Edit Item">
                                             <i class="bi bi-pencil"></i>
                                         </button>
                                         <button class="btn btn-sm btn-outline-warning border-0"
-                                            data-id="{{ item._id|string }}"
-                                            data-name="{{ item.name|e }}"
-                                            onclick="persistentResetItem(this, this.getAttribute('data-name'), this.getAttribute('data-id')); event.stopPropagation();"
+                                            onclick="persistentResetItem(this, '{{ item.name|e }}', '{{ item._id }}')"
                                             title="Reset item data (Offline Safe)">
                                             <i class="bi bi-arrow-counterclockwise"></i>
                                         </button>
                                         <button class="btn btn-sm btn-outline-danger border-0"
-                                            data-id="{{ item._id|string }}"
-                                            data-name="{{ item.name|e }}"
-                                            onclick="persistentDeleteItem(this, this.getAttribute('data-name'), this.getAttribute('data-id')); event.stopPropagation();"
+                                            onclick="persistentDeleteItem(this, '{{ item.name|e }}', '{{ item._id }}')"
                                             title="Hide/Delete item (Offline Safe)">
                                             <i class="bi bi-trash"></i>
                                         </button>
@@ -424,7 +405,7 @@
                             <div class="row g-2" id="modalCategoryTiles">
                                 {% for cat in categories %}
                                 <div class="col-6 col-md-3">
-                                    <div class="category-tile" onclick="selectModalCategory('{{ cat.name|e }}', this)">
+                                    <div class="category-tile" onclick="selectModalCategory('{{ cat.name }}', this)">
                                         {{ cat.name }}
                                     </div>
                                 </div>
@@ -444,7 +425,7 @@
                                 </div>
                                 {% for menu in menus %}
                                 <div class="col-6 col-md-3">
-                                    <div class="category-tile" onclick="selectModalMenu('{{ menu.name|e }}', this)">
+                                    <div class="category-tile" onclick="selectModalMenu('{{ menu.name }}', this)">
                                         {{ menu.name }}
                                     </div>
                                 </div>
@@ -458,17 +439,13 @@
                             <input type="text" id="addName" name="name" class="form-control border-theme-soft" placeholder="e.g., Figurine" required>
                         </div>
                         
-                        <div class="col-md-4">
+                        <div class="col-md-6">
                             <label for="addCost" class="form-label small fw-bold text-theme-muted">Cost Price (₱)</label>
                             <input type="number" step="0.01" name="cost_price" id="addCost" class="form-control border-theme-soft" placeholder="0.00" required>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-6">
                             <label for="addRetail" class="form-label small fw-bold text-theme-muted">Retail Price (₱)</label>
                             <input type="number" step="0.01" name="retail_price" id="addRetail" class="form-control border-theme-soft" placeholder="0.00" required>
-                        </div>
-                        <div class="col-md-4">
-                            <label for="addStock" class="form-label small fw-bold text-theme-muted">Initial Stock</label>
-                            <input type="number" name="stock" id="addStock" class="form-control border-theme-soft" placeholder="0" value="0" required>
                         </div>
                     </div>
                 </div>
@@ -500,7 +477,7 @@
                             <div class="row g-2" id="editModalCategoryTiles">
                                 {% for cat in categories %}
                                 <div class="col-6 col-md-3">
-                                    <div class="category-tile" onclick="selectEditModalCategory('{{ cat.name|e }}')">
+                                    <div class="category-tile" onclick="selectEditModalCategory('{{ cat.name }}')">
                                         {{ cat.name }}
                                     </div>
                                 </div>
@@ -519,7 +496,7 @@
                                 </div>
                                 {% for menu in menus %}
                                 <div class="col-6 col-md-3">
-                                    <div class="category-tile" onclick="selectEditModalMenu('{{ menu.name|e }}')">
+                                    <div class="category-tile" onclick="selectEditModalMenu('{{ menu.name }}')">
                                         {{ menu.name }}
                                     </div>
                                 </div>
@@ -566,31 +543,26 @@
     const pageSize = 50;
     let filteredRows = [];
 
-    </script>
-<script id="menu-data-json" type="application/json">
-{
-    {% for menu in menus %}
-    {{ menu.name|tojson }}: {
-        "id": {{ menu._id|string|tojson }},
-        "warning": {{ menu.warning_threshold or 10 }},
-        "low": {{ menu.low_stock_threshold or 5 }}
-    },
-    {% endfor %}
-    "all": {
-        "id": "global",
-        "warning": {{ site_config.warning_threshold or 10 }},
-        "low": {{ site_config.low_stock_threshold or 5 }}
-    },
-    "None": {
-        "id": "global",
-        "warning": {{ site_config.warning_threshold or 10 }},
-        "low": {{ site_config.low_stock_threshold or 5 }}
-    }
-}
-</script>
-<script>
-    const menuData = JSON.parse(document.getElementById("menu-data-json").textContent);
-    
+    const menuData = {
+        {% for menu in menus %}
+        {{ menu.name|tojson }}: {
+            "id": "{{ menu._id }}",
+            "warning": {{ menu.warning_threshold or 10 }},
+            "low": {{ menu.low_stock_threshold or 5 }}
+        },
+        {% endfor %}
+        "all": {
+            "id": "global",
+            "warning": {{ site_config.warning_threshold or 10 }},
+            "low": {{ site_config.low_stock_threshold or 5 }}
+        },
+        "None": {
+            "id": "global",
+            "warning": {{ site_config.warning_threshold or 10 }},
+            "low": {{ site_config.low_stock_threshold or 5 }}
+        }
+    };
+
     function filterMenu(event, menu) {
         if (event) event.preventDefault();
         currentMenu = menu;
@@ -710,16 +682,6 @@
         if (element) element.classList.add('selected');
     }
 
-    function openEditModalFromBtn(btn) {
-        const id = btn.getAttribute('data-id');
-        const name = btn.getAttribute('data-name');
-        const category = btn.getAttribute('data-category');
-        const menu = btn.getAttribute('data-menu');
-        const cost = btn.getAttribute('data-cost');
-        const retail = btn.getAttribute('data-retail');
-        openEditModal(id, name, category, menu, cost, retail);
-    }
-
     function openEditModal(id, name, category, menu, cost, retail) {
         document.getElementById('editItemForm').action = "/items/edit/" + id;
         document.getElementById('editName').value = name;
@@ -749,41 +711,27 @@
     }
 
     function updateActiveMenuThresholds() {
-        const warningVal = document.getElementById('menuWarningInput')?.value;
-        const lowVal = document.getElementById('menuLowInput')?.value;
+        const warningVal = document.getElementById('menuWarningInput').value;
+        const lowVal = document.getElementById('menuLowInput').value;
         const btn = document.getElementById('menuUpdateBtn');
-        const originalHtml = btn?.innerHTML;
-
-        if (!warningVal || !lowVal || !menuData[currentMenu]) {
-            return alert('Unable to update thresholds at this time.');
-        }
-
+        const originalHtml = btn.innerHTML;
+        
         btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>...`;
         btn.disabled = true;
         
         const payload = {
             id: menuData[currentMenu].id,
             type: (currentMenu === 'all' || currentMenu === 'None') ? 'global' : 'menu',
-            warning: parseInt(warningVal, 10),
-            low: parseInt(lowVal, 10)
+            warning: parseInt(warningVal),
+            low: parseInt(lowVal)
         };
         
         fetch('/settings/menu/thresholds', {
             method: 'POST',
-            credentials: 'same-origin',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            },
+            headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(payload)
-        }).then(async r => {
-            const data = await r.json().catch(() => null);
-            if (!r.ok) {
-                throw new Error(data?.message || `Server rejected the request (${r.status})`);
-            }
-            return data;
-        }).then(data => {
-            if (data && data.success) {
+        }).then(r => r.json()).then(data => {
+            if(data.success) {
                 menuData[currentMenu].warning = payload.warning;
                 menuData[currentMenu].low = payload.low;
                 btn.innerHTML = `<i class="bi bi-check-lg me-1"></i>Saved`;
@@ -792,10 +740,12 @@
                     btn.disabled = false;
                 }, 2000);
             } else {
-                throw new Error(data?.message || 'Unknown error');
+                alert("Failed: " + data.message);
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
             }
-        }).catch((error) => {
-            alert(`Failed to save thresholds: ${error.message}`);
+        }).catch(() => {
+            alert("Network Error");
             btn.innerHTML = originalHtml;
             btn.disabled = false;
         });
@@ -807,23 +757,19 @@
     // Zeroes Quantity Sold, Total Profit, and Total Inventory Value in the DOM.
     // Does NOT write to the database.
     function frontendResetItem(btn, name) {
+        if (!confirm(`Reset display data for '${name}'?\n\nThis only clears what you see here — no database changes are made.`)) return;
         const row = btn.closest('tr');
         if (!row) return;
 
-        // Column indices (0-based): 6=Stock, 7=Qty Sold, 8=Total Profit, 9=Total Inventory Value
+        // Column indices (0-based): 7=Qty Sold, 8=Total Profit, 9=Total Inventory Value
         const cells = row.getElementsByTagName('td');
-        // Stock (index 6)
-        const stockContainer = cells[6].querySelector('.fw-bold');
-        if (stockContainer) stockContainer.textContent = '0';
-        cells[6].setAttribute('data-value', '0');
-        
         // Qty Sold (index 7)
         cells[7].textContent = '0';
         cells[7].setAttribute('data-value', '0');
         // Total Profit (index 8)
         cells[8].textContent = '₱0.00';
         cells[8].setAttribute('data-value', '0');
-        cells[8].className = 'hide-mobile fw-bold';
+        cells[8].className = 'fw-bold';
         // Total Inventory Value (index 9)
         cells[9].textContent = '₱0.00';
         cells[9].setAttribute('data-value', '0');
@@ -831,29 +777,28 @@
         // Flash the row green briefly to indicate success
         row.style.transition = 'background-color 0.3s';
         row.style.backgroundColor = 'rgba(25, 135, 84, 0.1)';
-        setTimeout(() => { 
-            row.style.backgroundColor = ''; 
-        }, 1500);
+        setTimeout(() => { row.style.backgroundColor = ''; }, 1500);
     }
 
     // ─── FRONTEND-ONLY DELETE ───────────────────────────────────────────────────
     // Hides the row from the table with a fade animation.
     // Does NOT write to the database.
     function frontendDeleteItem(btn, name) {
+        if (!confirm(`Hide '${name}' from this list?\n\nThis only hides it from your view — no database changes are made. Refresh the page to bring it back.`)) return;
         const row = btn.closest('tr');
-        if (row) {
-            row.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
-            row.style.opacity = '0';
-            row.style.transform = 'translateX(-20px)';
+        if (!row) return;
 
-            setTimeout(() => {
-                row.style.display = 'none';
-                // Remove from filteredRows so pagination counts update
-                filteredRows = filteredRows.filter(r => r !== row);
-                updatePagination();
-                applyFilters();
-            }, 400);
-        }
+        row.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
+        row.style.opacity = '0';
+        row.style.transform = 'translateX(-20px)';
+
+        setTimeout(() => {
+            row.style.display = 'none';
+            // Remove from filteredRows so pagination counts update
+            filteredRows = filteredRows.filter(r => r !== row);
+            updatePagination();
+            applyFilters();
+        }, 400);
     }
     
     function validateAddItemForm() {
@@ -883,15 +828,15 @@
         
         try {
             const res = await offlineSafePost(url, formData);
-            if (res.ok) {
+            if (res.offline) {
+                bootstrap.Modal.getInstance(document.getElementById('addItemModal')).hide();
+                form.reset();
                 window.location.reload();
             } else {
-                alert("Failed to add item");
-                btn.disabled = false;
-                spinner.classList.add('d-none');
-                text.innerText = 'CREATE ITEM';
+                window.location.reload();
             }
         } catch (e) { 
+            console.error(e); 
             alert("Failed to add item"); 
             btn.disabled = false;
             spinner.classList.add('d-none');
@@ -915,15 +860,14 @@
         
         try {
             const res = await offlineSafePost(url, formData);
-            if (res.ok) {
+            if (res.offline) {
+                bootstrap.Modal.getInstance(document.getElementById('editItemModal')).hide();
                 window.location.reload();
             } else {
-                alert("Failed to edit item");
-                btn.disabled = false;
-                spinner.classList.add('d-none');
-                text.innerText = 'SAVE CHANGES';
+                window.location.reload();
             }
         } catch (e) { 
+            console.error(e); 
             alert("Failed to edit item"); 
             btn.disabled = false;
             spinner.classList.add('d-none');
@@ -932,55 +876,29 @@
     }
 
     async function persistentResetItem(btn, name, id) {
-        const result = await Swal.fire({
-            title: 'Reset Item?',
-            text: `This will zero out all stock and sales performance for '${name}'. Prices will be preserved.`,
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#f59f00',
-            confirmButtonText: 'Yes, Reset Data'
-        });
-        if (!result.isConfirmed) return;
-
+        if (!confirm(`Permanently reset data for '${name}'?`)) return;
         const url = `/items/reset/${id}`;
         try {
             const res = await offlineSafePost(url, new FormData());
-            if (res.ok) {
-                Swal.fire('Success', 'Item data has been reset.', 'success').then(() => {
-                    window.location.reload();
-                });
+            if (res.offline) {
+                frontendResetItem(btn, name); // Call existing UI logic
             } else {
-                Swal.fire('Error', 'Server failed to reset item.', 'error');
+                window.location.reload();
             }
-        } catch (e) { 
-            Swal.fire('Error', 'A network error occurred.', 'error');
-        }
+        } catch (e) { console.error(e); }
     }
 
     async function persistentDeleteItem(btn, name, id) {
-        const result = await Swal.fire({
-            title: 'Delete Item?',
-            text: `Are you sure you want to remove '${name}'? This action can be undone from the System Logs.`,
-            icon: 'error',
-            showCancelButton: true,
-            confirmButtonColor: '#e03131',
-            confirmButtonText: 'Yes, Delete It'
-        });
-        if (!result.isConfirmed) return;
-
+        if (!confirm(`Permanently delete '${name}'?`)) return;
         const url = `/items/delete/${id}`;
         try {
             const res = await offlineSafePost(url, new FormData());
-            if (res.ok) {
-                Swal.fire('Deleted', 'Item has been removed.', 'success').then(() => {
-                    window.location.reload();
-                });
+            if (res.offline) {
+                frontendDeleteItem(btn, name); // Call existing UI logic
             } else {
-                Swal.fire('Error', 'Server failed to delete item.', 'error');
+                window.location.reload();
             }
-        } catch (e) { 
-            Swal.fire('Error', 'A network error occurred.', 'error');
-        }
+        } catch (e) { console.error(e); }
     }
     function sortTable(n) {
         const table = document.getElementById("itemsTable");
@@ -1023,11 +941,5 @@
             }
         }
     }
-
-    async function hydrateOfflineData() {
-        // Offline hydration disabled
-        return;
-    }
-    window.addEventListener("DOMContentLoaded", hydrateOfflineData);
 </script>
 {% endblock %}

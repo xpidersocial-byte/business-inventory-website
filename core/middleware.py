@@ -1,5 +1,5 @@
 from functools import wraps
-from flask import session, redirect, url_for, request, flash, jsonify
+from flask import session, redirect, url_for, request, flash
 from core.db import get_settings_collection
 
 def get_cashier_permissions():
@@ -39,24 +39,13 @@ def get_owner_permissions():
         settings_collection.insert_one(perms)
     return perms
 
-def is_json_request():
-    return (
-        request.is_json or
-        request.headers.get('X-Requested-With') == 'XMLHttpRequest' or
-        'application/json' in request.headers.get('Accept', '')
-    )
-
-
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if 'email' not in session:
-            if is_json_request():
-                return jsonify({'success': False, 'message': 'Authentication required.'}), 401
             return redirect(url_for('auth.index'))
         return f(*args, **kwargs)
     return decorated_function
-
 
 def role_required(role):
     def decorator(f):
@@ -110,8 +99,6 @@ def role_required(role):
             
             # If cashier, they only get here if the permission was True in cashier_perms
             if role == 'owner' and user_role != 'owner':
-                if request.is_json or 'application/json' in request.headers.get('Accept', ''):
-                    return jsonify({'success': False, 'message': 'Owner privileges required.'}), 403
                 flash("Access Denied: This area requires Owner privileges.", "danger")
                 return redirect(url_for('dashboard.dashboard'))
                 

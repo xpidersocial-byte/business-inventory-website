@@ -124,12 +124,6 @@
         margin-bottom: 0.5rem;
     }
 
-    /* Audit Log border colors */
-    .log-row-delete { border-left: 3px solid #dc3545 !important; }
-    .log-row-sale { border-left: 3px solid #31a24c !important; }
-    .log-row-login { border-left: 3px solid #1877f2 !important; }
-    .log-row-default { border-left: 3px solid #65676b !important; }
-
     .form-label { font-size: 0.75rem; font-weight: 700; color: var(--text-theme-muted); text-transform: uppercase; margin-bottom: 0.25rem; }
     .form-control { border-radius: 6px; padding: 0.6rem 0.75rem; }
 
@@ -299,7 +293,7 @@
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Password</label>
-                                <input type="password" name="password" class="form-control" placeholder="Update password" autocomplete="new-password">
+                                <input type="password" name="password" class="form-control" placeholder="Update password">
                             </div>
                         </div>
                         <div class="border-top pt-3 mt-2">
@@ -428,8 +422,9 @@
                     <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('smtp-config', this)"><i class="bi bi-envelope-paper-fill me-2"></i>SMTP Config</a>
                     <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('system-logs', this)"><i class="bi bi-journal-text me-2"></i>System Audit Logs</a>
                     <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('notifications-config', this)"><i class="bi bi-bell-fill me-2"></i>Notification Center</a>
+                    <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('logic-loc', this)"><i class="bi bi-clock-history me-2"></i>Logic & Localization</a>
                     <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('cats-menus', this)"><i class="bi bi-tags-fill me-2"></i>Categories & Menus</a>
-                    <a href="/docs" target="_blank" class="settings-link"><i class="bi bi-journal-check me-2 text-primary"></i>Documentation Center</a>
+
                     <a href="javascript:void(0)" class="settings-link text-danger" onclick="switchAdminSection('maintenance', this)"><i class="bi bi-tools me-2"></i>Maintenance</a>
                 </div>
             </div>
@@ -468,9 +463,9 @@
                                         <td><span class="badge {{ 'bg-danger' if u.role == 'owner' else 'bg-info' }}">{{ u.role|upper }}</span></td>
                                         <td class="text-end">
                                             <div class="btn-group">
-                                                <button class="btn btn-link text-primary p-0 me-3" onclick="openEditUserModal(this.dataset.id, this.dataset.email, this.dataset.role)" data-id="{{ u._id }}" data-email="{{ u.email }}" data-role="{{ u.role }}"><i class="bi bi-pencil-square"></i></button>
+                                                <button class="btn btn-link text-primary p-0 me-3" onclick="openEditUserModal('{{ u._id }}', '{{ u.email }}', '{{ u.role }}')"><i class="bi bi-pencil-square"></i></button>
                                                 {% if u.email != 'admin@inventory.com' and u.email != session['email'] %}
-                                                <button class="btn btn-link text-danger p-0" onclick="confirmAction(this.dataset.url, 'Delete user?')" data-url="{{ url_for('admin.delete_user', id=u._id) }}"><i class="bi bi-trash"></i></button>
+                                                <button class="btn btn-link text-danger p-0" onclick="confirmAction('{{ url_for('admin.delete_user', id=u._id) }}', 'Delete user?')"><i class="bi bi-trash"></i></button>
                                                 {% endif %}
                                             </div>
                                         </td>
@@ -687,27 +682,13 @@
                 <div id="section-biz-identity" class="admin-section d-none">
                     <div class="feed-card shadow-sm">
                         <h5 class="fw-bold mb-4">Business Profile</h5>
-                        <form action="{{ url_for('admin.update_profile') }}" method="POST" enctype="multipart/form-data">
+                        <form action="{{ url_for('admin.update_profile') }}" method="POST">
                             <input type="hidden" name="form_id" value="identity">
                             <div class="row g-3">
                                 <div class="col-md-6"><label class="form-label">Business Name</label><input type="text" name="business_name" class="form-control" value="{{ site_config.business_name }}"></div>
                                 <div class="col-md-6"><label class="form-label">Contact Email</label><input type="email" name="contact_email" class="form-control" value="{{ site_config.contact_email }}"></div>
                                 <div class="col-md-6"><label class="form-label">Contact Phone</label><input type="text" name="contact_phone" class="form-control" value="{{ site_config.contact_phone }}" placeholder="+63 9XX XXX XXXX"></div>
                                 <div class="col-md-6"><label class="form-label">Business Identifier/Icon</label><input type="text" name="business_icon" class="form-control" value="{{ site_config.business_icon }}" placeholder="bi-box-seam"></div>
-                                <div class="col-md-12">
-                                    <label class="form-label">Business Logo</label>
-                                    <div class="d-flex align-items-center gap-3">
-                                        <div class="border rounded p-1" style="width: 60px; height: 60px;">
-                                            {% if site_config.business_logo %}
-                                                <img src="{{ url_for('static', filename=site_config.business_logo) }}" style="width: 100%; height: 100%; object-fit: contain;">
-                                            {% else %}
-                                                <div class="w-100 h-100 d-flex align-items-center justify-content-center bg-light text-muted small"><i class="bi bi-image"></i></div>
-                                            {% endif %}
-                                        </div>
-                                        <input type="file" name="business_logo" class="form-control" accept="image/*">
-                                    </div>
-                                    <div class="x-small text-muted mt-1">Recommended: 200x200 PNG or JPG. This logo will appear on reports.</div>
-                                </div>
                                 <div class="col-md-12"><label class="form-label">Business Address</label><textarea name="contact_address" class="form-control" rows="2">{{ site_config.contact_address }}</textarea></div>
                                 <div class="col-12 text-end mt-4"><button type="submit" class="btn btn-primary fw-bold">Update Identity</button></div>
                             </div>
@@ -763,7 +744,7 @@
                                 <div class="col-md-8"><label class="form-label">SMTP Host</label><input type="text" name="smtp_host" class="form-control" value="{{ site_config.smtp_host }}" placeholder="smtp.gmail.com"></div>
                                 <div class="col-md-4"><label class="form-label">Port</label><input type="number" name="smtp_port" class="form-control" value="{{ site_config.smtp_port }}" placeholder="587"></div>
                                 <div class="col-md-6"><label class="form-label">Username</label><input type="text" name="smtp_user" class="form-control" value="{{ site_config.smtp_user }}"></div>
-                                <div class="col-md-6"><label class="form-label">Password</label><input type="password" name="smtp_password" class="form-control" value="{{ site_config.smtp_password }}" autocomplete="new-password"></div>
+                                <div class="col-md-6"><label class="form-label">Password</label><input type="password" name="smtp_password" class="form-control" value="{{ site_config.smtp_password }}"></div>
                                 <div class="col-md-12">
                                     <div class="d-flex gap-4 pt-2">
                                         <div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="smtp_use_tls" {{ 'checked' if site_config.smtp_use_tls }}> <label class="small fw-bold">Use TLS</label></div>
@@ -786,6 +767,33 @@
                                     </button>
                                     <button type="submit" class="btn btn-primary fw-bold">Save SMTP Settings</button>
                                 </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Logic & Localization -->
+                <div id="section-logic-loc" class="admin-section d-none">
+                    <div class="feed-card shadow-sm">
+                        <h5 class="fw-bold mb-4">System Logic & Localization</h5>
+                        <form action="{{ url_for('admin.update_profile') }}" method="POST">
+                            <input type="hidden" name="form_id" value="logic">
+                            <div class="row g-3">
+                                <div class="col-md-6"><label class="form-label">Currency Symbol</label><input type="text" name="currency_symbol" class="form-control" value="{{ site_config.currency_symbol }}"></div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Timezone</label>
+                                    <select name="timezone" class="form-select">
+                                        <option value="UTC" {{ 'selected' if site_config.timezone == 'UTC' }}>UTC (Standard)</option>
+                                        <option value="Asia/Manila" {{ 'selected' if site_config.timezone == 'Asia/Manila' }}>Asia/Manila (+8)</option>
+                                        <option value="Asia/Singapore" {{ 'selected' if site_config.timezone == 'Asia/Singapore' }}>Asia/Singapore (+8)</option>
+                                        <option value="Asia/Hong_Kong" {{ 'selected' if site_config.timezone == 'Asia/Hong_Kong' }}>Asia/Hong_Kong (+8)</option>
+                                        <option value="US/Pacific" {{ 'selected' if site_config.timezone == 'US/Pacific' }}>US/Pacific (-8)</option>
+                                        <option value="US/Eastern" {{ 'selected' if site_config.timezone == 'US/Eastern' }}>US/Eastern (-5)</option>
+                                        <option value="Europe/London" {{ 'selected' if site_config.timezone == 'Europe/London' }}>Europe/London (+0)</option>
+                                        <option value="Australia/Sydney" {{ 'selected' if site_config.timezone == 'Australia/Sydney' }}>Australia/Sydney (+11)</option>
+                                    </select>
+                                </div>
+                                <div class="col-12 text-end mt-4"><button type="submit" class="btn btn-primary fw-bold">Save System Logic</button></div>
                             </div>
                         </form>
                     </div>
@@ -879,7 +887,7 @@
                                 </thead>
                                 <tbody id="adminLogBody">
                                     {% for log in admin_data.all_logs %}
-                                    <tr class="log-row {% if 'DELETE' in log.action %}log-row-delete{% elif 'SALE' in log.action %}log-row-sale{% elif 'LOGIN' in log.action %}log-row-login{% else %}log-row-default{% endif %}" data-action="{{ log.action }}" data-details="{{ log.details }}" data-email="{{ log.email }}">
+                                    <tr class="log-row" data-action="{{ log.action }}" data-details="{{ log.details }}" data-email="{{ log.email }}" style="border-left: 3px solid {% if 'DELETE' in log.action %}#dc3545{% elif 'SALE' in log.action %}#31a24c{% elif 'LOGIN' in log.action %}#1877f2{% else %}#65676b{% endif %};">
                                         <td class="ps-3">
                                             <div class="d-flex align-items-center gap-2">
                                                 <div class="avatar shadow-sm" style="width:24px; height:24px; font-size:0.7rem; background:#e4e6eb; border: 1px solid white;">{{ log.email[0]|upper }}</div>
@@ -916,7 +924,7 @@
                                     {% for cat in admin_data.categories %}
                                     <div class="list-group-item d-flex justify-content-between align-items-center px-0">
                                         <span class="small fw-bold">{{ cat.name }}</span>
-                                        <button class="btn btn-link text-danger p-0 btn-sm" onclick="confirmAction(this.dataset.url, 'Delete?')" data-url="{{ url_for('admin.delete_category', id=cat._id) }}"><i class="bi bi-x-circle"></i></button>
+                                        <button class="btn btn-link text-danger p-0 btn-sm" onclick="confirmAction('{{ url_for('admin.delete_category', id=cat._id) }}', 'Delete?')"><i class="bi bi-x-circle"></i></button>
                                     </div>
                                     {% else %}
                                     <div class="text-center py-4 bg-light rounded border border-dashed mb-3">
@@ -941,7 +949,7 @@
                                             <span class="drag-handle"><i class="bi bi-grip-vertical"></i></span>
                                             <span class="small fw-bold">{{ m.name }}</span>
                                         </div>
-                                        <button class="btn btn-link text-danger p-0 btn-sm" onclick="confirmAction(this.dataset.url, 'Delete?')" data-url="{{ url_for('admin.delete_menu', id=m._id) }}"><i class="bi bi-trash"></i></button>
+                                        <button class="btn btn-link text-danger p-0 btn-sm" onclick="confirmAction('{{ url_for('admin.delete_menu', id=m._id) }}', 'Delete?')"><i class="bi bi-trash"></i></button>
                                     </div>
                                     {% else %}
                                     <div class="text-center py-4 bg-light rounded border border-dashed mb-3">
@@ -955,6 +963,7 @@
                         </div>
                     </div>
                 </div>
+
 
                 <!-- Maintenance -->
                 <div id="section-maintenance" class="admin-section d-none">
@@ -1041,8 +1050,8 @@
             <div class="modal-header border-bottom-0 p-4 pb-0"><h5 class="fw-bold">Create New User</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
             <form action="{{ url_for('admin.add_user') }}" method="POST">
                 <div class="modal-body p-4">
-                    <div class="mb-3"><label class="form-label">Email</label><input type="email" name="email" class="form-control" required autocomplete="email"></div>
-                    <div class="mb-3"><label class="form-label">Password</label><input type="password" name="password" class="form-control" required autocomplete="new-password"></div>
+                    <div class="mb-3"><label class="form-label">Email</label><input type="email" name="email" class="form-control" required></div>
+                    <div class="mb-3"><label class="form-label">Password</label><input type="password" name="password" class="form-control" required></div>
                     <div class="mb-3"><label class="form-label">Role</label><select name="role" class="form-select"><option value="cashier">Cashier</option><option value="owner">Owner / Admin</option></select></div>
                 </div>
                 <div class="modal-footer border-top-0 p-4 pt-0"><button type="submit" class="btn btn-success fw-bold w-100">Add Account</button></div>
@@ -1060,11 +1069,11 @@
                 <div class="modal-body p-4">
                     <div class="mb-3">
                         <label class="form-label">Email Address</label>
-                        <input type="email" name="email" id="editEmail" class="form-control" required autocomplete="email">
+                        <input type="email" name="email" id="editEmail" class="form-control" required>
                     </div>
                     <div class="mb-3">
                         <label class="form-label text-primary">Change Password</label>
-                        <input type="password" name="password" class="form-control" placeholder="Leave empty to keep current" autocomplete="new-password">
+                        <input type="password" name="password" class="form-control" placeholder="Leave empty to keep current">
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Account Role</label>
@@ -1114,10 +1123,6 @@
 
 {% block scripts %}
 <script>
-    window.profileSession = {
-        isOwner: "{{ session.get('role') }}" === "owner"
-    };
-
     window.onload = function() {
         const urlParams = new URLSearchParams(window.location.search);
         const tab = urlParams.get('tab');
@@ -1133,7 +1138,7 @@
         
         const section = urlParams.get('section');
         if (section) {
-            const secLink = document.querySelector(`.settings-link[data-section='${section}']`);
+            const secLink = document.querySelector(`.settings-link[onclick*="'${section}'"]`);
             if (secLink) {
                 document.querySelectorAll('.settings-link').forEach(l => l.classList.remove('active'));
                 secLink.classList.add('active');
@@ -1142,7 +1147,7 @@
             }
         }
         
-        if (profileSession.isOwner) {
+        if ({{ 'true' if session.get('role') == 'owner' else 'false' }}) {
             updateServerStats();
             updateDatabaseStats();
             setInterval(updateServerStats, 10000);
@@ -1190,13 +1195,8 @@
 
     function updateServerStats() {
         fetch('/system-info')
-            .then(r => {
-                if (!r.ok) throw new Error(`System info request failed with status ${r.status}`);
-                return r.json();
-            })
+            .then(r => r.json())
             .then(data => {
-                if (data.error) throw new Error(data.error || 'Unknown server info error');
-
                 document.getElementById('cpu_val').innerText = data.cpu + '%';
                 document.getElementById('cpu_bar').style.width = data.cpu + '%';
                 
@@ -1332,14 +1332,9 @@
         window.history.pushState({}, '', url);
     }
 
-    async function confirmAction(url, msg) {
-        if (confirm(msg)) {
-            const res = await offlineSafePost(url, {});
-            if (res.ok || res.offline) {
-                location.reload();
-            } else {
-                alert("Action failed. Please try again.");
-            }
+    function confirmAction(url, msg) {
+        if(confirm(msg)) {
+            const f = document.createElement('form'); f.method='POST'; f.action=url; document.body.appendChild(f); f.submit();
         }
     }
 

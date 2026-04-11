@@ -1,57 +1,50 @@
-from flask import Blueprint, render_template, abort, current_app
+from flask import Blueprint, render_template, abort, session
+from core.middleware import login_required
+import markdown
 import os
-import markdown2
 
 docs_bp = Blueprint('docs', __name__)
 
-# List of Markdown files to display in the Docs Center
-DOCS_DIRECTORY = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ALLOWED_DOCS = {
     'readme': 'README.md',
-    'design': 'SYSTEM_DESIGN.md',
-    'deployment': 'deployment.md',
     'thesis': 'thesis.md',
-    'cheatsheet': 'cheatsheet.md',
-    'methodology': 'METHODOLOGY.md',
-    'evaluation': 'EVALUATION.md',
-    'security': 'SECURITY_ANALYSIS.md',
-    'developer': 'BEGINNER_DEVELOPER_GUIDE.md'
+    'design': 'SYSTEM_DESIGN.md',
+    'training': 'combined_training_data.md'
 }
 
 @docs_bp.route('/docs')
 @docs_bp.route('/docs/<doc_id>')
+@login_required
 def view_doc(doc_id='readme'):
+    # Normalize ID for case-insensitive lookup
     doc_id = doc_id.lower()
+    
     if doc_id not in ALLOWED_DOCS:
         abort(404)
-    
-    file_path = os.path.join(DOCS_DIRECTORY, ALLOWED_DOCS[doc_id])
-    
-    if not os.path.exists(file_path):
-        abort(404)
         
-    with open(file_path, 'r', encoding='utf-8') as f:
-        content = f.read()
+    filename = ALLOWED_DOCS[doc_id]
+    filepath = os.path.join(os.getcwd(), filename)
+    
+    if not os.path.exists(filepath):
+        # Gracefully handle missing files
+        return render_template('docs.html', 
+                             content=f"<h1>Error</h1><p>The document <code>{filename}</code> was not found on the server.</p>",
+                             title="File Not Found",
+                             active_id=doc_id)
+                             
+    with open(filepath, 'r', encoding='utf-8') as f:
+        md_content = f.read()
         
-    # Convert Markdown to HTML with extras (tables, mermaid, etc.)
-    html_content = markdown2.markdown(content, extras=[
-        "tables", 
-        "fenced-code-blocks", 
-        "header-ids", 
-        "code-friendly", 
-        "metadata"
-    ])
+    # Convert Markdown to HTML with extensions
+    # 'fenced_code' for code blocks, 'tables' for tables
+    html_content = markdown.markdown(md_content, extensions=['fenced_code', 'tables', 'toc'])
     
-    # Generate navigation list
-    nav_links = [
-        {'id': k, 'title': v.replace('.md', '').replace('_', ' ').title()} 
-        for k, v in ALLOWED_DOCS.items()
-    ]
-    
-    current_title = ALLOWED_DOCS[doc_id].replace('.md', '').replace('_', ' ').title()
+    # Capitalize the first letter of the doc_id for the title
+    title = doc_id.replace('-', ' ').title()
+    if doc_id == 'readme': title = 'Welcome Guide'
+    if doc_id == 'thesis': title = 'Thesis Documentation'
     
     return render_template('docs.html', 
-                          content=html_content, 
-                          nav_links=nav_links, 
-                          active_doc=doc_id,
-                          current_title=current_title)
+                         content=html_content, 
+                         title=title,
+                         active_id=doc_id)

@@ -121,7 +121,7 @@
                                 </div>
                                 <div class="col-md-4">
                                     <label class="form-label small fw-bold text-theme-muted">Contact Email</label>
-                                    <input type="email" name="contact_email" class="form-control" value="{{ site_config.contact_email }}" autocomplete="email">
+                                    <input type="email" name="contact_email" class="form-control" value="{{ site_config.contact_email }}">
                                 </div>
                                 <div class="col-md-4">
                                     <label class="form-label small fw-bold text-theme-muted">Contact Phone</label>
@@ -193,11 +193,11 @@
                                 </div>
                                 <div class="col-md-4">
                                     <label class="form-label small fw-bold text-theme-muted">SMTP User</label>
-                                    <input type="text" name="smtp_user" class="form-control" value="{{ site_config.smtp_user }}" autocomplete="username">
+                                    <input type="text" name="smtp_user" class="form-control" value="{{ site_config.smtp_user }}">
                                 </div>
                                 <div class="col-md-4">
                                     <label class="form-label small fw-bold text-theme-muted">SMTP Password</label>
-                                    <input type="password" name="smtp_password" class="form-control" value="{{ site_config.smtp_password }}" autocomplete="new-password">
+                                    <input type="password" name="smtp_password" class="form-control" value="{{ site_config.smtp_password }}">
                                 </div>
                                 <div class="col-md-4">
                                     <label class="form-label small fw-bold text-theme-muted">Sender Email</label>
@@ -240,7 +240,7 @@
                                             <td><span class="badge {{ 'bg-danger' if user.role == 'owner' else 'bg-info text-white' }}">{{ user.role|upper }}</span></td>
                                             <td class="text-end">
                                                 {% if user.email != 'admin@inventory.com' and user.email != session.get('email') %}
-                                                <button type="button" onclick="confirmAction(this.dataset.url, 'Delete user?')" data-url="{{ url_for('admin.delete_user', id=user._id) }}" class="btn btn-link text-danger btn-sm p-0"><i class="bi bi-trash"></i></button>
+                                                <button type="button" onclick="confirmAction('{{ url_for('admin.delete_user', id=user._id) }}', 'Delete user?')" class="btn btn-link text-danger btn-sm p-0"><i class="bi bi-trash"></i></button>
                                                 {% else %}
                                                 <span class="text-theme-muted x-small">Protected</span>
                                                 {% endif %}
@@ -273,7 +273,7 @@
                                         <tr class="border-theme-soft">
                                             <td class="fw-bold text-theme-main">{{ cat.name }}</td>
                                             <td class="text-end">
-                                                <button type="button" onclick="confirmAction(this.dataset.url, 'Delete category?')" data-url="{{ url_for('admin.delete_category', id=cat._id) }}" class="btn btn-link text-danger btn-sm p-0"><i class="bi bi-x-circle-fill"></i></button>
+                                                <button type="button" onclick="confirmAction('{{ url_for('admin.delete_category', id=cat._id) }}', 'Delete category?')" class="btn btn-link text-danger btn-sm p-0"><i class="bi bi-x-circle-fill"></i></button>
                                             </td>
                                         </tr>
                                         {% endfor %}
@@ -309,7 +309,7 @@
                                             <td class="text-center">{{ menu.warning_threshold or 10 }}</td>
                                             <td class="text-center">{{ menu.low_stock_threshold or 5 }}</td>
                                             <td class="text-end">
-                                                <button type="button" onclick="confirmAction(this.dataset.url, 'Delete menu?')" data-url="{{ url_for('admin.delete_menu', id=menu._id) }}" class="btn btn-link text-danger btn-sm p-0"><i class="bi bi-trash"></i></button>
+                                                <button type="button" onclick="confirmAction('{{ url_for('admin.delete_menu', id=menu._id) }}', 'Delete menu?')" class="btn btn-link text-danger btn-sm p-0"><i class="bi bi-trash"></i></button>
                                             </td>
                                         </tr>
                                         {% endfor %}
@@ -404,14 +404,13 @@
 
 {% block scripts %}
 <script>
-    async function confirmAction(url, message) {
+    function confirmAction(url, message) {
         if (confirm(message)) {
-            const res = await offlineSafePost(url, {});
-            if (res.ok || res.offline) {
-                location.reload();
-            } else {
-                alert("Action failed. Please try again.");
-            }
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = url;
+            document.body.appendChild(form);
+            form.submit();
         }
     }
 

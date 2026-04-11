@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, session, flash
 from markupsafe import Markup
 from core.utils import calculate_item_metrics, log_action, get_site_config, send_email_notification
 from core.middleware import login_required, role_required
@@ -19,7 +19,7 @@ def save_undo_log(action_type, item_id, previous_state=None):
         "action": action_type,
         "item_id": str(item_id),
         "previous_state": previous_state,
-        "timestamp": datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
+        "timestamp": datetime.now().strftime('%Y-%m-%d %I:%M:%S %p')
     })
     return undo_id
 
@@ -87,8 +87,6 @@ def add_item():
     retail_price = float(data.get('retail_price', 0))
     stock = int(data.get('stock', 0))
     sold = int(data.get('sold', 0))
-    
-    new_id = None
     if name:
         res = items_collection.insert_one({
             "name": name, 
@@ -101,34 +99,15 @@ def add_item():
             "active": True, # Default to active
             "created_at": datetime.now()
         })
-        new_id = str(res.inserted_id)
-        
-        # Log initial stock movement if provided
-        if stock > 0:
-            get_inventory_log_collection().insert_one({
-                "item_name": name, 
-                "type": "IN", 
-                "qty": stock, 
-                "user": session.get('email'), 
-                "timestamp": datetime.now().strftime('%Y-%m-%dT%H:%M:%S'),
-                "new_stock": stock,
-                "reason": "Initial stock on creation"
-            })
-            # Trigger real-time update if stock was added
-            socketio.emit('dashboard_update')
-
-        undo_id = save_undo_log("ADD_ITEM", new_id)
-        log_action("ADD_ITEM", f"Added: {name} (Initial Stock: {stock})")
+        undo_id = save_undo_log("ADD_ITEM", res.inserted_id)
+        log_action("ADD_ITEM", f"Added: {name}")
         send_email_notification(
             "New Item Added",
-            f"A new inventory item was added.\n\nItem: {name}\nCategory: {category}\nMenu: {menu}\nInitial Stock: {stock}\nCost: ₱{cost_price:.2f} | Retail: ₱{retail_price:.2f}\nAdded by: {session.get('email')}\nTime: {datetime.now().strftime('%Y-%m-%d %I:%M %p')}",
+            f"A new inventory item was added.\n\nItem: {name}\nCategory: {category}\nMenu: {menu}\nCost: ₱{cost_price:.2f} | Retail: ₱{retail_price:.2f}\nAdded by: {session.get('email')}\nTime: {datetime.now().strftime('%Y-%m-%d %I:%M %p')}",
             notif_type="inventory"
         )
         undo_url = url_for('inventory.undo_action', undo_id=undo_id)
         flash(Markup(f"Item '{name}' added! <a href='{undo_url}' class='alert-link fw-bold ms-2 text-decoration-underline'>Undo</a>"), "success")
-    
-    if request.is_json or 'application/json' in request.headers.get('Accept', ''):
-        return jsonify({"success": True, "id": new_id})
     return redirect(url_for('inventory.items'))
 
 @inventory_bp.route('/items/edit/<id>', methods=['POST'])
@@ -157,9 +136,6 @@ def edit_item(id):
         )
         undo_url = url_for('inventory.undo_action', undo_id=undo_id)
         flash(Markup(f"Item '{name}' updated! <a href='{undo_url}' class='alert-link fw-bold ms-2 text-decoration-underline'>Undo</a>"), "success")
-    
-    if request.is_json or 'application/json' in request.headers.get('Accept', ''):
-        return jsonify({"success": True})
     return redirect(url_for('inventory.items'))
 
 @inventory_bp.route('/items/delete/<id>', methods=['POST'])
@@ -167,16 +143,11 @@ def edit_item(id):
 @role_required('owner')
 def delete_item(id):
     items_collection = get_items_collection()
-    try:
-        oid = ObjectId(id)
-    except:
-        return jsonify({"success": False, "error": "Invalid ID format"}), 400
-
-    item = items_collection.find_one({'_id': oid})
+    item = items_collection.find_one({'_id': ObjectId(id)})
     if item:
         undo_id = save_undo_log("DELETE_ITEM", id)
         # Soft Delete: Set active to False instead of deleting
-        items_collection.update_one({'_id': oid}, {'$set': {"active": False}})
+        items_collection.update_one({'_id': ObjectId(id)}, {'$set': {"active": False}})
         log_action("DELETE_ITEM", f"Soft Deleted (Hidden): {item['name']}")
         send_email_notification(
             "Item Deleted",
@@ -185,9 +156,6 @@ def delete_item(id):
         )
         undo_url = url_for('inventory.undo_action', undo_id=undo_id)
         flash(Markup(f"Item '{item['name']}' removed from master list. <a href='{undo_url}' class='alert-link fw-bold ms-2 text-decoration-underline'>Undo</a>"), "info")
-    
-    if request.is_json or 'application/json' in request.headers.get('Accept', ''):
-        return jsonify({"success": True})
     return redirect(url_for('inventory.items'))
 
 @inventory_bp.route('/items/reset/<id>', methods=['POST'])
@@ -195,18 +163,13 @@ def delete_item(id):
 @role_required('owner')
 def reset_item(id):
     items_collection = get_items_collection()
-    try:
-        oid = ObjectId(id)
-    except:
-        return jsonify({"success": False, "error": "Invalid ID format"}), 400
-
-    item = items_collection.find_one({'_id': oid})
+    item = items_collection.find_one({'_id': ObjectId(id)})
     if item:
         prev_state = {k: v for k, v in item.items() if k != '_id'}
         undo_id = save_undo_log("RESET_ITEM", id, prev_state)
         # Zero out performance counters but keep prices to preserve item definition
         items_collection.update_one(
-            {'_id': oid},
+            {'_id': ObjectId(id)},
             {'$set': {
                 'stock': 0, 
                 'sold': 0,
@@ -222,9 +185,6 @@ def reset_item(id):
         )
         undo_url = url_for('inventory.undo_action', undo_id=undo_id)
         flash(Markup(f"Data for '{item['name']}' has been completely reset. <a href='{undo_url}' class='alert-link fw-bold ms-2 text-decoration-underline'>Undo</a>"), "warning")
-    
-    if request.is_json or 'application/json' in request.headers.get('Accept', ''):
-        return jsonify({"success": True})
     return redirect(url_for('inventory.items'))
 
 @inventory_bp.route('/items/undo/<undo_id>')
@@ -351,7 +311,7 @@ def stock_in():
     if item_id and qty > 0:
         item = items_collection.find_one({"_id": ObjectId(item_id)})
         if item:
-            ts = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
+            ts = datetime.now().strftime('%Y-%m-%d %I:%M:%S %p')
             new_stock = item.get('stock', 0) + qty
             items_collection.update_one({"_id": ObjectId(item_id)}, {"$inc": {"stock": qty, "inventory_in": qty}})
             inventory_log_collection.insert_one({
@@ -380,32 +340,6 @@ def stock_in():
             flash(Markup(f"Stock IN recorded! <a href='{undo_url}' class='alert-link fw-bold ms-2 text-decoration-underline'>Undo</a>"), "success")
     return redirect(url_for('inventory.restock'))
 
-@inventory_bp.route('/api/items/sync')
-@login_required
-def api_sync_items():
-    try:
-        items_collection = get_items_collection()
-        # Fetch all active items, only return minimal fields to save bandwidth
-        raw_items = list(items_collection.find({"active": {"$ne": False}}, {
-            "name": 1, "category": 1, "menu": 1, "retail_price": 1, "stock": 1, "sold": 1
-        }))
-        
-        # Process them to ensure they have a string _id for PouchDB
-        processed = []
-        for item in raw_items:
-            if '_id' in item:
-                item['_id'] = str(item['_id'])
-            processed.append(item)
-            
-        return jsonify(processed)
-    except Exception as e:
-        import traceback
-        error_msg = f"Sync API Error: {str(e)}"
-        print(f"[ERROR] {error_msg}")
-        print(traceback.format_exc())
-        return jsonify({"error": error_msg, "status": "failed"}), 500
-
-
 @inventory_bp.route('/inventory/stock-out', methods=['POST'])
 @login_required
 def stock_out():
@@ -421,7 +355,7 @@ def stock_out():
         item = items_collection.find_one({"_id": ObjectId(item_id)})
         if item:
             if item.get('stock', 0) >= qty:
-                ts = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
+                ts = datetime.now().strftime('%Y-%m-%d %I:%M:%S %p')
                 new_stock = item.get('stock', 0) - qty
                 items_collection.update_one({"_id": ObjectId(item_id)}, {"$inc": {"stock": -qty, "inventory_out": qty}})
                 inventory_log_collection.insert_one({
