@@ -4,8 +4,38 @@ from core.middleware import login_required
 from core.db import get_notes_collection
 from bson.objectid import ObjectId
 from datetime import datetime, timedelta
+from extensions import socketio
 
 bulletin_bp = Blueprint('bulletin', __name__)
+
+
+def normalize_mongo_datetime(value):
+    if isinstance(value, dict):
+        if '$date' in value:
+            value = value['$date']
+        elif '$numberLong' in value:
+            try:
+                dt = datetime.fromtimestamp(int(value['$numberLong']) / 1000)
+                return dt.replace(tzinfo=None)
+            except Exception:
+                return None
+    if isinstance(value, str):
+        try:
+            if value.endswith('Z'):
+                dt = datetime.fromisoformat(value.replace('Z', '+00:00'))
+                return dt.replace(tzinfo=None)
+            dt = datetime.fromisoformat(value)
+            return dt.replace(tzinfo=None) if dt.tzinfo else dt
+        except Exception:
+            for fmt in ['%Y-%m-%dT%H:%M:%S', '%Y-%m-%d %H:%M:%S', '%Y-%m-%d %I:%M %p']:
+                try:
+                    return datetime.strptime(value, fmt)
+                except Exception:
+                    continue
+    if isinstance(value, datetime):
+        return value.replace(tzinfo=None)
+    return None
+
 
 @bulletin_bp.route('/bulletin')
 @login_required
@@ -26,9 +56,25 @@ def bulletin():
         ("timestamp", -1)
     ]))
     
-    # Identify unread notes for the current user
+    pending_notes = []
+    done_notes = []
+
+    # Identify unread notes for the current user and normalize done timestamps
     for note in all_notes:
         note['unread'] = user_email not in note.get('read_by', [])
+        note_done_at = normalize_mongo_datetime(note.get('done_at'))
+        note['done_at'] = note_done_at
+        note['done_at_str'] = note_done_at.strftime('%Y-%m-%d %H:%M:%S') if note_done_at else ''
+
+        if note.get('status') == 'done':
+            done_notes.append(note)
+        else:
+            pending_notes.append(note)
+
+    done_notes.sort(
+        key=lambda n: n.get('done_at').timestamp() if isinstance(n.get('done_at'), datetime) else 0,
+        reverse=True
+    )
 
     # Mark as read for this user
     from core.db import get_users_collection
@@ -39,7 +85,7 @@ def bulletin():
         )
     except: pass
         
-    return render_template('notes.html', notes=all_notes, role=session.get('role'))
+    return render_template('notes.html', notes=pending_notes, done_notes=done_notes, role=session.get('role'))
 
 @bulletin_bp.route('/bulletin/add', methods=['POST'])
 @login_required
@@ -58,7 +104,7 @@ def add_bulletin():
             "tag": tag,
             "author": session.get('email'),
             "created_at": datetime.now(),
-            "timestamp": datetime.now().strftime('%Y-%m-%d %I:%M:%S %p'),
+            "timestamp": datetime.now().strftime('%Y-%m-%dT%H:%M:%S'),
             "pinned": False,
             "status": "pending",
             "done_at": None,
@@ -70,6 +116,8 @@ def add_bulletin():
             f"A new bulletin was posted.\n\nTag: {tag}\nAuthor: {session.get('email')}\nContent: {content[:200]}{'...' if len(content) > 200 else ''}\nTime: {datetime.now().strftime('%Y-%m-%d %I:%M %p')}",
             notif_type="bulletin"
         )
+        # Real-time trigger
+        socketio.emit('bulletin_update')
 
     if request.is_json or 'application/json' in request.headers.get('Accept', ''):
         return jsonify({"success": True})
@@ -97,6 +145,8 @@ def edit_bulletin(id):
     if update_data:
         notes_collection.update_one({"_id": ObjectId(id)}, {"$set": update_data})
         log_action("EDIT_BULLETIN", "Updated a bulletin post.")
+        # Real-time trigger
+        socketio.emit('bulletin_update')
         flash("Bulletin updated!", "success")
 
     if request.is_json or 'application/json' in request.headers.get('Accept', ''):
@@ -128,6 +178,10 @@ def toggle_bulletin_status(id):
                 {"$set": {"status": new_status, "done_at": done_at, "done_by": done_by}}
             )
             log_action("UPDATE_BULLETIN_STATUS", f"Bulletin marked as {new_status} by {session.get('email')}.")
+            
+            # Real-time trigger
+            socketio.emit('bulletin_update')
+            
             if new_status == 'done':
                 send_email_notification(
                     "Bulletin Marked as Done",
@@ -156,6 +210,8 @@ def update_bulletin_color(id):
             {"_id": ObjectId(id)}, 
             {"$set": {"color": color}}
         )
+        # Real-time trigger
+        socketio.emit('bulletin_update')
     return redirect(url_for('bulletin.bulletin'))
 
 @bulletin_bp.route('/bulletin/pin/<id>', methods=['POST'])
@@ -171,6 +227,8 @@ def pin_bulletin(id):
     if note:
         new_status = not note.get('pinned', False)
         notes_collection.update_one({"_id": oid}, {"$set": {"pinned": new_status}})
+        # Real-time trigger
+        socketio.emit('bulletin_update')
     if request.is_json or 'application/json' in request.headers.get('Accept', ''):
         return jsonify({"success": True})
     return redirect(url_for('bulletin.bulletin'))
@@ -188,9 +246,32 @@ def delete_bulletin(id):
     if note and note.get('author') == session.get('email'):
         notes_collection.delete_one({"_id": oid})
         log_action("DELETE_BULLETIN", "Author removed a bulletin.")
+        # Real-time trigger
+        socketio.emit('bulletin_update')
         flash("Bulletin removed.", "info")
     else:
         flash("Unauthorized deletion attempt or post not found.", "danger")
     if request.is_json or 'application/json' in request.headers.get('Accept', ''):
         return jsonify({"success": True})
+    return redirect(url_for('bulletin.bulletin'))
+
+
+@bulletin_bp.route('/bulletin/purge_done', methods=['POST'])
+@login_required
+def purge_done_bulletins():
+    notes_collection = get_notes_collection()
+    try:
+        result = notes_collection.delete_many({"status": "done"})
+        log_action("PURGE_BULLETINS", f"Purged {result.deleted_count} completed bulletins.")
+        
+        # Real-time trigger
+        socketio.emit('bulletin_update')
+        
+        if request.is_json or 'application/json' in request.headers.get('Accept', ''):
+            return jsonify({"success": True, "deleted": result.deleted_count})
+        flash(f"Purged {result.deleted_count} completed bulletins.", "success")
+    except Exception as e:
+        if request.is_json or 'application/json' in request.headers.get('Accept', ''):
+            return jsonify({"success": False, "error": str(e)}), 500
+        flash("Failed to purge completed bulletins.", "danger")
     return redirect(url_for('bulletin.bulletin'))

@@ -230,7 +230,7 @@
             {% endfor %}
 
             {% if done_count == 0 %}
-            <div class="text-center py-4 opacity-25">
+            <div class="text-center py-4 opacity-25" id="noCompletedMsg">
                 <i class="bi bi-inbox" style="font-size: 2rem;"></i>
                 <p class="small mt-2">No completed items</p>
             </div>
@@ -332,6 +332,14 @@
 
 {% block scripts %}
 <script>
+    // Real-time synchronization for Bulletin Board
+    if (typeof socket !== 'undefined') {
+        socket.on('bulletin_update', () => {
+            console.log("[Socket] Bulletin update received. Reloading board...");
+            location.reload();
+        });
+    }
+
     async function handleBulletinSubmit(event, url) {
         event.preventDefault();
         const submitButton = event.target.querySelector('button[type="submit"]');
@@ -348,7 +356,7 @@
         if (res.ok) {
             bootstrap.Modal.getInstance(event.target.closest(".modal")).hide();
             event.target.reset();
-            location.reload();
+            // location.reload() is now handled by the socket event 'bulletin_update'
         } else {
             if (submitButton) {
                 submitButton.disabled = false;
@@ -372,9 +380,8 @@
 
         const url = `/bulletin/toggle_status/${id}`;
         const res = await offlineSafePost(url, {});
-        if (res.ok) {
-            location.reload();
-        } else {
+        // Reload is handled by socket
+        if (!res.ok) {
             Swal.fire('Error', 'Failed to update bulletin status.', 'error');
         }
     }
@@ -383,7 +390,7 @@
         id = String(id).split(':')[0];
         const url = `/bulletin/pin/${id}`;
         const res = await offlineSafePost(url, {});
-        if (res.ok) location.reload();
+        // Reload is handled by socket
     }
 
     async function deleteNote(id) {
@@ -400,9 +407,8 @@
 
         const url = `/bulletin/delete/${id}`;
         const res = await offlineSafePost(url, {});
-        if (res.ok) {
-            location.reload();
-        } else {
+        // Reload is handled by socket
+        if (!res.ok) {
             Swal.fire('Error', 'Failed to delete bulletin.', 'error');
         }
     }
@@ -411,9 +417,8 @@
         id = String(id).split(':')[0];
         const url = `/bulletin/toggle_status/${id}`;
         const res = await offlineSafePost(url, {});
-        if (res.ok) {
-            location.reload();
-        } else {
+        // Reload is handled by socket
+        if (!res.ok) {
             Swal.fire('Error', 'Failed to restore bulletin.', 'error');
         }
     }
@@ -430,9 +435,8 @@
         if (!result.isConfirmed) return;
 
         const res = await offlineSafePost('/bulletin/purge_done', {});
-        if (res.ok) {
-            location.reload();
-        } else {
+        // Reload is handled by socket
+        if (!res.ok) {
             Swal.fire('Error', 'Failed to purge completed bulletins.', 'error');
         }
     }

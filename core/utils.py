@@ -13,6 +13,21 @@ from core.db import get_settings_collection, get_subscriptions_collection, get_s
 from bson.objectid import ObjectId
 from flask.json.provider import DefaultJSONProvider
 
+def parse_timestamp(value):
+    """Safely parse various datetime string formats into a datetime object."""
+    if not value:
+        return None
+    if isinstance(value, datetime):
+        return value
+    if isinstance(value, str):
+        # Prioritize ISO format for performance
+        for fmt in ['%Y-%m-%dT%H:%M:%S', '%Y-%m-%d %I:%M:%S %p', '%Y-%m-%d %H:%M:%S', '%Y-%m-%d %I:%M %p']:
+            try:
+                return datetime.strptime(value, fmt)
+            except ValueError:
+                continue
+    return None
+
 class MongoJSONProvider(DefaultJSONProvider):
     def default(self, obj):
         if isinstance(obj, datetime):
@@ -186,7 +201,7 @@ def send_email_notification(subject, body, notif_type=None, override_recipient=N
 
 def log_action(action_type, details, send_push=True):
     system_log_collection = get_system_log_collection()
-    timestamp = datetime.now().strftime('%Y-%m-%d %I:%M:%S %p')
+    timestamp = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
     
     ip_addr = "System"
     try:

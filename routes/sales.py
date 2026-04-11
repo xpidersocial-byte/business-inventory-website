@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, send_file, jsonify
 from markupsafe import Markup
-from core.utils import calculate_item_metrics, log_action, get_site_config, send_email_notification
+from core.utils import calculate_item_metrics, log_action, get_site_config, send_email_notification, parse_timestamp
 from core.middleware import login_required, role_required
 from core.db import get_items_collection, get_purchase_collection, get_inventory_log_collection, get_undo_logs_collection, get_users_collection
 from extensions import socketio
@@ -27,7 +27,7 @@ def save_undo_log(action_type, item_id, previous_state=None):
         "action": action_type,
         "item_id": str(item_id),
         "previous_state": previous_state,
-        "timestamp": datetime.now().strftime('%Y-%m-%d %I:%M:%S %p')
+        "timestamp": datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
     })
     return undo_id
 
@@ -72,7 +72,7 @@ def add_sale():
         item = items_collection.find_one({"_id": ObjectId(item_id)})
         if item:
             if item.get('stock', 0) >= qty:
-                ts = datetime.now().strftime('%Y-%m-%d %I:%M:%S %p')
+                ts = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
                 previous_stock = item.get('stock', 0)
                 total_stock = previous_stock - qty
                 unit_price = item.get('retail_price', 0)
@@ -141,7 +141,7 @@ def refund_sale(id):
     item_id = purchase.get('item_id')
     
     # 1. Update purchase status
-    purchase_collection.update_one({'_id': oid}, {'$set': {'status': 'Refunded', 'refunded_at': datetime.now().strftime('%Y-%m-%d %I:%M:%S %p')}})
+    purchase_collection.update_one({'_id': oid}, {'$set': {'status': 'Refunded', 'refunded_at': datetime.now().strftime('%Y-%m-%dT%H:%M:%S')}})
     
     # 2. Return stock to item
     item = None
@@ -160,7 +160,7 @@ def refund_sale(id):
         )
         
         # 3. Log the inventory return
-        ts = datetime.now().strftime('%Y-%m-%d %I:%M:%S %p')
+        ts = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
         inventory_log_collection.insert_one({
             "item_name": item_name,
             "type": "IN",
@@ -195,13 +195,7 @@ def sales_summary():
     now = datetime.now()
     current_year = now.year
 
-    def parse_timestamp(timestamp):
-        for fmt in ['%Y-%m-%d %I:%M:%S %p', '%Y-%m-%d %H:%M:%S', '%Y-%m-%d %I:%M %p']:
-            try:
-                return datetime.strptime(timestamp, fmt)
-            except Exception:
-                continue
-        return None
+    # Shared parse_timestamp from core.utils is used below
 
     all_logs = list(inventory_log_collection.find({"type": {"$in": ["OUT", "IN"]}}))
     items_by_name = {item['name']: item for item in items_collection.find()}
@@ -224,16 +218,22 @@ def sales_summary():
         if not log_date or log_date.year != current_year:
             continue
 
+        log_type = log.get('type')
+        reason = str(log.get('reason', '')).lower()
+        if log_type == 'IN' and 'refund' not in reason:
+            continue
+
         item = items_by_name.get(log.get('item_name'))
         if not item:
             continue
 
         qty = log.get('qty', 0)
-        sign = -1 if log.get('type') == 'IN' and 'refund' in log.get('reason', '').lower() else 1
+        sign = -1 if log_type == 'IN' and 'refund' in reason else 1
         month_idx = log_date.month - 1
-        monthly_revenue[month_idx] += sign * qty * item.get('retail_price', 0)
-        profit_per_unit = abs(item.get('retail_price', 0) - item.get('cost_price', 0))
-        monthly_profit[month_idx] += sign * qty * profit_per_unit
+        revenue = sign * qty * item.get('retail_price', 0)
+        profit = sign * qty * (item.get('retail_price', 0) - item.get('cost_price', 0))
+        monthly_revenue[month_idx] += revenue
+        monthly_profit[month_idx] += profit
 
     for i in range(11, -1, -1):
         start_date = now - timedelta(weeks=i+1)
@@ -250,15 +250,21 @@ def sales_summary():
             if not log_date or not (start_date <= log_date < end_date):
                 continue
 
+            log_type = log.get('type')
+            reason = str(log.get('reason', '')).lower()
+            if log_type == 'IN' and 'refund' not in reason:
+                continue
+
             item = items_by_name.get(log.get('item_name'))
             if not item:
                 continue
 
             qty = log.get('qty', 0)
-            sign = -1 if log.get('type') == 'IN' and 'refund' in log.get('reason', '').lower() else 1
-            week_rev += sign * qty * item.get('retail_price', 0)
-            profit_per_unit = abs(item.get('retail_price', 0) - item.get('cost_price', 0))
-            week_prof += sign * qty * profit_per_unit
+            sign = -1 if log_type == 'IN' and 'refund' in reason else 1
+            revenue = sign * qty * item.get('retail_price', 0)
+            profit = sign * qty * (item.get('retail_price', 0) - item.get('cost_price', 0))
+            week_rev += revenue
+            week_prof += profit
 
         weekly_revenue.append(week_rev)
         weekly_profit.append(week_prof)
@@ -277,15 +283,21 @@ def sales_summary():
             if not log_date or log_date.date() != target_date.date():
                 continue
 
+            log_type = log.get('type')
+            reason = str(log.get('reason', '')).lower()
+            if log_type == 'IN' and 'refund' not in reason:
+                continue
+
             item = items_by_name.get(log.get('item_name'))
             if not item:
                 continue
 
             qty = log.get('qty', 0)
-            sign = -1 if log.get('type') == 'IN' and 'refund' in log.get('reason', '').lower() else 1
-            day_rev += sign * qty * item.get('retail_price', 0)
-            profit_per_unit = abs(item.get('retail_price', 0) - item.get('cost_price', 0))
-            day_prof += sign * qty * profit_per_unit
+            sign = -1 if log_type == 'IN' and 'refund' in reason else 1
+            revenue = sign * qty * item.get('retail_price', 0)
+            profit = sign * qty * (item.get('retail_price', 0) - item.get('cost_price', 0))
+            day_rev += revenue
+            day_prof += profit
 
         daily_revenue.append(day_rev)
         daily_profit.append(day_prof)
@@ -364,7 +376,7 @@ def generate_report():
                 if not timestamp: continue
                 
                 log_date = None
-                for fmt in ['%Y-%m-%d %I:%M:%S %p', '%Y-%m-%d %H:%M:%S', '%Y-%m-%d %I:%M %p']:
+                for fmt in ['%Y-%m-%dT%H:%M:%S', '%Y-%m-%d %H:%M:%S', '%Y-%m-%d %I:%M %p']:
                     try:
                         log_date = datetime.strptime(timestamp, fmt)
                         break
@@ -387,10 +399,15 @@ def generate_report():
                     if log_date.year == now.year: is_match = True
                     
                 if is_match:
+                    log_type = log.get('type')
+                    reason = str(log.get('reason', '')).lower()
+                    if log_type == 'IN' and 'refund' not in reason:
+                        continue
+
                     item = items_by_name.get(log['item_name'])
                     if item:
                         qty = log.get('qty', 0)
-                        sign = -1 if log.get('type') == 'IN' and 'refund' in log.get('reason', '').lower() else 1
+                        sign = -1 if log_type == 'IN' and 'refund' in reason else 1
                         retail = item.get('retail_price', 0)
                         cost = item.get('cost_price', 0)
                         revenue = sign * qty * retail
@@ -470,28 +487,27 @@ def generate_report():
             daily_profit_vals = []
             daily_labels_list = []
 
-            def parse_ts(ts):
-                if not ts: return None
-                for fmt in ['%Y-%m-%d %I:%M:%S %p', '%Y-%m-%d %H:%M:%S', '%Y-%m-%d %I:%M %p']:
-                    try: return datetime.strptime(ts, fmt)
-                    except ValueError: continue
-                return None
+            # Using the shared parse_timestamp utility
 
             items_by_name2 = {item['name']: item for item in get_items_collection().find()}
             all_out_logs = list(get_inventory_log_collection().find({"type": {"$in": ["OUT", "IN"]}}))
 
             # Monthly
             for log in all_out_logs:
-                ld = parse_ts(log.get('timestamp'))
+                ld = parse_timestamp(log.get('timestamp'))
                 if ld and ld.year == now.year:
+                    log_type = log.get('type')
+                    reason = str(log.get('reason', '')).lower()
+                    if log_type == 'IN' and 'refund' not in reason:
+                        continue
                     item = items_by_name2.get(log['item_name'])
                     if item:
                         q = log.get('qty', 0)
-                        sign = -1 if log.get('type') == 'IN' and 'refund' in log.get('reason', '').lower() else 1
+                        sign = -1 if log_type == 'IN' and 'refund' in reason else 1
                         r = item.get('retail_price', 0)
                         c = item.get('cost_price', 0)
                         monthly_rev[ld.month - 1]  += sign * q * r
-                        monthly_prof[ld.month - 1] += sign * q * abs(r - c)
+                        monthly_prof[ld.month - 1] += sign * q * (r - c)
 
             # Weekly (last 12 weeks)
             for i in range(11, -1, -1):
@@ -500,15 +516,19 @@ def generate_report():
                 weekly_labels_list.append(start.strftime('%-m/%-d/%y'))
                 wr = wp = 0.0
                 for log in all_out_logs:
-                    ld = parse_ts(log.get('timestamp'))
+                    ld = parse_timestamp(log.get('timestamp'))
                     if ld and start <= ld < end:
+                        log_type = log.get('type')
+                        reason = str(log.get('reason', '')).lower()
+                        if log_type == 'IN' and 'refund' not in reason:
+                            continue
                         item = items_by_name2.get(log['item_name'])
                         if item:
                             q = log.get('qty', 0)
-                            sign = -1 if log.get('type') == 'IN' and 'refund' in log.get('reason', '').lower() else 1
+                            sign = -1 if log_type == 'IN' and 'refund' in reason else 1
                             r = item.get('retail_price', 0)
                             c = item.get('cost_price', 0)
-                            wr += sign * q * r; wp += sign * q * abs(r - c)
+                            wr += sign * q * r; wp += sign * q * (r - c)
                 weekly_rev.append(wr); weekly_profit_vals.append(wp)
 
             # Daily (last 30 days)
@@ -517,15 +537,19 @@ def generate_report():
                 daily_labels_list.append(td.strftime('%-m/%-d/%y'))
                 dr = dp = 0.0
                 for log in all_out_logs:
-                    ld = parse_ts(log.get('timestamp'))
+                    ld = parse_timestamp(log.get('timestamp'))
                     if ld and ld.date() == td.date():
+                        log_type = log.get('type')
+                        reason = str(log.get('reason', '')).lower()
+                        if log_type == 'IN' and 'refund' not in reason:
+                            continue
                         item = items_by_name2.get(log['item_name'])
                         if item:
                             q = log.get('qty', 0)
-                            sign = -1 if log.get('type') == 'IN' and 'refund' in log.get('reason', '').lower() else 1
+                            sign = -1 if log_type == 'IN' and 'refund' in reason else 1
                             r = item.get('retail_price', 0)
                             c = item.get('cost_price', 0)
-                            dr += sign * q * r; dp += sign * q * abs(r - c)
+                            dr += sign * q * r; dp += sign * q * (r - c)
                 daily_rev.append(dr); daily_profit_vals.append(dp)
 
             # Choose main & trend data — same logic as the frontend

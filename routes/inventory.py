@@ -19,7 +19,7 @@ def save_undo_log(action_type, item_id, previous_state=None):
         "action": action_type,
         "item_id": str(item_id),
         "previous_state": previous_state,
-        "timestamp": datetime.now().strftime('%Y-%m-%d %I:%M:%S %p')
+        "timestamp": datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
     })
     return undo_id
 
@@ -110,7 +110,7 @@ def add_item():
                 "type": "IN", 
                 "qty": stock, 
                 "user": session.get('email'), 
-                "timestamp": datetime.now().strftime('%Y-%m-%d %I:%M:%S %p'),
+                "timestamp": datetime.now().strftime('%Y-%m-%dT%H:%M:%S'),
                 "new_stock": stock,
                 "reason": "Initial stock on creation"
             })
@@ -351,7 +351,7 @@ def stock_in():
     if item_id and qty > 0:
         item = items_collection.find_one({"_id": ObjectId(item_id)})
         if item:
-            ts = datetime.now().strftime('%Y-%m-%d %I:%M:%S %p')
+            ts = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
             new_stock = item.get('stock', 0) + qty
             items_collection.update_one({"_id": ObjectId(item_id)}, {"$inc": {"stock": qty, "inventory_in": qty}})
             inventory_log_collection.insert_one({
@@ -421,7 +421,7 @@ def stock_out():
         item = items_collection.find_one({"_id": ObjectId(item_id)})
         if item:
             if item.get('stock', 0) >= qty:
-                ts = datetime.now().strftime('%Y-%m-%d %I:%M:%S %p')
+                ts = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
                 new_stock = item.get('stock', 0) - qty
                 items_collection.update_one({"_id": ObjectId(item_id)}, {"$inc": {"stock": -qty, "inventory_out": qty}})
                 inventory_log_collection.insert_one({

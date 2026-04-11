@@ -327,14 +327,28 @@ def update_menu_thresholds():
 @login_required
 @role_required('owner')
 def clear_all_data():
-    # Removed authorization code requirement as requested
+    # Clear all business-related collections
+    from core.db import (
+        get_items_collection, get_purchase_collection, get_sales_collection,
+        get_inventory_log_collection, get_system_log_collection,
+        get_categories_collection, get_notes_collection, get_undo_logs_collection,
+        get_menus_collection, get_todos_collection, get_subscriptions_collection
+    )
+    
     get_items_collection().delete_many({})
     get_purchase_collection().delete_many({})
+    get_sales_collection().delete_many({})
     get_inventory_log_collection().delete_many({})
     get_system_log_collection().delete_many({})
+    get_categories_collection().delete_many({})
+    get_notes_collection().delete_many({})
+    get_undo_logs_collection().delete_many({})
+    get_menus_collection().delete_many({})
+    get_todos_collection().delete_many({})
+    get_subscriptions_collection().delete_many({})
     
-    log_action("CLEAR_DATABASE", "Owner wiped all business records without code.")
-    flash("All data has been cleared successfully!", "warning")
+    log_action("CLEAR_DATABASE", "Owner wiped all business records including summary sales, categories, and logs.")
+    flash("The database has been fully purged! Only user accounts and core settings remain.", "warning")
     return redirect(url_for('auth.profile', tab='settings'))
 
 @admin_bp.route('/settings/backup/download')
@@ -673,14 +687,14 @@ def get_notifications():
             "created_at": {"$gt": ts_items}
         })
         
-        # New Sales (purchase has 'date' string in "%Y-%m-%d %I:%M:%S %p")
-        last_sales_str = ts_sales.strftime('%Y-%m-%d %I:%M:%S %p')
+        # New Sales (using ISO format for sorting)
+        last_sales_str = ts_sales.strftime('%Y-%m-%dT%H:%M:%S')
         new_sales_count = purchase_col.count_documents({
             "date": {"$gt": last_sales_str}
         })
         
-        # New Restocks (log has 'timestamp' string in "%Y-%m-%d %I:%M:%S %p")
-        last_restock_str = ts_restocks.strftime('%Y-%m-%d %I:%M:%S %p')
+        # New Restocks
+        last_restock_str = ts_restocks.strftime('%Y-%m-%dT%H:%M:%S')
         new_restocks_count = log_col.count_documents({
             "type": {"$in": ["IN", "DAMAGE"]},
             "timestamp": {"$gt": last_restock_str}
@@ -697,20 +711,21 @@ def get_notifications():
         config = get_site_config()
         warn_threshold = config.get('warning_threshold', 10)
         
-        # All items currently in Warning/Low state
+        # All items currently in Warning or Low state (including Out of Stock)
         current_alerts = list(items_col.find({
             "active": {"$ne": False},
-            "stock": {"$gt": 0, "$lte": warn_threshold} 
+            "stock": {"$lte": warn_threshold} 
         }, {"name": 1}))
         
         legend_alerts = 0
         if current_alerts:
-            # For each alerting item, check if its most recent 'OUT' log is newer than ts_legend
-            last_legend_str = ts_legend.strftime('%Y-%m-%d %H:%M:%S')
+            # For each alerting item, check if there was ANY activity since last visit
+            # Using ISO format for correct lexicographical sorting: %Y-%m-%dT%H:%M:%S
+            last_legend_str = ts_legend.strftime('%Y-%m-%dT%H:%M:%S')
             for alert_item in current_alerts:
                 has_new_activity = log_col.find_one({
                     "item_name": alert_item['name'],
-                    "type": "OUT",
+                    "type": {"$in": ["OUT", "DAMAGE", "ADJUST", "EXPIRED"]},
                     "timestamp": {"$gt": last_legend_str}
                 })
                 if has_new_activity:
@@ -737,6 +752,29 @@ def get_notifications():
             "settings": 0
         }
     })
+
+
+@admin_bp.route('/api/notifications/mark-view', methods=['POST'])
+@login_required
+def mark_notification_view():
+    """Update last_views timestamp for a specific view (sidebar section)."""
+    try:
+        data = request.get_json() or {}
+        view = data.get('view')
+        user_email = session.get('email', '')
+        
+        if not user_email or not view:
+            return jsonify({"success": False}), 400
+            
+        now = datetime.now()
+        get_users_collection().update_one(
+            {"email": user_email},
+            {"$set": {f"last_views.{view}": now}}
+        )
+        return jsonify({"success": True})
+    except Exception as e:
+        print(f"[Mark View Error] {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
 @admin_bp.route('/api/notifications/mark-read', methods=['POST'])

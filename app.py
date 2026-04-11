@@ -39,8 +39,8 @@ def format_datetime(value, format="%Y-%m-%d %I:%M %p"):
         return ""
     if isinstance(value, str):
         try:
-            # Handle various formats found in logs
-            for fmt in ['%Y-%m-%d %I:%M:%S %p', '%Y-%m-%d %H:%M:%S', '%Y-%m-%d %I:%M %p']:
+            # Handle various formats found in logs, prioritizing ISO for performance
+            for fmt in ['%Y-%m-%dT%H:%M:%S', '%Y-%m-%d %I:%M:%S %p', '%Y-%m-%d %H:%M:%S', '%Y-%m-%d %I:%M %p']:
                 try:
                     return datetime.strptime(value, fmt).strftime(format)
                 except ValueError:
@@ -166,4 +166,14 @@ if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
     send_deployment_telemetry()
     debug_mode = os.getenv("FLASK_DEBUG", "false").lower() == "true"
-    socketio.run(app, host="0.0.0.0", port=port, debug=debug_mode, use_reloader=False)
+
+    host = os.getenv("HOST", "0.0.0.0")
+    if host == "0.0.0.0":
+        # Prefer IPv6 dual-stack on local dev so localhost resolves properly.
+        try:
+            socket.getaddrinfo("::1", port, socket.AF_INET6, socket.SOCK_STREAM)
+            host = "::"
+        except Exception:
+            host = "0.0.0.0"
+
+    socketio.run(app, host=host, port=port, debug=debug_mode, use_reloader=False)

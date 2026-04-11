@@ -627,7 +627,7 @@
 
             <span class="sidebar-section-label">Main</span>
             {% if is_admin or cashier_perms.get('dashboard') %}
-            <a data-offline="true" href="{{ url_for('dashboard.dashboard') }}" data-offline="true"
+            <a data-offline="true" href="{{ url_for('dashboard.dashboard') }}" data-offline="true" data-view="dashboard"
                 class="sidebar-link {% if request.endpoint == 'dashboard.dashboard' %}active{% endif %}">
                 <i class="bi bi-grid-1x2-fill s-icon" style="color:#1877f2;"></i>
                 <span class="s-label">Dashboard</span>
@@ -645,7 +645,7 @@
 
             <span class="sidebar-section-label">Inventory</span>
             {% if is_admin or cashier_perms.get('items_master') %}
-            <a data-offline="true" href="{{ url_for('inventory.items') }}" id="nav-items"
+            <a data-offline="true" href="{{ url_for('inventory.items') }}" id="nav-items" data-view="items"
                 class="sidebar-link {% if request.endpoint == 'inventory.items' %}active{% endif %}">
                 <i class="bi bi-list-ul s-icon" style="color:#f0a500;"></i>
                 <span class="s-label">Items</span>
@@ -654,7 +654,7 @@
             {% endif %}
 
             {% if is_admin or cashier_perms.get('sales_ledger') %}
-            <a data-offline="true" href="{{ url_for('sales.sales_list') }}" id="nav-sales"
+            <a data-offline="true" href="{{ url_for('sales.sales_list') }}" id="nav-sales" data-view="sales"
                 class="sidebar-link {% if request.endpoint == 'sales.sales_list' %}active{% endif %}">
                 <i class="bi bi-cart-check s-icon" style="color:#e74c3c;"></i>
                 <span class="s-label">Sold Items</span>
@@ -663,7 +663,7 @@
             {% endif %}
 
             {% if is_admin or cashier_perms.get('restock') %}
-            <a data-offline="true" href="{{ url_for('inventory.restock') }}" id="nav-restock"
+            <a data-offline="true" href="{{ url_for('inventory.restock') }}" id="nav-restock" data-view="restocks"
                 class="sidebar-link {% if request.endpoint == 'inventory.restock' %}active{% endif %}">
                 <i class="bi bi-arrow-left-right s-icon" style="color:#3498db;"></i>
                 <span class="s-label">Restock</span>
@@ -672,7 +672,7 @@
             {% endif %}
 
             {% if is_admin or cashier_perms.get('sales_summary') %}
-            <a data-offline="true" href="{{ url_for('sales.sales_summary') }}"
+            <a data-offline="true" href="{{ url_for('sales.sales_summary') }}" data-view="sales_summary"
                 class="sidebar-link {% if request.endpoint == 'sales.sales_summary' %}active{% endif %}">
                 <i class="bi bi-graph-up-arrow s-icon" style="color:#2abba7;"></i>
                 <span class="s-label">Sales Summary</span>
@@ -682,7 +682,7 @@
 
             <span class="sidebar-section-label">Notices</span>
             {% if is_admin or cashier_perms.get('bulletin_board') %}
-            <a data-offline="true" href="{{ url_for('bulletin.bulletin') }}"
+            <a data-offline="true" href="{{ url_for('bulletin.bulletin') }}" data-view="bulletins"
                 class="sidebar-link {% if request.endpoint == 'bulletin.bulletin' %}active{% endif %}">
                 <i class="bi bi-clipboard-data s-icon" style="color:#e74c3c;"></i>
                 <span class="s-label">Bulletin Board</span>
@@ -692,7 +692,7 @@
 
 
             {% if is_admin or cashier_perms.get('legend') %}
-            <a data-offline="true" href="{{ url_for('inventory.legend') }}"
+            <a data-offline="true" href="{{ url_for('inventory.legend') }}" data-view="legend"
                 class="sidebar-link {% if request.endpoint == 'inventory.legend' %}active{% endif %}">
                 <i class="bi bi-exclamation-triangle-fill s-icon" style="color:#e74c3c;"></i>
                 <span class="s-label">Low stock alert</span>
@@ -702,7 +702,7 @@
 
             {% if is_admin %}
             <span class="sidebar-section-label">Administration</span>
-            <a href="/profile?tab=settings"
+            <a href="/profile?tab=settings" data-view="settings"
                 class="sidebar-link {% if request.path == '/profile' and request.args.get('tab') == 'settings' %}active{% endif %}">
                 <i class="bi bi-gear-fill s-icon" style="color:#1877f2;"></i>
                 <span class="s-label">Business Settings</span>
@@ -887,13 +887,43 @@
             }
         }
 
-        // Snap-clear badges when clicked
-        document.querySelectorAll('.sidebar-link').forEach(link => {
-            link.addEventListener('click', function () {
-                const badge = this.querySelector('.s-badge');
-                if (badge && !badge.id.includes('legend')) {
-                    badge.classList.add('d-none');
-                }
+        function markSidebarView(viewKey) {
+            if (!viewKey) return;
+            const payload = JSON.stringify({ view: viewKey });
+
+            if (navigator.sendBeacon) {
+                const blob = new Blob([payload], { type: 'application/json' });
+                navigator.sendBeacon('/api/notifications/mark-view', blob);
+                return;
+            }
+
+            fetch('/api/notifications/mark-view', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: payload,
+                keepalive: true
+            }).catch(() => {});
+        }
+
+        // Snap-clear badges when clicked and tell the server which view was opened
+        document.addEventListener('DOMContentLoaded', function () {
+            document.querySelectorAll('.sidebar-link').forEach(link => {
+                link.addEventListener('click', function (event) {
+                    const badge = this.querySelector('.s-badge');
+                    const viewKey = this.dataset.view;
+                    if (viewKey) {
+                        if (badge) {
+                            badge.classList.add('d-none');
+                        }
+                        markSidebarView(viewKey);
+                        const destination = this.href;
+                        event.preventDefault();
+                        // Give the browser a moment to enqueue beacon/fetch before navigating
+                        setTimeout(() => {
+                            window.location.href = destination;
+                        }, 50);
+                    }
+                });
             });
         });
 

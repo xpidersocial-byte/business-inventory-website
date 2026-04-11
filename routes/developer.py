@@ -10,7 +10,7 @@ import requests
 import psutil
 from core.utils import log_action, MongoJSONProvider
 from core.middleware import login_required
-from core.db import get_dev_updates_collection, get_items_collection, get_categories_collection, get_purchase_collection, get_inventory_log_collection, get_system_log_collection, get_notes_collection, get_subscriptions_collection
+from core.db import get_dev_updates_collection, get_items_collection, get_categories_collection, get_purchase_collection, get_sales_collection, get_inventory_log_collection, get_system_log_collection, get_notes_collection, get_subscriptions_collection, get_menus_collection, get_undo_logs_collection, get_users_collection, get_settings_collection
 from bson.objectid import ObjectId
 
 developer_bp = Blueprint('developer', __name__)
@@ -126,7 +126,7 @@ def add_dev_update():
         dev_updates_collection.insert_one({
             "content": content,
             "tag": tag,
-            "timestamp": datetime.now().strftime('%Y-%m-%d %I:%M:%S %p')
+            "timestamp": datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
         })
         flash("Development update posted!", "success")
     return redirect(url_for('developer.developer_portal'))
@@ -225,11 +225,16 @@ def developer_backup():
             "items": list(get_items_collection().find({}, {'_id': 0})),
             "categories": list(get_categories_collection().find({}, {'_id': 0})),
             "purchase": list(get_purchase_collection().find({}, {'_id': 0})),
+            "sales": list(get_sales_collection().find({}, {'_id': 0})),
             "inventory_log": list(get_inventory_log_collection().find({}, {'_id': 0})),
             "system_logs": list(get_system_log_collection().find({}, {'_id': 0})),
             "notes": list(get_notes_collection().find({}, {'_id': 0})),
             "subscriptions": list(get_subscriptions_collection().find({}, {'_id': 0})),
-            "dev_updates": list(get_dev_updates_collection().find({}, {'_id': 0}))
+            "dev_updates": list(get_dev_updates_collection().find({}, {'_id': 0})),
+            "menus": list(get_menus_collection().find({}, {'_id': 0})),
+            "undo_logs": list(get_undo_logs_collection().find({}, {'_id': 0})),
+            "users": list(get_users_collection().find({}, {'_id': 0})),
+            "settings": list(get_settings_collection().find({}, {'_id': 0}))
         }
         filename = f"xpider_backup_{datetime.now().strftime('%Y%m%d')}.json"
         return Response(

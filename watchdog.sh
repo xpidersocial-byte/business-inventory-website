@@ -5,7 +5,7 @@
 # Purpose: Auto-restart the website and check MongoDB container status.
 
 # Project Configuration Paths
-PROJECT_DIR="/home/eujyrn/Desktop/flask_mongo_app"
+PROJECT_DIR="/home/eujyrn/Desktop/FBIHM-PROJECT (copy 1)"
 VENV_GUNICORN="$PROJECT_DIR/venv/bin/gunicorn"
 LOG_FILE="$PROJECT_DIR/watchdog.log"
 APP_LOG="$PROJECT_DIR/app.log"

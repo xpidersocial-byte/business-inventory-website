@@ -4,7 +4,7 @@ import re
 import requests
 from flask import Blueprint, render_template, request, session, jsonify, url_for, abort
 from datetime import datetime, timedelta
-from core.utils import calculate_item_metrics
+from core.utils import calculate_item_metrics, parse_timestamp
 from core.middleware import login_required
 from core.db import get_items_collection, get_dev_updates_collection, get_inventory_log_collection, get_purchase_collection, get_notes_collection
 
@@ -70,8 +70,8 @@ def dashboard():
 
     if view == 'weekly':
         week_ago = now - timedelta(days=7)
-        period_sales_logs = [log for log in sales_logs if datetime.strptime(log['timestamp'], '%Y-%m-%d %I:%M:%S %p') >= week_ago]
-        period_in_logs = [log for log in in_logs if datetime.strptime(log['timestamp'], '%Y-%m-%d %I:%M:%S %p') >= week_ago]
+        period_sales_logs = [log for log in sales_logs if (parse_timestamp(log.get('timestamp')) or datetime(2000,1,1)) >= week_ago]
+        period_in_logs = [log for log in in_logs if (parse_timestamp(log.get('timestamp')) or datetime(2000,1,1)) >= week_ago]
     else:
         period_sales_logs = [log for log in sales_logs if log['timestamp'].startswith(period_str)]
         period_in_logs = [log for log in in_logs if log['timestamp'].startswith(period_str)]
