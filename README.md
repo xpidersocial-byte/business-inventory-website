@@ -9,30 +9,47 @@ The FBIHM team Inventory Engine (v2.6.0) is a high-performance, real-time invent
 
 ```mermaid
 graph TD
-    subgraph "Phase 1: Entry & Auth"
-        UA[User Access] -->|Middleware| FS[Flask Server]
-        FS -->|Role Check| RB[RBAC Control]
+    %% User & External Interaction
+    User((User / Cashier / Owner)) -->|HTTP/HTTPS| WebServer["Flask Web Server"]
+    User -->|WebSockets| SocketIO["Real-time Socket.io Layer"]
+    
+    %% Core Logic & Security
+    subgraph "Application Core (Flask)"
+        WebServer --> RBAC{Auth & RBAC Guard}
+        RBAC -->|Authorized| Logic["Business Logic & CRUD"]
+        RBAC -->|Unauthorized| Login["/login"]
+        
+        Logic -->|Action Logging| AuditLog["Audit Trail / System Logs"]
+        Logic -->|Real-time Sync| SocketIO
     end
 
-    subgraph "Phase 2: Persistent Storage"
-        FS -->|BSON CRUD| DB[(MongoDB Atlas)]
-        DB -->|ISO 8601| SI[Sales / Inventory]
+    %% Data Layer
+    subgraph "Data Storage (MongoDB)"
+        Logic <--> DB[(MongoDB Collections)]
+        DB --- Users["Users / Permissions"]
+        DB --- Items["Items / Inventory"]
+        DB --- Sales["Sales / Ledger"]
+        DB --- Logs["System Logs"]
     end
 
-    subgraph "Phase 3: Real-Time Layer"
-        FS <-->|WebSockets| WS[Socket.IO Engine]
-        WS -->|Broadcast| CD[Connected Dashboards]
-        WS -->|Sync| NA[Global Notifications]
+    %% Intelligence & Automation
+    subgraph "Intelligence & Background"
+        Logic -->|Data Feed| AIEngine["XPIDER AI Engine / Analytics"]
+        AIEngine -->|Insights| User
+        
+        Watchdog["Watchdog Daemon"] -->|Monitor PID| WebServer
+        Watchdog -->|Restart if Dead| WebServer
+        
+        Logic -->|Stock Alerts| Notify["Notification Hub"]
+        Notify -->|SMTP| Email["Email Alerts"]
+        Notify -->|VAPID| Push["Web Push Notifications"]
     end
 
-    subgraph "Phase 4: Output & Resilience"
-        FS -->|Pillow| PIL[Branding Engine]
-        PIL -->|PDF/Docx| REP[Branded Reports]
-        WD[Watchdog Daemon] -->|Health Loop| FS
-        WD -->|Auto-Restart| AR[System Self-Healing]
+    %% Developer Portal
+    subgraph "Developer Portal"
+        Logic -->|Hardware Telemetry| DevPortal["Developer / Dashboard"]
+        Logic -->|Live Kernel Stream| LiveDebug["Live Debugging"]
     end
-
-    GT[Gitea CI/CD] -->|Auto-Pull| FS
 ```
 
 ---
