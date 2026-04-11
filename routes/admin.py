@@ -398,7 +398,7 @@ def send_auth_code():
     code = str(random.randint(100000, 999999))
     session['auth_code'] = code
     session['auth_code_expiry'] = (datetime.now() + timedelta(minutes=10)).isoformat()
-    recipient = "bejasadhev@gmail.com"
+    recipient = session.get("email")
     success = send_email_notification("Owner Security Authorization Code", f"SECURITY ALERT: Your Authorization Code is: {code}", override_recipient=recipient)
     return jsonify({"success": success, "message": f"Verification code sent to {recipient}" if success else "Failed to send email."})
 @admin_bp.route('/admin/database-stats')

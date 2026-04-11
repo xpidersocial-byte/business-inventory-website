@@ -302,11 +302,8 @@ def send_profile_confirm_code():
     role = session.get('role', 'cashier')
     user = get_users_collection().find_one({"email": email})
     
-    # Admins get the code on bejasadhev@gmail.com; cashiers get it on their own registered email
-    if role == 'owner':
-        recipient = 'bejasadhev@gmail.com'
-    else:
-        recipient = user.get('email', email) if user else email
+    # Codes are sent to the registered email of the account being modified
+    recipient = user.get('email', email) if user else email
     
     code = str(random.randint(100000, 999999))
     session['profile_confirm_code'] = code
