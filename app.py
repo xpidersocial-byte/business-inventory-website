@@ -25,6 +25,7 @@ from routes.admin import admin_bp
 from routes.developer import developer_bp
 from routes.notes import bulletin_bp
 from routes.pos import pos_bp
+from routes.docs import docs_bp
 
 load_dotenv(override=True)
 
@@ -73,6 +74,7 @@ app.register_blueprint(admin_bp)
 app.register_blueprint(developer_bp)
 app.register_blueprint(bulletin_bp)
 app.register_blueprint(pos_bp)
+app.register_blueprint(docs_bp)
 
 
 # Legacy URL redirect: /inventory -> /items

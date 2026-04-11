@@ -10,33 +10,6 @@ from core.db import get_items_collection, get_dev_updates_collection, get_invent
 
 dashboard_bp = Blueprint('dashboard', __name__)
 
-@dashboard_bp.route('/docs/view/<path:filename>')
-def view_markdown(filename):
-    """Renders any .md file in the root directory as HTML for AI public access."""
-    if not filename.endswith('.md'):
-        abort(404)
-        
-    # Security: prevent path traversal by taking only the basename
-    safe_filename = os.path.basename(filename)
-    root_dir = os.path.dirname(os.path.abspath(__file__)) + "/.."
-    file_path = os.path.join(root_dir, safe_filename)
-    
-    if not os.path.isfile(file_path):
-        abort(404)
-        
-    with open(file_path, 'r', encoding='utf-8') as f:
-        text = f.read()
-        
-    # Convert markdown to HTML with common extensions
-    html_body = markdown.markdown(text, extensions=['fenced_code', 'tables', 'nl2br', 'toc'])
-    
-    return render_template('md_view.html', 
-                           filename=safe_filename, 
-                           content=html_body,
-                           email=session.get('email'),
-                           role=session.get('role'))
-
-
 @dashboard_bp.route('/dashboard')
 @login_required
 def dashboard():

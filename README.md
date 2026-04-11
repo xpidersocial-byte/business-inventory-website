@@ -5,20 +5,34 @@ The FBIHM team Inventory Engine (v2.6.0) is a high-performance, real-time invent
 
 ---
 
-## 🗺️ System Process Map (Mermaid)
+## 🗺️ System Operation Process Map (Mermaid)
 
 ```mermaid
 graph TD
-    UA[User Access] --> FS[Flask Server]
-    FS --> RB[RBAC]
-    FS --> WS[WebSockets]
-    WS --> CD[Connected Dashboards]
-    FS --> DB[MongoDB Atlas]
-    DB --> SI[Sales / Inventory]
-    FS --> WD[Watchdog]
-    WD --> AR[Auto-Restart]
-    FS --> NA[Notifications]
-    GT[Gitea Repo] --> FS
+    subgraph "Phase 1: Entry & Auth"
+        UA[User Access] -->|Middleware| FS[Flask Server]
+        FS -->|Role Check| RB[RBAC Control]
+    end
+
+    subgraph "Phase 2: Persistent Storage"
+        FS -->|BSON CRUD| DB[(MongoDB Atlas)]
+        DB -->|ISO 8601| SI[Sales / Inventory]
+    end
+
+    subgraph "Phase 3: Real-Time Layer"
+        FS <-->|WebSockets| WS[Socket.IO Engine]
+        WS -->|Broadcast| CD[Connected Dashboards]
+        WS -->|Sync| NA[Global Notifications]
+    end
+
+    subgraph "Phase 4: Output & Resilience"
+        FS -->|Pillow| PIL[Branding Engine]
+        PIL -->|PDF/Docx| REP[Branded Reports]
+        WD[Watchdog Daemon] -->|Health Loop| FS
+        WD -->|Auto-Restart| AR[System Self-Healing]
+    end
+
+    GT[Gitea CI/CD] -->|Auto-Pull| FS
 ```
 
 ---

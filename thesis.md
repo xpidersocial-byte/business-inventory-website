@@ -57,6 +57,34 @@ Let's say you have **10 Apples** in your store.
     - Timestamp: It records the time as `2026-04-11T12:00:01` (ISO 8601).
 4.  **The Receipt:** A professional PDF pops out showing **your store logo** at the top!
 5.  **The Dashboard:** Instantly, the owner's computer updates a graph showing: *"Yay! You made profit today!"*
+---
+
+## 4. Visualizing the Magic (For the Defense Panel)
+During your presentation, you can use these maps to explain the complex "invisible" parts of your system.
+
+### **The Sale Flow (How data stays safe)**
+```mermaid
+graph LR
+    P[Product Sold] -->|Validate| S[Flask Server]
+    S -->|Standardize| I[ISO 8601 Format]
+    I -->|Save| D[(MongoDB Atlas)]
+    D -->|Confirmation| R[Branded Ledger Report]
+```
+
+### **The Real-Time Sync (Dual-Terminal Update)**
+```mermaid
+sequenceDiagram
+    participant C1 as Cashier A
+    participant F as Flask Server
+    participant S as Socket.IO Hub
+    participant C2 as Cashier B
+
+    C1->>F: Sell Last Item
+    F->>S: emit('low_stock_alert')
+    S->>C1: Show Success
+    S->>C2: Trigger Red Alert!
+    Note right of C2: Dashboard updates in 100ms
+```
 
 ---
 
