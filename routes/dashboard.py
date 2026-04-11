@@ -68,10 +68,27 @@ def dashboard():
         period_str = now.strftime('%Y-%m')
         display_label = now.strftime('%B %Y')
 
+    def parse_log_time(ts_str):
+        for fmt in ['%Y-%m-%dT%H:%M:%S', '%Y-%m-%d %I:%M:%S %p', '%Y-%m-%d %H:%M:%S', '%Y-%m-%d %I:%M %p']:
+            try:
+                return datetime.strptime(ts_str, fmt)
+            except ValueError:
+                continue
+        return None
+
     if view == 'weekly':
         week_ago = now - timedelta(days=7)
-        period_sales_logs = [log for log in sales_logs if datetime.strptime(log['timestamp'], '%Y-%m-%d %I:%M:%S %p') >= week_ago]
-        period_in_logs = [log for log in in_logs if datetime.strptime(log['timestamp'], '%Y-%m-%d %I:%M:%S %p') >= week_ago]
+        period_sales_logs = []
+        for log in sales_logs:
+            dt = parse_log_time(log['timestamp'])
+            if dt and dt >= week_ago:
+                period_sales_logs.append(log)
+        
+        period_in_logs = []
+        for log in in_logs:
+            dt = parse_log_time(log['timestamp'])
+            if dt and dt >= week_ago:
+                period_in_logs.append(log)
     else:
         period_sales_logs = [log for log in sales_logs if log['timestamp'].startswith(period_str)]
         period_in_logs = [log for log in in_logs if log['timestamp'].startswith(period_str)]
