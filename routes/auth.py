@@ -337,12 +337,15 @@ def forgot_password_request():
             {"$set": {"reset_code": code, "reset_code_expiry": expiry}}
         )
         
-        send_email_notification(
+        success = send_email_notification(
             "Password Reset Code",
             f"Your password reset code is: {code}\n\nThis code expires in 15 minutes.\nIf you did not request this, please ignore this email.",
             override_recipient=email
         )
-    return jsonify({"success": True, "message": "If an account exists, a reset code has been sent."})
+        if not success:
+            return jsonify({"success": False, "message": "Failed to send reset code. Please try again later or contact support."}), 500
+            
+    return jsonify({"success": True, "message": "A reset code has been sent to your email address."})
 
 @auth_bp.route('/forgot-password/reset', methods=['POST'])
 def forgot_password_reset():
