@@ -428,7 +428,6 @@
                     <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('smtp-config', this)"><i class="bi bi-envelope-paper-fill me-2"></i>SMTP Config</a>
                     <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('system-logs', this)"><i class="bi bi-journal-text me-2"></i>System Audit Logs</a>
                     <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('notifications-config', this)"><i class="bi bi-bell-fill me-2"></i>Notification Center</a>
-                    <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('logic-loc', this)"><i class="bi bi-clock-history me-2"></i>Logic & Localization</a>
                     <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('cats-menus', this)"><i class="bi bi-tags-fill me-2"></i>Categories & Menus</a>
                     <a href="javascript:void(0)" class="settings-link text-danger" onclick="switchAdminSection('maintenance', this)"><i class="bi bi-tools me-2"></i>Maintenance</a>
                 </div>
@@ -772,33 +771,6 @@
                                     </button>
                                     <button type="submit" class="btn btn-primary fw-bold">Save SMTP Settings</button>
                                 </div>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-
-                <!-- Logic & Localization -->
-                <div id="section-logic-loc" class="admin-section d-none">
-                    <div class="feed-card shadow-sm">
-                        <h5 class="fw-bold mb-4">System Logic & Localization</h5>
-                        <form action="{{ url_for('admin.update_profile') }}" method="POST">
-                            <input type="hidden" name="form_id" value="logic">
-                            <div class="row g-3">
-                                <div class="col-md-6"><label class="form-label">Currency Symbol</label><input type="text" name="currency_symbol" class="form-control" value="{{ site_config.currency_symbol }}"></div>
-                                <div class="col-md-6">
-                                    <label class="form-label">Timezone</label>
-                                    <select name="timezone" class="form-select">
-                                        <option value="UTC" {{ 'selected' if site_config.timezone == 'UTC' }}>UTC (Standard)</option>
-                                        <option value="Asia/Manila" {{ 'selected' if site_config.timezone == 'Asia/Manila' }}>Asia/Manila (+8)</option>
-                                        <option value="Asia/Singapore" {{ 'selected' if site_config.timezone == 'Asia/Singapore' }}>Asia/Singapore (+8)</option>
-                                        <option value="Asia/Hong_Kong" {{ 'selected' if site_config.timezone == 'Asia/Hong_Kong' }}>Asia/Hong_Kong (+8)</option>
-                                        <option value="US/Pacific" {{ 'selected' if site_config.timezone == 'US/Pacific' }}>US/Pacific (-8)</option>
-                                        <option value="US/Eastern" {{ 'selected' if site_config.timezone == 'US/Eastern' }}>US/Eastern (-5)</option>
-                                        <option value="Europe/London" {{ 'selected' if site_config.timezone == 'Europe/London' }}>Europe/London (+0)</option>
-                                        <option value="Australia/Sydney" {{ 'selected' if site_config.timezone == 'Australia/Sydney' }}>Australia/Sydney (+11)</option>
-                                    </select>
-                                </div>
-                                <div class="col-12 text-end mt-4"><button type="submit" class="btn btn-primary fw-bold">Save System Logic</button></div>
                             </div>
                         </form>
                     </div>
