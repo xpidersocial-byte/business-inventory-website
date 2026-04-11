@@ -21,6 +21,7 @@ ALLOWED_DOCS = {
 @docs_bp.route('/docs')
 @docs_bp.route('/docs/<doc_id>')
 def view_doc(doc_id='readme'):
+    doc_id = doc_id.lower()
     if doc_id not in ALLOWED_DOCS:
         abort(404)
     
