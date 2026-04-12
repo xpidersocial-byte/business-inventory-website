@@ -1,0 +1,74 @@
+name: Remote SSH Deploy (Watchdog Enabled)
+
+on:
+  push:
+    branches:
+      - v2
+      - main
+
+jobs:
+  deploy:
+    runs-on: [ubuntu-latest, ubuntu-22.04]
+
+    steps:
+      - name: Install Deployment Tools
+        run: |
+          apt-get update
+          apt-get install -y sshpass rsync git
+
+      - name: Manual Checkout
+        run: |
+          echo "🚀 Refreshing workspace..."
+          git init
+          BRANCH=$(echo ${GITHUB_REF} | sed 's|refs/heads/||')
+          git -c http.sslVerify=false fetch origin $BRANCH
+          git checkout -f $BRANCH
+          git reset --hard FETCH_HEAD
+
+      - name: Deploy to Remote Server via SSH
+        env:
+          SSH_PASS: ${{ secrets.SERVER_PASSWORD }}
+        run: |
+          REMOTE_USER="root"
+          REMOTE_HOST="74.208.174.70"
+          TARGET_DIR="/home/eujyrn/Desktop/flask_mongo_app"
+          
+          echo "🚀 Syncing to $REMOTE_HOST..."
+          # Protect .env and logs, but clear old code
+          sshpass -p "$SSH_PASS" ssh -o StrictHostKeyChecking=no $REMOTE_USER@$REMOTE_HOST \
+            "find $TARGET_DIR -maxdepth 1 -type f -not -name 'app.log' -not -name '.env' -not -name 'watchdog.log' -delete"
+          
+          sshpass -p "$SSH_PASS" rsync -avzc -e "ssh -o StrictHostKeyChecking=no" \
+            --exclude 'venv/' --exclude 'data/' --exclude '.git/' \
+            ./ $REMOTE_USER@$REMOTE_HOST:$TARGET_DIR/
+          
+          sshpass -p "$SSH_PASS" ssh -o StrictHostKeyChecking=no $REMOTE_USER@$REMOTE_HOST "
+            cd /home/eujyrn/Desktop/flask_mongo_app
+            
+            # Kill existing watchdog and app to ensure fresh start
+            pkill -f 'watchdog.sh' || true
+            pkill -f 'app.py' || true
+            fuser -k 5000/tcp || true
+            
+            if [ ! -d 'venv' ]; then python3 -m venv venv; fi
+            source venv/bin/activate
+            pip install -r requirements.txt
+            
+            echo '🔄 Starting System Watchdog...'
+            chmod +x watchdog.sh
+            # Start watchdog in background, fully detached
+            nohup ./watchdog.sh > watchdog.log 2>&1 < /dev/null &
+            
+            echo '⌛ Waiting for watchdog to start the app...'
+            sleep 15
+            
+            if pgrep -f 'venv/bin/python3 app.py' > /dev/null; then
+              echo '✅ SUCCESS: Watchdog has started the App.'
+              echo '--- Recent app.log ---'
+              tail -n 10 app.log
+            else
+              echo '❌ ERROR: App not started yet. Check watchdog.log:'
+              tail -n 20 watchdog.log
+              exit 1
+            fi
+          "
