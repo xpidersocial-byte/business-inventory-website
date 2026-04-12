@@ -47,6 +47,18 @@
         gap: 8px;
         transition: all 0.2s;
     }
+
+    /* Preview Table */
+    .preview-table th { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid var(--border-soft); }
+    .preview-table td { font-size: 0.85rem; }
+    
+    .preview-chart-container {
+        height: 180px;
+        width: 100%;
+        background: rgba(255,255,255,0.02);
+        border-radius: 8px;
+        padding: 5px;
+    }
 </style>
 {% endblock %}
 
@@ -67,16 +79,16 @@
                 <a href="{{ url_for('sales.sales_summary', view='yearly') }}" class="period-btn {{ 'active' if view_type == 'yearly' }}">Yearly</a>
             </div>
 
-            <!-- Export Dropdown -->
+            <!-- Generate Report Dropdown -->
             <div class="dropdown">
-                <button class="btn btn-primary export-btn dropdown-toggle shadow-sm" type="button" data-bs-toggle="dropdown">
-                    <i class="bi bi-download"></i> Generate Report
+                <button class="btn btn-primary export-btn shadow-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                    <i class="bi bi-file-earmark-bar-graph"></i> Generate Report
                 </button>
-                <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2 p-2">
-                    <li><h6 class="dropdown-header small text-uppercase fw-bold text-muted">Select Format ({{ view_type|capitalize }})</h6></li>
-                    <li><a class="dropdown-item rounded p-2 d-flex align-items-center" href="{{ url_for('sales.generate_report', view=view_type, format='pdf') }}"><i class="bi bi-file-earmark-pdf-fill text-danger me-3 fs-5"></i>PDF Document</a></li>
-                    <li><a class="dropdown-item rounded p-2 d-flex align-items-center" href="{{ url_for('sales.generate_report', view=view_type, format='excel') }}"><i class="bi bi-file-earmark-excel-fill text-success me-3 fs-5"></i>Excel Spreadsheet</a></li>
-                    <li><a class="dropdown-item rounded p-2 d-flex align-items-center" href="{{ url_for('sales.generate_report', view=view_type, format='word') }}"><i class="bi bi-file-earmark-word-fill text-primary me-3 fs-5"></i>Word Document</a></li>
+                <ul class="dropdown-menu dropdown-menu-end shadow border-0 p-2">
+                    <li><button class="dropdown-item rounded p-2" type="button" onclick="showReportPreview()"><i class="bi bi-eye-fill text-primary me-2"></i>Preview Report</button></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item rounded p-2" href="{{ url_for('sales.generate_report', view=view_type, format='pdf') }}"><i class="bi bi-file-earmark-pdf-fill text-danger me-2"></i>Quick PDF Download</a></li>
+                    <li><a class="dropdown-item rounded p-2" href="{{ url_for('sales.generate_report', view=view_type, format='excel') }}"><i class="bi bi-file-earmark-excel-fill text-success me-2"></i>Excel Spreadsheet</a></li>
                 </ul>
             </div>
         </div>
@@ -174,11 +186,11 @@
                         <tbody>
                             {% if view_type == 'weekly' %}
                                 {% for i in range(weeks_labels|length) %}
-                                {% if weekly_revenue[i] > 0 %}
+                                {% if weekly_revenue[i] != 0 or weekly_profit_values[i] != 0 %}
                                 <tr>
                                     <td class="ps-4 fw-bold text-theme-main">{{ weeks_labels[i] }}</td>
                                     <td class="text-info fw-bold">₱{{ "{:,.2f}".format(weekly_revenue[i]) }}</td>
-                                    <td class="text-success fw-bold">₱{{ "{:,.2f}".format(weekly_profit_values[i]) }}</td>
+                                    <td class="{{ 'text-success' if weekly_profit_values[i] >= 0 else 'text-danger' }} fw-bold">₱{{ "{:,.2f}".format(weekly_profit_values[i]) }}</td>
                                     <td class="text-end pe-4">
                                         <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25 px-3">WEEKLY</span>
                                     </td>
@@ -187,11 +199,11 @@
                                 {% endfor %}
                             {% elif view_type == 'daily' %}
                                 {% for i in range(daily_labels|length) %}
-                                {% if daily_revenue[i] > 0 %}
+                                {% if daily_revenue[i] != 0 or daily_profit_values[i] != 0 %}
                                 <tr>
                                     <td class="ps-4 fw-bold text-theme-main">{{ daily_labels[i] }}</td>
                                     <td class="text-info fw-bold">₱{{ "{:,.2f}".format(daily_revenue[i]) }}</td>
-                                    <td class="text-success fw-bold">₱{{ "{:,.2f}".format(daily_profit_values[i]) }}</td>
+                                    <td class="{{ 'text-success' if daily_profit_values[i] >= 0 else 'text-danger' }} fw-bold">₱{{ "{:,.2f}".format(daily_profit_values[i]) }}</td>
                                     <td class="text-end pe-4">
                                         <span class="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25 px-3">DAILY</span>
                                     </td>
@@ -200,11 +212,11 @@
                                 {% endfor %}
                             {% else %}
                                 {% for i in range(months_labels|length) %}
-                                {% if revenue_values[i] > 0 or profit_values[i] > 0 %}
+                                {% if revenue_values[i] != 0 or profit_values[i] != 0 %}
                                 <tr>
                                     <td class="ps-4 fw-bold text-theme-main">{{ months_labels[i]|upper }}</td>
                                     <td class="text-info fw-bold">₱{{ "{:,.2f}".format(revenue_values[i]) }}</td>
-                                    <td class="text-success fw-bold">₱{{ "{:,.2f}".format(profit_values[i]) }}</td>
+                                    <td class="{{ 'text-success' if profit_values[i] >= 0 else 'text-danger' }} fw-bold">₱{{ "{:,.2f}".format(profit_values[i]) }}</td>
                                     <td class="text-end pe-4">
                                         <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-3">RECORDED</span>
                                     </td>
@@ -213,7 +225,10 @@
                                 {% endfor %}
                             {% endif %}
                             
-                            {% if (view_type == 'weekly' and weekly_revenue|sum == 0) or (view_type == 'daily' and daily_revenue|sum == 0) or (view_type == 'yearly' and revenue_values|sum == 0) or (view_type == 'monthly' and revenue_values[now.month-1] == 0) %}
+                            {% if (view_type == 'weekly' and weekly_revenue|sum == 0 and weekly_profit_values|sum == 0) or 
+                                  (view_type == 'daily' and daily_revenue|sum == 0 and daily_profit_values|sum == 0) or 
+                                  (view_type == 'yearly' and revenue_values|sum == 0 and profit_values|sum == 0) or 
+                                  (view_type == 'monthly' and revenue_values[now.month-1] == 0 and profit_values[now.month-1] == 0) %}
                             <tr>
                                 <td colspan="4" class="text-center text-theme-muted py-5">
                                     <i class="bi bi-info-circle me-2"></i> No sales data recorded for this period.
@@ -228,6 +243,91 @@
     </div>
 </div>
 
+<!-- Modal: Report Preview -->
+<div class="modal fade" id="reportPreviewModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable" style="margin-top: 8vh;">
+        <div class="modal-content bg-card border-theme-soft">
+            <div class="modal-header border-bottom border-theme-soft">
+                <h5 class="modal-title text-theme-main fw-bold">
+                    <i class="bi bi-eye me-2 text-primary"></i> 
+                    Report Preview: {{ view_type|capitalize }} Summary
+                </h5>
+                <div class="ms-auto d-flex align-items-center gap-2">
+                    <a href="{{ url_for('sales.generate_report', view=view_type, format='pdf') }}" class="btn btn-sm btn-outline-danger fw-bold shadow-sm">
+                        <i class="bi bi-file-earmark-pdf-fill me-1"></i> EXPORT PDF
+                    </a>
+                    <button type="button" class="btn-close ms-0" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+            </div>
+            <div class="modal-body p-0">
+                <div class="p-4 bg-light border-bottom border-theme-soft">
+                    <div class="row align-items-center">
+                        <div class="col-md-3">
+                            <label class="x-small text-uppercase fw-bold text-muted mb-1">Total Revenue</label>
+                            <h3 class="text-primary fw-bold mb-0" id="previewTotalRevenue">₱0.00</h3>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="x-small text-uppercase fw-bold text-muted mb-1">Net Profit</label>
+                            <h3 class="text-success fw-bold mb-0" id="previewTotalProfit">₱0.00</h3>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="preview-chart-container">
+                                <canvas id="previewChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="col-md-2 text-end d-none d-md-block">
+                            <div class="rounded-3 border border-theme-soft bg-white p-2 text-center">
+                                <i class="bi bi-shield-check text-success fs-2 d-block"></i>
+                                <span class="x-small fw-bold text-theme-muted text-uppercase">Validated</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover preview-table mb-0">
+                        <thead class="bg-card sticky-top">
+                            <tr class="text-theme-muted">
+                                <th class="ps-4">Date</th>
+                                <th>Item Name</th>
+                                <th>Qty</th>
+                                <th>Type</th>
+                                <th>Revenue</th>
+                                <th class="pe-4">Profit</th>
+                            </tr>
+                        </thead>
+                        <tbody id="previewTableBody">
+                            <!-- Rows injected via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer border-top border-theme-soft bg-light">
+                <div class="me-auto text-start">
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="rounded-circle bg-primary bg-opacity-10 d-flex align-items-center justify-content-center" style="width:32px;height:32px;">
+                            <i class="bi bi-person-fill text-primary"></i>
+                        </div>
+                        <div>
+                            <div class="x-small fw-bold text-theme-main">{{ email }}</div>
+                            <div class="text-theme-muted" style="font-size: 0.65rem;">Report Issuer</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="dropdown">
+                    <button class="btn btn-primary fw-bold dropdown-toggle shadow-sm" type="button" data-bs-toggle="dropdown">
+                        <i class="bi bi-download me-2"></i>Download
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow border-0 p-2">
+                        <li><a class="dropdown-item rounded p-2" href="{{ url_for('sales.generate_report', view=view_type, format='pdf') }}"><i class="bi bi-file-earmark-pdf-fill text-danger me-2"></i>PDF Document</a></li>
+                        <li><a class="dropdown-item rounded p-2" href="{{ url_for('sales.generate_report', view=view_type, format='excel') }}"><i class="bi bi-file-earmark-excel-fill text-success me-2"></i>Excel Spreadsheet</a></li>
+                        <li><a class="dropdown-item rounded p-2" href="{{ url_for('sales.generate_report', view=view_type, format='word') }}"><i class="bi bi-file-earmark-word-fill text-primary me-2"></i>Word Document</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
@@ -235,7 +335,6 @@
     Chart.defaults.color = isFacebook ? '#65676b' : '#e0e0e0';
     Chart.defaults.borderColor = isFacebook ? '#e4e6eb' : '#333';
 
-    // Decide which labels and values to use
     let mainLabels, mainRevenue, mainProfit, trendLabels, trendValues;
     
     {% if view_type == 'weekly' %}
@@ -258,7 +357,6 @@
         trendValues = {{ weekly_revenue|tojson }};
     {% endif %}
 
-    // 1. Main Comparison Chart
     const mainCtx = document.getElementById('mainChart').getContext('2d');
     new Chart(mainCtx, {
         type: 'bar',
@@ -290,7 +388,7 @@
             responsive: true,
             maintainAspectRatio: false,
             scales: {
-                y: { beginAtZero: true, grid: { color: '#333' } },
+                y: { beginAtZero: true, grid: { color: isFacebook ? '#e4e6eb' : '#333' } },
                 x: { grid: { display: false } }
             },
             plugins: {
@@ -299,7 +397,6 @@
         }
     });
 
-    // 2. Trend Line Chart
     const trendCtx = document.getElementById('trendChart').getContext('2d');
     new Chart(trendCtx, {
         type: 'line',
@@ -328,5 +425,79 @@
             }
         }
     });
+
+    let previewChartInstance = null;
+
+    async function showReportPreview() {
+        const modal = new bootstrap.Modal(document.getElementById('reportPreviewModal'));
+        const tbody = document.getElementById('previewTableBody');
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center py-5"><div class="spinner-border text-primary"></div><p class="mt-2 text-muted">Compiling data...</p></td></tr>';
+        modal.show();
+
+        try {
+            const res = await fetch(`/api/sales/report-data?view={{ view_type }}`);
+            const data = await res.json();
+            
+            document.getElementById('previewTotalRevenue').textContent = `₱${data.total_revenue.toLocaleString('en-PH', {minimumFractionDigits:2})}`;
+            document.getElementById('previewTotalProfit').textContent = `₱${data.total_profit.toLocaleString('en-PH', {minimumFractionDigits:2})}`;
+
+            tbody.innerHTML = '';
+            if (data.data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center py-5 text-muted">No data available for this period.</td></tr>';
+                return;
+            }
+
+            const itemMap = {};
+            data.data.forEach(item => {
+                if(item.type === 'OUT') {
+                    itemMap[item.item_name] = (itemMap[item.item_name] || 0) + item.revenue;
+                }
+            });
+            const topItems = Object.entries(itemMap).sort((a,b) => b[1] - a[1]).slice(0, 5);
+
+            if (previewChartInstance) previewChartInstance.destroy();
+            const pCtx = document.getElementById('previewChart').getContext('2d');
+            previewChartInstance = new Chart(pCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: topItems.map(i => i[0]),
+                    datasets: [{
+                        data: topItems.map(i => i[1]),
+                        backgroundColor: ['#0d6efd', '#198754', '#ffc107', '#dc3545', '#6610f2'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        title: { display: true, text: 'Top 5 by Revenue', font: { size: 10 } }
+                    },
+                    cutout: '70%'
+                }
+            });
+
+            data.data.forEach(item => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="ps-4 text-theme-muted small">${item.date}</td>
+                    <td class="fw-bold">${item.item_name}</td>
+                    <td><span class="badge bg-secondary">${item.qty}</span></td>
+                    <td>
+                        <span class="badge bg-${item.type === 'OUT' ? 'success' : 'danger'} bg-opacity-10 text-${item.type === 'OUT' ? 'success' : 'danger'} border border-${item.type === 'OUT' ? 'success' : 'danger'} border-opacity-25 rounded-pill">
+                            ${item.type}
+                        </span>
+                    </td>
+                    <td class="fw-bold">₱${item.revenue.toFixed(2)}</td>
+                    <td class="pe-4 fw-bold ${item.profit >= 0 ? 'text-success' : 'text-danger'}">₱${item.profit.toFixed(2)}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        } catch (err) {
+            console.error(err);
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center py-5 text-danger"><i class="bi bi-exclamation-triangle-fill me-2"></i>Failed to load preview data.</td></tr>';
+        }
+    }
 </script>
 {% endblock %}

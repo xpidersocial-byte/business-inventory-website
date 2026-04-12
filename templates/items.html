@@ -56,118 +56,34 @@
     .category-tile {
         cursor: pointer;
         border: 1px solid var(--border-soft);
-        border-radius: 8px;
-        padding: 10px;
-        text-align: center;
-        transition: all 0.2s;
-        background: var(--card-bg);
-        height: 100%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 0.85rem;
-        color: var(--text-main);
-    }
-    .category-tile:hover {
-        border-color: var(--primary-soft);
-        color: var(--primary-soft);
-    }
-    .category-tile.selected {
-        background: var(--primary-soft);
-        color: white !important;
-        border-color: var(--primary-soft);
-    }
+        border-radius: 8px; padding: 10px; text-align: center; transition: all 0.2s; background: var(--card-bg); height: 100%; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; color: var(--text-main); }
+    .category-tile:hover { border-color: var(--primary-soft); color: var(--primary-soft); }
+    .category-tile.selected { background: var(--primary-soft); color: white !important; border-color: var(--primary-soft); box-shadow: 0 0 10px rgba(24, 119, 242, 0.5); transform: scale(1.02); }
     
-    .alert-summary-card {
-        background: var(--card-bg);
-        border: 1px solid var(--border-soft);
-        border-radius: 8px;
-        padding: 15px;
-        transition: all 0.3s ease;
-        cursor: pointer;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-    }
+    .alert-summary-card { background: var(--card-bg); border: 1px solid var(--border-soft); border-radius: 8px; padding: 15px; transition: all 0.3s ease; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
     .alert-summary-card:hover { transform: translateY(-2px); }
     .alert-summary-card.active { border-color: var(--primary-soft); border-width: 2px; }
     .alert-count { font-size: 1.5rem; font-weight: 800; }
 
     /* Quick Filter Pills */
-    .filter-pill {
-        cursor: pointer;
-        padding: 6px 16px;
-        border-radius: 50px;
-        font-size: 0.75rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        transition: all 0.2s ease;
-        border: 1px solid var(--border-soft);
-        background: var(--card-bg);
-        color: var(--text-theme-muted);
-    }
+    .filter-pill { cursor: pointer; padding: 6px 16px; border-radius: 50px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; transition: all 0.2s ease; border: 1px solid var(--border-soft); background: var(--card-bg); color: var(--text-theme-muted); }
     .filter-pill:hover { border-color: var(--primary-soft); color: var(--primary-soft); }
     .filter-pill.active { background: var(--primary-soft); color: white; border-color: var(--primary-soft); }
 
     /* Pagination Styles */
-    .pagination-container {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 1rem;
-        background: var(--card-bg);
-        border-top: 1px solid var(--border-soft);
-    }
-    .page-link {
-        padding: 8px 16px;
-        border-radius: 6px;
-        background: var(--glass-bg);
-        color: var(--text-theme-main);
-        text-decoration: none;
-        font-weight: 600;
-        font-size: 0.85rem;
-        transition: all 0.2s;
-        border: 1px solid var(--border-soft);
-    }
-    .page-link:hover:not(.disabled) {
-        background: rgba(24, 119, 242, 0.1);
-        color: var(--primary-soft);
-    }
-    .page-link.disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-    }
+    .pagination-container { display: flex; justify-content: space-between; align-items: center; padding: 1rem; background: var(--card-bg); border-top: 1px solid var(--border-soft); }
+    .page-link { padding: 8px 16px; border-radius: 6px; background: var(--glass-bg); color: var(--text-theme-main); text-decoration: none; font-weight: 600; font-size: 0.85rem; transition: all 0.2s; border: 1px solid var(--border-soft); }
+    .page-link:hover:not(.disabled) { background: rgba(24, 119, 242, 0.1); color: var(--primary-soft); }
+    .page-link.disabled { opacity: 0.5; cursor: not-allowed; }
 
     /* STICKY HEADER STYLES */
-    .sticky-toolbar {
-        position: sticky;
-        top: calc(var(--navbar-height) - 1.5rem); /* Offset the main-content padding */
-        z-index: 1050;
-        background: var(--content-bg);
-        padding-top: 1.5rem;
-        padding-bottom: 1rem;
-        margin-top: -1.5rem;
-        margin-left: -1.5rem;
-        margin-right: -1.5rem;
-        padding-left: 1.5rem;
-        padding-right: 1.5rem;
-        border-bottom: 1px solid var(--border-soft);
-        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
-    }
-    [data-theme="facebook"] .sticky-toolbar {
-        background: #f0f2f5;
-    }
+    .sticky-toolbar { position: sticky; top: calc(var(--navbar-height) - 1.5rem); z-index: 1050; background: var(--content-bg); padding-top: 1.5rem; padding-bottom: 1rem; margin-top: -1.5rem; margin-left: -1.5rem; margin-right: -1.5rem; padding-left: 1.5rem; padding-right: 1.5rem; border-bottom: 1px solid var(--border-soft); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
+    [data-theme="facebook"] .sticky-toolbar { background: #f0f2f5; }
 
-    /* Mobile Table Optimizations */
     @media (max-width: 991.98px) {
-        .sticky-toolbar {
-            padding: 1rem !important;
-            margin-top: -1rem !important;
-            margin-left: -1rem !important;
-            margin-right: -1rem !important;
-        }
+        .sticky-toolbar { padding: 1rem !important; margin-top: -1rem !important; margin-left: -1rem !important; margin-right: -1rem !important; }
         .alert-summary-card { padding: 10px; }
         .alert-count { font-size: 1.2rem; }
-        
-        /* Hide less essential columns on mobile */
         .hide-mobile { display: none !important; }
     }
 </style>
@@ -217,14 +133,13 @@
         </div>
 
         <div class="row">
-            <!-- Header & Toolbar -->
             <div class="col-md-12 d-flex flex-column flex-md-row justify-content-between align-items-center gap-2">
                 <div class="d-flex gap-2 w-100 w-md-auto flex-grow-1">
                     <div class="position-relative flex-grow-1">
                         <i class="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-theme-muted"></i>
                         <input type="text" id="searchInput" autocomplete="off" class="form-control text-theme-main border-theme-soft ps-5" placeholder="Search items..." onkeyup="applyFilters()">
                     </div>
-                    {% if role == 'owner' %}
+                    {% if role == 'owner' or cashier_perms.items_master %}
                     <button class="btn btn-primary shadow-sm d-flex align-items-center justify-content-center gap-2 px-3 px-md-4" data-bs-toggle="modal" data-bs-target="#addItemModal">
                         <i class="bi bi-plus-circle"></i> <span class="d-none d-sm-inline">New Item</span><span class="d-inline d-sm-none">New</span>
                     </button>
@@ -235,7 +150,6 @@
     </div>
 
     <div class="row mt-4">
-        <!-- Category Menu Tabs -->
         <div class="col-md-12 mb-0">
             <div class="category-nav shadow-sm overflow-auto">
                 <ul class="nav nav-tabs border-0 flex-nowrap" id="menuTabs">
@@ -255,7 +169,6 @@
             </div>
         </div>
 
-        <!-- Quick Filters Bar -->
         <div class="col-md-12 mb-3 mt-2">
             <div class="d-flex flex-wrap gap-2 align-items-center bg-card p-3 rounded-3 border border-theme-soft">
                 <span class="x-small fw-bold text-theme-muted text-uppercase me-2"><i class="bi bi-funnel-fill me-1"></i> Quick Filters:</span>
@@ -267,7 +180,6 @@
             </div>
         </div>
 
-        <!-- Menu Alert Settings Bar -->
         <div class="col-md-12 mb-4">
             <div id="menuSettingsBar" class="d-flex flex-wrap align-items-center justify-content-between bg-card border border-theme-soft rounded-3 p-3 shadow-sm">
                 <div class="d-flex align-items-center gap-3 mb-2 mb-md-0">
@@ -299,7 +211,6 @@
             </div>
         </div>
 
-        <!-- Main Table Area -->
         <div class="col-md-12">
             <div class="card shadow-sm p-0">
                 <div class="table-responsive">
@@ -321,7 +232,8 @@
                         </thead>
                         <tbody>
                             {% for item in items %}
-                            <tr class="item-row" id="item-row-{{ item._id }}" data-item-id="{{ item._id }}" data-category="{{ item.category }}" data-menu="{{ item.menu or 'None' }}" data-status="{{ item.status_label }}">
+                            <tr class="item-row" id="item-row-{{ item._id }}" data-item-id="{{ item._id }}" data-category="{{ item.category }}" data-menu="{{ item.menu or 'None' }}" data-status="{{ item.status_label }}"
+                                onclick="openEditModal('{{ item._id }}', '{{ item.name|e }}', '{{ item.category|e }}', '{{ (item.menu or 'None')|e }}', '{{ item.cost_price }}', '{{ item.retail_price }}')">
                                 <td class="fw-bold text-theme-main">{{ item.name }}</td>
                                 <td class="hide-mobile">{% if item.menu %}<span class="badge bg-warning text-dark">{{ item.menu }}</span>{% endif %}</td>
                                 <td class="hide-mobile"><span class="badge bg-secondary">{{ item.category }}</span></td>
@@ -339,30 +251,15 @@
                                 <td class="hide-mobile" data-value="{{ item.sold }}">{{ item.sold }}</td>
                                 <td class="hide-mobile" data-value="{{ item.total_profit }}" class="{{ 'text-danger' if item.total_profit < 0 else 'text-success' }} fw-bold">₱{{ "{:,.2f}".format(item.total_profit) }}</td>
                                 <td class="hide-mobile" data-value="{{ item.inventory_value }}" class="fw-bold text-info">₱{{ "{:,.2f}".format(item.inventory_value) }}</td>
-                                <td class="text-center">
-                                    {% if role == 'owner' %}
-                                    <div class="d-flex justify-content-center align-items-center gap-1">
-                                        <a href="{{ url_for('inventory.restock', item_id=item._id) }}" class="btn btn-sm btn-outline-info border-0" title="Restock Item">
-                                            <i class="bi bi-arrow-left-right"></i>
-                                        </a>
-                                        <button class="btn btn-sm btn-outline-primary border-0" 
-                                            onclick="openEditModal('{{ item._id }}', '{{ item.name|e }}', '{{ item.category|e }}', '{{ (item.menu or 'None')|e }}', '{{ item.cost_price }}', '{{ item.retail_price }}')" title="Edit Item">
-                                            <i class="bi bi-pencil"></i>
-                                        </button>
-                                        <button class="btn btn-sm btn-outline-warning border-0"
-                                            onclick="persistentResetItem(this, '{{ item.name|e }}', '{{ item._id }}')"
-                                            title="Reset item data (Offline Safe)">
-                                            <i class="bi bi-arrow-counterclockwise"></i>
-                                        </button>
-                                        <button class="btn btn-sm btn-outline-danger border-0"
-                                            onclick="persistentDeleteItem(this, '{{ item.name|e }}', '{{ item._id }}')"
-                                            title="Hide/Delete item (Offline Safe)">
-                                            <i class="bi bi-trash"></i>
-                                        </button>
+                                <td class="text-center" onclick="event.stopPropagation()">
+                                    <div class="d-flex justify-content-center gap-2">
+                                        <a href="{{ url_for('inventory.restock', item_id=item._id) }}" class="btn btn-link p-0 text-info" title="Restock"><i class="bi bi-plus-slash-minus fs-5"></i></a>
+                                        <button class="btn btn-link p-0 text-primary" onclick="openEditModal('{{ item._id }}', '{{ item.name|e }}', '{{ item.category|e }}', '{{ (item.menu or 'None')|e }}', '{{ item.cost_price }}', '{{ item.retail_price }}')" title="Edit"><i class="bi bi-pencil-square fs-5"></i></button>
+                                        {% if role == 'owner' or cashier_perms.items_master %}
+                                        <button class="btn btn-link p-0 text-warning" onclick="persistentResetItem(this, '{{ item.name|e }}', '{{ item._id }}')" title="Reset Metrics"><i class="bi bi-arrow-counterclockwise fs-5"></i></button>
+                                        <button class="btn btn-link p-0 text-danger" onclick="persistentDeleteItem(this, '{{ item.name|e }}', '{{ item._id }}')" title="Delete Item"><i class="bi bi-trash fs-5"></i></button>
+                                        {% endif %}
                                     </div>
-                                    {% else %}
-                                    <span class="text-theme-muted"><i class="bi bi-lock-fill"></i></span>
-                                    {% endif %}
                                 </td>
                             </tr>
                             {% endfor %}
@@ -370,7 +267,6 @@
                     </table>
                 </div>
                 
-                <!-- Pagination Footer -->
                 <div class="pagination-container">
                     <div class="text-theme-muted small fw-bold">
                         Showing <span id="showingStart">0</span> - <span id="showingEnd">0</span> of <span id="totalFiltered">0</span> items
@@ -401,7 +297,7 @@
                 <div class="modal-body p-4">
                     <div class="row g-3">
                         <div class="col-md-12">
-                            <label class="form-label text-theme-muted small uppercase fw-bold">Choose Category</label>
+                            <label class="form-label text-theme-muted small uppercase fw-bold">Choose Category <span class="text-danger">*</span></label>
                             <div class="row g-2" id="modalCategoryTiles">
                                 {% for cat in categories %}
                                 <div class="col-6 col-md-3">
@@ -415,7 +311,7 @@
                         </div>
                         
                         <div class="col-md-12">
-                            <label class="form-label text-theme-muted small uppercase fw-bold">Assign Menu Anchor</label>
+                            <label class="form-label text-theme-muted small uppercase fw-bold">Assign Menu Anchor <span class="text-danger">*</span></label>
                             <div class="row g-2" id="modalMenuTiles">
                                 <div class="col-6 col-md-3 d-none">
                                     <div class="category-tile" onclick="selectModalMenu('None', this)">
@@ -477,7 +373,7 @@
                 <div class="modal-body p-4">
                     <div class="row g-3">
                         <div class="col-md-12">
-                            <label class="form-label text-theme-muted small uppercase fw-bold">Choose Category</label>
+                            <label class="form-label text-theme-muted small uppercase fw-bold">Choose Category <span class="text-danger">*</span></label>
                             <div class="row g-2" id="editModalCategoryTiles">
                                 {% for cat in categories %}
                                 <div class="col-6 col-md-3">
@@ -491,7 +387,7 @@
                         </div>
                         
                         <div class="col-md-12">
-                            <label class="form-label text-theme-muted small uppercase fw-bold">Assign Menu Anchor</label>
+                            <label class="form-label text-theme-muted small uppercase fw-bold">Assign Menu Anchor <span class="text-danger">*</span></label>
                             <div class="row g-2" id="editModalMenuTiles">
                                 <div class="col-6 col-md-3 d-none">
                                     <div class="category-tile" onclick="selectEditModalMenu('None')">
@@ -577,7 +473,7 @@
             document.getElementById('menuWarningInput').value = menuData[menu].warning;
             document.getElementById('menuLowInput').value = menuData[menu].low;
         }
-        currentPage = 1; // Reset to page 1 on filter change
+        currentPage = 1; 
         applyFilters();
     }
 
@@ -590,7 +486,7 @@
             const types = ['Out of Stock', 'Low Stock', 'Warning'];
             card.classList.toggle('active', types[idx] === status);
         });
-        currentPage = 1; // Reset to page 1 on filter change
+        currentPage = 1;
         applyFilters();
     }
 
@@ -610,6 +506,9 @@
             const matchesSearch = name.indexOf(searchText) > -1;
             const matchesMenu = currentMenu === 'all' || menu === currentMenu;
             const matchesStatus = (currentStatusFilter === 'all') ? true : (status === currentStatusFilter);
+            if (currentStatusFilter === 'In Stock') {
+                if (status !== 'Out of Stock') { } else { continue; }
+            }
             
             if (matchesMenu) {
                 if (status === 'Out of Stock') outCount++; 
@@ -620,8 +519,6 @@
             if (matchesSearch && matchesMenu && matchesStatus) {
                 filteredRows.push(row);
             }
-            
-            // Initially hide all
             row.style.display = "none";
             row.classList.add('hidden');
         }
@@ -636,14 +533,10 @@
     function updatePagination() {
         const totalItems = filteredRows.length;
         const totalPages = Math.ceil(totalItems / pageSize) || 1;
-        
         if (currentPage > totalPages) currentPage = totalPages;
         if (currentPage < 1) currentPage = 1;
-        
         const start = (currentPage - 1) * pageSize;
         const end = Math.min(start + pageSize, totalItems);
-        
-        // Show only current page rows
         for (let i = 0; i < filteredRows.length; i++) {
             if (i >= start && i < end) {
                 filteredRows[i].style.display = "";
@@ -653,12 +546,9 @@
                 filteredRows[i].classList.add('hidden');
             }
         }
-        
-        // Update UI
         document.getElementById('showingStart').textContent = totalItems > 0 ? start + 1 : 0;
         document.getElementById('showingEnd').textContent = end;
         document.getElementById('totalFiltered').textContent = totalItems;
-        
         document.getElementById('prevPageBtn').classList.toggle('disabled', currentPage === 1);
         document.getElementById('nextPageBtn').classList.toggle('disabled', currentPage === totalPages);
     }
@@ -666,7 +556,6 @@
     function changePage(direction) {
         const totalPages = Math.ceil(filteredRows.length / pageSize) || 1;
         const next = currentPage + direction;
-        
         if (next >= 1 && next <= totalPages) {
             currentPage = next;
             updatePagination();
@@ -676,13 +565,15 @@
 
     function selectModalCategory(category, element) {
         document.getElementById('modalCategoryInput').value = category;
-        document.querySelectorAll('#modalCategoryTiles .category-tile').forEach(tile => tile.classList.remove('selected'));
+        const parent = document.getElementById('modalCategoryTiles');
+        parent.querySelectorAll('.category-tile').forEach(tile => tile.classList.remove('selected'));
         if (element) element.classList.add('selected');
     }
 
     function selectModalMenu(menuName, element) {
         document.getElementById('modalMenuInput').value = menuName;
-        document.querySelectorAll('#modalMenuTiles .category-tile').forEach(el => el.classList.remove('selected'));
+        const parent = document.getElementById('modalMenuTiles');
+        parent.querySelectorAll('.category-tile').forEach(el => el.classList.remove('selected'));
         if (element) element.classList.add('selected');
     }
 
@@ -691,10 +582,8 @@
         document.getElementById('editName').value = name;
         document.getElementById('editCost').value = cost;
         document.getElementById('editRetail').value = retail;
-        
         selectEditModalCategory(category);
         selectEditModalMenu(menu);
-        
         new bootstrap.Modal(document.getElementById('editItemModal')).show();
     }
 
@@ -719,197 +608,248 @@
         const lowVal = document.getElementById('menuLowInput').value;
         const btn = document.getElementById('menuUpdateBtn');
         const originalHtml = btn.innerHTML;
-        
         btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>...`;
         btn.disabled = true;
-        
         const payload = {
             id: menuData[currentMenu].id,
             type: (currentMenu === 'all' || currentMenu === 'None') ? 'global' : 'menu',
             warning: parseInt(warningVal),
             low: parseInt(lowVal)
         };
-        
         fetch('/settings/menu/thresholds', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
             body: JSON.stringify(payload)
         }).then(r => r.json()).then(data => {
             if(data.success) {
                 menuData[currentMenu].warning = payload.warning;
                 menuData[currentMenu].low = payload.low;
                 btn.innerHTML = `<i class="bi bi-check-lg me-1"></i>Saved`;
-                setTimeout(() => {
-                    btn.innerHTML = originalHtml;
-                    btn.disabled = false;
-                }, 2000);
-            } else {
-                alert("Failed: " + data.message);
-                btn.innerHTML = originalHtml;
-                btn.disabled = false;
-            }
-        }).catch(() => {
-            alert("Network Error");
-            btn.innerHTML = originalHtml;
-            btn.disabled = false;
-        });
+                setTimeout(() => { btn.innerHTML = originalHtml; btn.disabled = false; }, 2000);
+            } else { alert("Failed: " + data.message); btn.innerHTML = originalHtml; btn.disabled = false; }
+        }).catch(() => { alert("Network Error"); btn.innerHTML = originalHtml; btn.disabled = false; });
     }
 
     window.onload = function() { applyFilters(); };
 
-    // ─── FRONTEND-ONLY RESET ────────────────────────────────────────────────────
-    // Zeroes Quantity Sold, Total Profit, and Total Inventory Value in the DOM.
-    // Does NOT write to the database.
-    function frontendResetItem(btn, name) {
-        if (!confirm(`Reset display data for '${name}'?\n\nThis only clears what you see here — no database changes are made.`)) return;
-        const row = btn.closest('tr');
-        if (!row) return;
-
-        // Column indices (0-based): 7=Qty Sold, 8=Total Profit, 9=Total Inventory Value
-        const cells = row.getElementsByTagName('td');
-        // Qty Sold (index 7)
-        cells[7].textContent = '0';
-        cells[7].setAttribute('data-value', '0');
-        // Total Profit (index 8)
-        cells[8].textContent = '₱0.00';
-        cells[8].setAttribute('data-value', '0');
-        cells[8].className = 'fw-bold';
-        // Total Inventory Value (index 9)
-        cells[9].textContent = '₱0.00';
-        cells[9].setAttribute('data-value', '0');
-
-        // Flash the row green briefly to indicate success
-        row.style.transition = 'background-color 0.3s';
-        row.style.backgroundColor = 'rgba(25, 135, 84, 0.1)';
-        setTimeout(() => { row.style.backgroundColor = ''; }, 1500);
-    }
-
-    // ─── FRONTEND-ONLY DELETE ───────────────────────────────────────────────────
-    // Hides the row from the table with a fade animation.
-    // Does NOT write to the database.
-    function frontendDeleteItem(btn, name) {
-        if (!confirm(`Hide '${name}' from this list?\n\nThis only hides it from your view — no database changes are made. Refresh the page to bring it back.`)) return;
-        const row = btn.closest('tr');
-        if (!row) return;
-
-        row.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
-        row.style.opacity = '0';
-        row.style.transform = 'translateX(-20px)';
-
-        setTimeout(() => {
-            row.style.display = 'none';
-            // Remove from filteredRows so pagination counts update
-            filteredRows = filteredRows.filter(r => r !== row);
-            updatePagination();
-            applyFilters();
-        }, 400);
-    }
-    
     function validateAddItemForm() {
+        const cat = document.getElementById('modalCategoryInput').value;
+        const menu = document.getElementById('modalMenuInput').value;
+        
+        if (!cat) {
+            Swal.fire({ title: 'Category Required', text: 'Please select a category for this item.', icon: 'warning', confirmButtonColor: '#1877f2' });
+            return false;
+        }
+        if (!menu || menu === 'None') {
+            Swal.fire({ title: 'Menu Required', text: 'Please assign a menu anchor for this item.', icon: 'warning', confirmButtonColor: '#1877f2' });
+            return false;
+        }
+
         const cost = parseFloat(document.getElementById('addCost').value);
         const retail = parseFloat(document.getElementById('addRetail').value);
-        if (cost > retail) {
-            return confirm("Warning: Cost price is higher than Retail price. Are you sure you want to add this item?");
-        }
+        if (cost > retail) return confirm("Warning: Cost price is higher than Retail price. Are you sure you want to add this item?");
         return true;
     }
 
     async function handleAddItem(event) {
         event.preventDefault();
         if (!validateAddItemForm()) return;
-        
         const form = event.target;
         const btn = document.getElementById('addItemBtn');
         const spinner = document.getElementById('addItemSpinner');
         const text = document.getElementById('addItemText');
-
         btn.disabled = true;
         spinner.classList.remove('d-none');
         text.innerText = ' Creating...';
-
         const formData = new FormData(form);
         const url = "{{ url_for('inventory.add_item') }}";
-        
         try {
-            const res = await offlineSafePost(url, formData);
-            if (res.offline) {
-                bootstrap.Modal.getInstance(document.getElementById('addItemModal')).hide();
-                form.reset();
-                window.location.reload();
+            const res = await fetch(url, { 
+                method: 'POST', 
+                body: formData,
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            
+            if (res.redirected) { window.location.href = res.url; return; }
+            
+            const contentType = res.headers.get("content-type");
+            if (contentType && contentType.includes("application/json")) {
+                const data = await res.json();
+                if (res.ok && data.success) window.location.reload();
+                else { alert(data.message || "Failed to add item"); resetAddItemBtn(); }
             } else {
-                window.location.reload();
+                if (res.ok) window.location.reload();
+                else { alert("Failed to add item"); resetAddItemBtn(); }
             }
-        } catch (e) { 
-            console.error(e); 
-            alert("Failed to add item"); 
-            btn.disabled = false;
-            spinner.classList.add('d-none');
-            text.innerText = 'CREATE ITEM';
+        } catch (e) { console.error(e); alert("Failed to add item"); resetAddItemBtn(); }
+    }
+    
+    function resetAddItemBtn() {
+        const btn = document.getElementById('addItemBtn');
+        const spinner = document.getElementById('addItemSpinner');
+        const text = document.getElementById('addItemText');
+        btn.disabled = false;
+        spinner.classList.add('d-none');
+        text.innerText = 'CREATE ITEM';
+    }
+
+    function validateEditItemForm() {
+        const cat = document.getElementById('editCategoryInput').value;
+        const menu = document.getElementById('editMenuInput').value;
+        if (!cat) {
+            Swal.fire({ title: 'Category Required', text: 'Please select a category.', icon: 'warning', confirmButtonColor: '#1877f2' });
+            return false;
         }
+        if (!menu || menu === 'None') {
+            Swal.fire({ title: 'Menu Required', text: 'Please assign a menu anchor.', icon: 'warning', confirmButtonColor: '#1877f2' });
+            return false;
+        }
+        return true;
     }
 
     async function handleEditItem(event) {
         event.preventDefault();
+        if (!validateEditItemForm()) return;
         const form = event.target;
         const btn = document.getElementById('editItemBtn');
         const spinner = document.getElementById('editItemSpinner');
         const text = document.getElementById('editItemText');
-
         btn.disabled = true;
         spinner.classList.remove('d-none');
         text.innerText = ' Saving...';
-
         const formData = new FormData(form);
         const url = form.action;
-        
         try {
-            const res = await offlineSafePost(url, formData);
-            if (res.offline) {
-                bootstrap.Modal.getInstance(document.getElementById('editItemModal')).hide();
-                window.location.reload();
-            } else {
-                window.location.reload();
-            }
-        } catch (e) { 
-            console.error(e); 
-            alert("Failed to edit item"); 
-            btn.disabled = false;
-            spinner.classList.add('d-none');
-            text.innerText = 'SAVE CHANGES';
-        }
-    }
+            const res = await fetch(url, { 
+                method: 'POST', 
+                body: formData,
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            
+            if (res.redirected) { window.location.href = res.url; return; }
 
-    async function persistentResetItem(btn, name, id) {
-        if (!confirm(`Permanently reset data for '${name}'?`)) return;
-        const url = `/items/reset/${id}`;
-        try {
-            const res = await offlineSafePost(url, new FormData());
-            if (res.offline) {
-                frontendResetItem(btn, name); // Call existing UI logic
+            const contentType = res.headers.get("content-type");
+            if (contentType && contentType.includes("application/json")) {
+                const data = await res.json();
+                if (res.ok && data.success) window.location.reload();
+                else { alert(data.message || "Failed to edit item"); resetEditItemBtn(); }
             } else {
-                window.location.reload();
+                if (res.ok) window.location.reload();
+                else { alert("Failed to edit item"); resetEditItemBtn(); }
             }
-        } catch (e) { console.error(e); }
+        } catch (e) { console.error(e); alert("Failed to edit item"); resetEditItemBtn(); }
+    }
+    
+    function resetEditItemBtn() {
+        const btn = document.getElementById('editItemBtn');
+        const spinner = document.getElementById('editItemSpinner');
+        const text = document.getElementById('editItemText');
+        btn.disabled = false;
+        spinner.classList.add('d-none');
+        text.innerText = 'SAVE CHANGES';
     }
 
     async function persistentDeleteItem(btn, name, id) {
-        if (!confirm(`Permanently delete '${name}'?`)) return;
-        const url = `/items/delete/${id}`;
-        try {
-            const res = await offlineSafePost(url, new FormData());
-            if (res.offline) {
-                frontendDeleteItem(btn, name); // Call existing UI logic
-            } else {
-                window.location.reload();
+        const result = await Swal.fire({
+            title: 'Delete Item?',
+            text: `Are you sure you want to remove '${name}'? This item will be hidden from the active inventory.`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#1877f2',
+            confirmButtonText: 'Yes, delete it!'
+        });
+
+        if (result.isConfirmed) {
+            const url = `/items/delete/${id}`;
+            try {
+                const res = await fetch(url, { 
+                    method: 'POST',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+                
+                if (res.redirected) { window.location.href = res.url; return; }
+
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    Swal.fire({ title: 'Deleted!', text: data.message, icon: 'success', timer: 1500, showConfirmButton: false });
+                    setTimeout(() => window.location.reload(), 1500);
+                } else {
+                    Swal.fire({ title: 'Error', text: data.message || "Delete failed", icon: 'error' });
+                }
+            } catch (e) { 
+                console.error(e);
+                Swal.fire({ title: 'Network Error', text: "Could not reach the server", icon: 'error' });
             }
-        } catch (e) { console.error(e); }
+        }
     }
+
+    async function restoreItem(id, name) {
+        const url = `/items/restore/${id}`;
+        try {
+            const res = await fetch(url, { 
+                method: 'POST',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            
+            if (res.redirected) { window.location.href = res.url; return; }
+
+            const data = await res.json();
+            if (res.ok && data.success) {
+                Swal.fire({ title: 'Restored!', text: data.message, icon: 'success', timer: 1500, showConfirmButton: false });
+                setTimeout(() => window.location.reload(), 1500);
+            } else {
+                Swal.fire({ title: 'Error', text: data.message || "Restore failed", icon: 'error' });
+            }
+        } catch (e) { 
+            console.error(e);
+            Swal.fire({ title: 'Network Error', text: "Could not reach the server", icon: 'error' });
+        }
+    }
+    
+    async function persistentResetItem(btn, name, id) {
+        const result = await Swal.fire({
+            title: 'Reset Metrics?',
+            text: `This will permanently clear stock and sales metrics for '${name}'. This action cannot be undone!`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#f59f00',
+            cancelButtonColor: '#1877f2',
+            confirmButtonText: 'Yes, reset it!'
+        });
+
+        if (result.isConfirmed) {
+            const url = `/items/reset/${id}`;
+            try {
+                const res = await fetch(url, { 
+                    method: 'POST',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+                
+                if (res.redirected) { window.location.href = res.url; return; }
+
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    Swal.fire({ title: 'Reset!', text: data.message, icon: 'success', timer: 1500, showConfirmButton: false });
+                    setTimeout(() => window.location.reload(), 1500);
+                } else {
+                    Swal.fire({ title: 'Error', text: data.message || "Reset failed", icon: 'error' });
+                }
+            } catch (e) { 
+                console.error(e);
+                Swal.fire({ title: 'Network Error', text: "Could not reach the server", icon: 'error' });
+            }
+        }
+    }
+    
     function sortTable(n) {
         const table = document.getElementById("itemsTable");
         let switching = true;
         let dir = "asc";
         let switchcount = 0;
-        
         while (switching) {
             switching = false;
             const rows = table.rows;
@@ -917,32 +857,16 @@
                 let shouldSwitch = false;
                 const x = rows[i].getElementsByTagName("TD")[n];
                 const y = rows[i + 1].getElementsByTagName("TD")[n];
-                
                 let xVal = x.getAttribute('data-value') || x.innerText.toLowerCase().trim();
                 let yVal = y.getAttribute('data-value') || y.innerText.toLowerCase().trim();
-                
-                // Numeric comparison if possible
                 if (!isNaN(parseFloat(xVal)) && isFinite(xVal) && !isNaN(parseFloat(yVal)) && isFinite(yVal)) {
-                    xVal = parseFloat(xVal);
-                    yVal = parseFloat(yVal);
+                    xVal = parseFloat(xVal); yVal = parseFloat(yVal);
                 }
-                
-                if (dir === "asc") {
-                    if (xVal > yVal) { shouldSwitch = true; break; }
-                } else if (dir === "desc") {
-                    if (xVal < yVal) { shouldSwitch = true; break; }
-                }
+                if (dir === "asc") { if (xVal > yVal) { shouldSwitch = true; break; } }
+                else if (dir === "desc") { if (xVal < yVal) { shouldSwitch = true; break; } }
             }
-            if (shouldSwitch) {
-                rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);
-                switching = true;
-                switchcount++;
-            } else {
-                if (switchcount === 0 && dir === "asc") {
-                    dir = "desc";
-                    switching = true;
-                }
-            }
+            if (shouldSwitch) { rows[i].parentNode.insertBefore(rows[i + 1], rows[i]); switching = true; switchcount++; }
+            else { if (switchcount === 0 && dir === "asc") { dir = "desc"; switching = true; } }
         }
     }
 </script>

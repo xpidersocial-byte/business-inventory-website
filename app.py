@@ -7,7 +7,7 @@ import platform
 import requests
 from flask import Flask, render_template, request, session, g, jsonify, redirect, url_for
 from flask_compress import Compress
-from datetime import datetime
+from datetime import datetime, timezone
 from dotenv import load_dotenv
 
 from extensions import mongo, socketio
@@ -121,11 +121,11 @@ def load_user_theme():
     g.theme = default_theme
     if 'email' in session:
         users_collection = get_users_collection()
-        # Update last active timestamp
+        # Update last active timestamp using UTC
         try:
             users_collection.update_one(
                 {"email": session['email']},
-                {"$set": {"last_active": datetime.now()}}
+                {"$set": {"last_active": datetime.now(timezone.utc)}}
             )
         except: pass
 

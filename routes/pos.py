@@ -1,10 +1,10 @@
 from flask import Blueprint, render_template, request, session, jsonify
-from core.db import get_items_collection, get_purchase_collection, get_inventory_log_collection, get_menus_collection
+from core.db import get_items_collection, get_purchase_collection, get_inventory_log_collection, get_menus_collection, get_notifications_collection
 from core.middleware import login_required
-from core.utils import log_action, send_email_notification, get_site_config
+from core.utils import log_action, send_email_notification, get_site_config, trigger_notification, update_item_stock
 from extensions import socketio
 from bson.objectid import ObjectId
-from datetime import datetime
+from datetime import datetime, timezone
 
 pos_bp = Blueprint('pos', __name__)
 
@@ -104,26 +104,11 @@ def pos_checkout():
             "new_stock": total_stock
         })
         
-        # Deduct stock
-        items_collection.update_one(
-            {"_id": ObjectId(cart_item['_id'])}, 
-            {"$inc": {"stock": -qty, "sold": qty, "inventory_out": qty}}
-        )
-
-        site_config = get_site_config()
-        threshold = site_config.get('low_stock_threshold', 5)
-        if 0 < total_stock <= threshold:
-            send_email_notification(
-                "Low Stock Alert!",
-                f"CRITICAL: Item '{item['name']}' is now in low stock after a POS sale. Only {total_stock} units left! (Threshold: {threshold})",
-                notif_type="low_stock"
-            )
-        elif total_stock == 0:
-            send_email_notification(
-                "Out of Stock Alert!",
-                f"URGENT: Item '{item['name']}' is now OUT OF STOCK following a POS sale!",
-                notif_type="low_stock"
-            )
+        # Deduct stock using centralized helper (handles notifications automatically)
+        success, msg = update_item_stock(cart_item['_id'], qty, action_type="OUT")
+        if not success:
+            # This shouldn't happen due to validation step above, but good to have
+            return jsonify({"success": False, "message": msg}), 400
             
     if purchases_to_insert:
         purchase_collection.insert_many(purchases_to_insert)
@@ -132,13 +117,19 @@ def pos_checkout():
         
     log_action("POS_SALE", f"Transaction {transaction_id} completed. Total: ₱{total_amount}")
     
+    trigger_notification(
+        "sale",
+        "New POS Transaction",
+        f"POS Sale: {sum(item['qty'] for item in cart)} items for ₱{total_amount:.2f}.",
+        {"transaction_id": transaction_id, "total": total_amount, "items_count": len(cart)},
+        priority="SUCCESS"
+    )
+
     send_email_notification(
         "New POS Sale",
         f"Transaction {transaction_id} recorded by {session.get('email')}. Total items: {sum(item['qty'] for item in cart)}. Total amount: ₱{total_amount}.",
         notif_type="sales"
     )
-
-    socketio.emit('dashboard_update')
 
     return jsonify({
         "success": True, 

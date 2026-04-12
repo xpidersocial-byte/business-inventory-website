@@ -185,7 +185,7 @@ def developer_backup():
         }
         filename = f"xpider_backup_{datetime.now().strftime('%Y%m%d')}.json"
         return Response(
-            json.dumps(data, indent=4, cls=MongoJSONProvider),
+            current_app.json.dumps(data, indent=4),
             mimetype='application/json',
             headers={"Content-disposition": f"attachment; filename={filename}"}
         )

@@ -1,5 +1,5 @@
 from functools import wraps
-from flask import session, redirect, url_for, request, flash
+from flask import session, redirect, url_for, request, flash, jsonify
 from core.db import get_settings_collection
 
 def get_cashier_permissions():
@@ -63,9 +63,17 @@ def role_required(role):
                 'dashboard.dashboard': 'dashboard',
                 'pos.pos_view': 'pos',
                 'inventory.items': 'items_master',
+                'inventory.add_item': 'items_master',
+                'inventory.edit_item': 'items_master',
+                'inventory.delete_item': 'items_master',
+                'inventory.reset_item': 'items_master',
+                'admin.update_menu_thresholds': 'items_master',
                 'sales.sales_list': 'sales_ledger',
+                'sales.refund_sale': 'sales_ledger',
                 'sales.sales_summary': 'sales_summary',
                 'inventory.restock': 'restock',
+                'inventory.stock_in': 'restock',
+                'inventory.stock_out': 'restock',
                 'developer.developer_portal': 'developer_portal',
                 'developer.live_debug': 'live_debug',
                 'developer.health_scanner': 'health_scanner',
@@ -99,6 +107,8 @@ def role_required(role):
             
             # If cashier, they only get here if the permission was True in cashier_perms
             if role == 'owner' and user_role != 'owner':
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
+                    return jsonify({"success": False, "message": "Access Denied: Owner privileges required."}), 403
                 flash("Access Denied: This area requires Owner privileges.", "danger")
                 return redirect(url_for('dashboard.dashboard'))
                 

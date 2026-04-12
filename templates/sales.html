@@ -110,8 +110,8 @@
                             </td>
                             <td><span class="status-badge status-{{ sale.status|lower }}">{{ sale.status }}</span></td>
                             <td class="text-end pe-3">
-                                {% if sale.status == 'Sold' and role == 'owner' %}
-                                <button class="btn btn-sm btn-outline-danger py-0 px-2" onclick="refundSale('{{ sale._id }}')" title="Refund"><i class="bi bi-arrow-counterclockwise"></i></button>
+                                {% if sale.status == 'Sold' %}
+                                <button class="btn btn-sm btn-outline-danger py-0 px-2 btn-refund" onclick="refundSale('{{ sale._id }}', this)" title="Refund"><i class="bi bi-arrow-counterclockwise"></i></button>
                                 {% else %}
                                 <span class="text-muted">–</span>
                                 {% endif %}
@@ -147,7 +147,7 @@
 <!-- Modal: Record Sale -->
 <div class="modal fade" id="addSaleModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <form action="{{ url_for('sales.add_sale') }}" method="POST" id="saleForm">
+        <form id="saleForm" onsubmit="handleNewSale(event)">
             <div class="modal-content bg-card border-theme-soft" style="border-radius:16px;">
                 <div class="modal-header border-bottom border-theme-soft px-4 py-3">
                     <h5 class="modal-title text-primary fw-bold d-flex align-items-center gap-2">
@@ -198,9 +198,10 @@
                     </div>
                 </div>
                 <div class="modal-footer border-top border-theme-soft px-4 py-3">
-                    <button type="button" class="btn btn-link text-theme-muted text-decoration-none btn-sm" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary px-4 fw-bold">
-                        <i class="bi bi-check-circle-fill me-1"></i>Confirm Sale
+                    <button type="button" class="btn btn-link text-theme-muted text-decoration-none btn-sm" data-bs-dismiss="modal" id="cancelSaleBtn">Cancel</button>
+                    <button type="submit" class="btn btn-primary px-4 fw-bold" id="confirmSaleBtn">
+                        <span id="saleBtnSpinner" class="spinner-border spinner-border-sm d-none me-1"></span>
+                        <span id="saleBtnText"><i class="bi bi-check-circle-fill me-1"></i>Confirm Sale</span>
                     </button>
                 </div>
             </div>
@@ -246,12 +247,61 @@
         card.classList.toggle('has-item', !!opt.value);
     }
 
+    async function handleNewSale(event) {
+        event.preventDefault();
+        const form = event.target;
+        const btn = document.getElementById('confirmSaleBtn');
+        const spinner = document.getElementById('saleBtnSpinner');
+        const text = document.getElementById('saleBtnText');
+        const cancelBtn = document.getElementById('cancelSaleBtn');
+
+        // Check if item selected
+        if (!document.getElementById('saleItemSelect').value) {
+            Swal.fire('Error', 'Please select an item', 'error');
+            return;
+        }
+
+        btn.disabled = true;
+        cancelBtn.classList.add('disabled');
+        spinner.classList.remove('d-none');
+        text.textContent = 'Processing...';
+
+        const formData = new FormData(form);
+        const url = "{{ url_for('sales.add_sale') }}";
+
+        try {
+            const res = await fetch(url, { method: 'POST', body: formData });
+            if (res.ok) {
+                window.location.reload();
+            } else {
+                Swal.fire('Error', 'Failed to record sale', 'error');
+                resetSaleBtn();
+            }
+        } catch (e) {
+            console.error(e);
+            Swal.fire('Error', 'An unexpected error occurred', 'error');
+            resetSaleBtn();
+        }
+    }
+
+    function resetSaleBtn() {
+        const btn = document.getElementById('confirmSaleBtn');
+        const spinner = document.getElementById('saleBtnSpinner');
+        const text = document.getElementById('saleBtnText');
+        const cancelBtn = document.getElementById('cancelSaleBtn');
+        btn.disabled = false;
+        cancelBtn.classList.remove('disabled');
+        spinner.classList.add('d-none');
+        text.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i>Confirm Sale';
+    }
+
     // Reset search/preview when modal closes
     document.getElementById('addSaleModal').addEventListener('hidden.bs.modal', () => {
         document.getElementById('saleItemSearch').value = '';
         document.getElementById('saleItemSelect').value = '';
         document.getElementById('itemPreviewCard').classList.add('d-none');
         Array.from(document.getElementById('saleItemSelect').options).forEach(o => { o.hidden = false; o.style.display = ''; });
+        resetSaleBtn();
     });
 
     // ── Table filters ───────────────────────────────────────────────────────
@@ -279,13 +329,43 @@
         document.getElementById('visibleCount').innerText = count;
     }
 
-    function refundSale(id) {
-        if (confirm("Refund this transaction? Items will be returned to stock.")) {
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = `/sales/refund/${id}`;
-            document.body.appendChild(form);
-            form.submit();
+    async function refundSale(id, btn) {
+        const result = await Swal.fire({
+            title: 'Refund Transaction?',
+            text: "Items will be returned to stock.",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Yes, Refund it!',
+            background: 'var(--card-bg)',
+            color: 'var(--text-main)'
+        });
+
+        if (result.isConfirmed) {
+            // Show loading state
+            Swal.fire({
+                title: 'Processing Refund...',
+                html: 'Please wait while we update the inventory.',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            try {
+                const response = await fetch(`/sales/refund/${id}`, {
+                    method: 'POST'
+                });
+                if (response.ok) {
+                    window.location.reload();
+                } else {
+                    Swal.fire('Error', 'Failed to process refund', 'error');
+                }
+            } catch (e) {
+                console.error(e);
+                Swal.fire('Error', 'Network error occurred', 'error');
+            }
         }
     }
 

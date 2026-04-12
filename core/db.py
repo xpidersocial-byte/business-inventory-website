@@ -17,3 +17,4 @@ def get_dev_updates_collection(): return mongo.db.dev_updates
 def get_menus_collection(): return mongo.db.menus
 def get_settings_collection(): return mongo.db.settings
 def get_undo_logs_collection(): return mongo.db.undo_logs
+def get_notifications_collection(): return mongo.db.notifications

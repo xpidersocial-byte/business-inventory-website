@@ -3,7 +3,33 @@
 {% block title %}Your Profile - {{ site_config.business_name }}{% endblock %}
 
 {% block extra_css %}
-<style>
+    /* Full-page loading overlay */
+    #loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(255, 255, 255, 0.95);
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 999999;
+        backdrop-filter: blur(5px);
+    }
+    .loader-spinner {
+        width: 60px;
+        height: 60px;
+        border: 5px solid #f3f3f3;
+        border-top: 5px solid #dc3545;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-bottom: 20px;
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    .loading-text { font-weight: 800; color: #1c1e21; font-size: 1.2rem; }
+
     .profile-header {
         background: var(--card-bg);
         margin-top: -1.5rem;
@@ -124,6 +150,12 @@
         margin-bottom: 0.5rem;
     }
 
+    /* Audit Log border colors */
+    .log-row-delete { border-left: 3px solid #dc3545 !important; }
+    .log-row-sale { border-left: 3px solid #31a24c !important; }
+    .log-row-login { border-left: 3px solid #1877f2 !important; }
+    .log-row-default { border-left: 3px solid #65676b !important; }
+
     .form-label { font-size: 0.75rem; font-weight: 700; color: var(--text-theme-muted); text-transform: uppercase; margin-bottom: 0.25rem; }
     .form-control { border-radius: 6px; padding: 0.6rem 0.75rem; }
 
@@ -181,11 +213,11 @@
     .sortable-ghost { opacity: 0.4; background: rgba(24, 119, 242, 0.1); border: 2px dashed #1877f2; }
     .drag-handle { cursor: grab; color: #adb5bd; padding-right: 10px; }
     .drag-handle:active { cursor: grabbing; }
-</style>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 {% endblock %}
 
 {% block content %}
+<div id="loading-overlay"><div class="loader-spinner"></div><div class="loading-text">Processing System Purge...</div></div>
 <div class="profile-header shadow-sm">
     <div class="profile-info-container p-0">
         <div class="cover-photo-wrapper" id="coverWrapper">
@@ -263,6 +295,7 @@
                 <div class="feed-card shadow-sm">
                     <h5 class="fw-bold mb-4">Personal Information</h5>
                     <form action="{{ url_for('auth.update_profile') }}" method="POST">
+                        <input type="hidden" name="tab" value="about">
                         <div class="row g-3 mb-4">
                             <div class="col-md-6">
                                 <label class="form-label">First Name</label>
@@ -293,7 +326,7 @@
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Password</label>
-                                <input type="password" name="password" class="form-control" placeholder="Update password">
+                                <input type="password" name="password" class="form-control" placeholder="Update password" autocomplete="new-password">
                             </div>
                         </div>
                         <div class="border-top pt-3 mt-2">
@@ -413,19 +446,17 @@
         <div class="row">
             <div class="col-md-3">
                 <div class="feed-card shadow-sm p-2 settings-sidebar">
-                    <a href="javascript:void(0)" class="settings-link active" onclick="switchAdminSection('user-mgmt', this)"><i class="bi bi-people-fill me-2"></i>Users & Roles</a>
-                    <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('perms-control', this)"><i class="bi bi-shield-lock-fill me-2"></i>Permissions Control</a>
-                    <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('server-health', this)"><i class="bi bi-cpu-fill me-2"></i>Server Health</a>
-                    <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('db-mgmt', this)"><i class="bi bi-database-fill-check me-2"></i>Database Info</a>
-                    <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('biz-identity', this)"><i class="bi bi-building-fill me-2"></i>Business Identity</a>
-                    <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('social-branding', this)"><i class="bi bi-palette-fill me-2"></i>Social & Branding</a>
-                    <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('smtp-config', this)"><i class="bi bi-envelope-paper-fill me-2"></i>SMTP Config</a>
-                    <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('system-logs', this)"><i class="bi bi-journal-text me-2"></i>System Audit Logs</a>
-                    <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('notifications-config', this)"><i class="bi bi-bell-fill me-2"></i>Notification Center</a>
-
-                    <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('cats-menus', this)"><i class="bi bi-tags-fill me-2"></i>Categories & Menus</a>
-
-                    <a href="javascript:void(0)" class="settings-link text-danger" onclick="switchAdminSection('maintenance', this)"><i class="bi bi-tools me-2"></i>Maintenance</a>
+                    <a href="javascript:void(0)" class="settings-link active" onclick="switchAdminSection('user-mgmt', this)" data-section="user-mgmt"><i class="bi bi-people-fill me-2"></i>Users & Roles</a>
+                    <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('perms-control', this)" data-section="perms-control"><i class="bi bi-shield-lock-fill me-2"></i>Permissions Control</a>
+                    <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('server-health', this)" data-section="server-health"><i class="bi bi-cpu-fill me-2"></i>Server Health</a>
+                    <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('db-mgmt', this)" data-section="db-mgmt"><i class="bi bi-database-fill-check me-2"></i>Database Info</a>
+                    <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('biz-identity', this)" data-section="biz-identity"><i class="bi bi-building-fill me-2"></i>Business Identity</a>
+                    <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('social-branding', this)" data-section="social-branding"><i class="bi bi-palette-fill me-2"></i>Social & Branding</a>
+                    <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('smtp-config', this)" data-section="smtp-config"><i class="bi bi-envelope-paper-fill me-2"></i>SMTP Config</a>
+                    <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('system-logs', this)" data-section="system-logs"><i class="bi bi-journal-text me-2"></i>System Audit Logs</a>
+                    <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('notifications-config', this)" data-section="notifications-config"><i class="bi bi-bell-fill me-2"></i>Notification Center</a>
+                                        <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('cats-menus', this)" data-section="cats-menus"><i class="bi bi-tags-fill me-2"></i>Categories & Menus</a>
+                                        <a href="javascript:void(0)" class="settings-link text-danger" onclick="switchAdminSection('maintenance', this)" data-section="maintenance"><i class="bi bi-tools me-2"></i>Maintenance</a>
                 </div>
             </div>
             <div class="col-md-9">
@@ -463,9 +494,9 @@
                                         <td><span class="badge {{ 'bg-danger' if u.role == 'owner' else 'bg-info' }}">{{ u.role|upper }}</span></td>
                                         <td class="text-end">
                                             <div class="btn-group">
-                                                <button class="btn btn-link text-primary p-0 me-3" onclick="openEditUserModal('{{ u._id }}', '{{ u.email }}', '{{ u.role }}')"><i class="bi bi-pencil-square"></i></button>
+                                                <button class="btn btn-link text-primary p-0 me-3" onclick="openEditUserModal(this.dataset.id, this.dataset.email, this.dataset.role)" data-id="{{ u._id }}" data-email="{{ u.email }}" data-role="{{ u.role }}"><i class="bi bi-pencil-square"></i></button>
                                                 {% if u.email != 'admin@inventory.com' and u.email != session['email'] %}
-                                                <button class="btn btn-link text-danger p-0" onclick="confirmAction('{{ url_for('admin.delete_user', id=u._id) }}', 'Delete user?')"><i class="bi bi-trash"></i></button>
+                                                <button class="btn btn-link text-danger p-0" onclick="confirmAction(this.dataset.url, 'Delete user?')" data-url="{{ url_for('admin.delete_user', id=u._id) }}"><i class="bi bi-trash"></i></button>
                                                 {% endif %}
                                             </div>
                                         </td>
@@ -481,8 +512,7 @@
                 <div id="section-perms-control" class="admin-section d-none">
                     <div class="feed-card shadow-sm">
                         <h5 class="fw-bold mb-4">Access Control Levels</h5>
-                        
-                        <form action="{{ url_for('admin.update_permissions') }}" method="POST">
+                        <form action="{{ url_for('admin.update_permissions') }}" method="POST" class="mb-5 pb-4 border-bottom">
                             <h6 class="fw-bold text-primary mb-3">Cashier Permissions</h6>
                             <div class="row">
                                 {% set p = admin_data.cashier_perms %}
@@ -499,10 +529,31 @@
                                     <div class="perm-toggle"><span>LEGEND (Alerts)</span><div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="legend" {{ 'checked' if p.legend }}></div></div>
                                 </div>
                             </div>
+                            <input type="hidden" name="role_type" value="cashier_permissions">
                             <div class="text-end mt-3"><button type="submit" class="btn btn-primary btn-sm fw-bold">Update Cashier Limits</button></div>
                         </form>
-
-
+                        <form action="{{ url_for('admin.update_permissions') }}" method="POST">
+                            <h6 class="fw-bold text-danger mb-3">Owner/Admin Permissions</h6>
+                            <div class="row">
+                                {% set op = admin_data.owner_perms %}
+                                <div class="col-md-6">
+                                    <div class="perm-toggle"><span>Developer Portal</span><div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="developer_portal" {{ 'checked' if op.developer_portal }}></div></div>
+                                    <div class="perm-toggle"><span>Live Debugging</span><div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="live_debug" {{ 'checked' if op.live_debug }}></div></div>
+                                    <div class="perm-toggle"><span>System Health Scanner</span><div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="health_scanner" {{ 'checked' if op.health_scanner }}></div></div>
+                                    <div class="perm-toggle"><span>User Management</span><div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="admin_accounts" {{ 'checked' if op.admin_accounts }}></div></div>
+                                    <div class="perm-toggle"><span>System Audit Logs</span><div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="system_logs" {{ 'checked' if op.system_logs }}></div></div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="perm-toggle"><span>SMTP Configuration</span><div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="setup_smtp" {{ 'checked' if op.setup_smtp }}></div></div>
+                                    <div class="perm-toggle"><span>Notification Settings</span><div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="setup_notifications" {{ 'checked' if op.setup_notifications }}></div></div>
+                                    <div class="perm-toggle"><span>Database Backups</span><div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="setup_backup" {{ 'checked' if op.setup_backup }}></div></div>
+                                    <div class="perm-toggle"><span>Danger Zone (Purge)</span><div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="setup_danger_zone" {{ 'checked' if op.setup_danger_zone }}></div></div>
+                                    <div class="perm-toggle"><span>Maintenance Tools</span><div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="general_setup" {{ 'checked' if op.general_setup }}></div></div>
+                                </div>
+                            </div>
+                            <input type="hidden" name="role_type" value="owner_permissions">
+                            <div class="text-end mt-3"><button type="submit" class="btn btn-danger btn-sm fw-bold">Update Owner Privileges</button></div>
+                        </form>
                     </div>
                 </div>
 
@@ -682,8 +733,8 @@
                 <div id="section-biz-identity" class="admin-section d-none">
                     <div class="feed-card shadow-sm">
                         <h5 class="fw-bold mb-4">Business Profile</h5>
-                        <form action="{{ url_for('admin.update_profile') }}" method="POST">
-                            <input type="hidden" name="form_id" value="identity">
+                        <form action="{{ url_for('admin.update_settings') }}" method="POST">
+                            <input type="hidden" name="section" value="biz-identity">
                             <div class="row g-3">
                                 <div class="col-md-6"><label class="form-label">Business Name</label><input type="text" name="business_name" class="form-control" value="{{ site_config.business_name }}"></div>
                                 <div class="col-md-6"><label class="form-label">Contact Email</label><input type="email" name="contact_email" class="form-control" value="{{ site_config.contact_email }}"></div>
@@ -700,8 +751,8 @@
                 <div id="section-social-branding" class="admin-section d-none">
                     <div class="feed-card shadow-sm">
                         <h5 class="fw-bold mb-4">Social Media & Public Branding</h5>
-                        <form action="{{ url_for('admin.update_profile') }}" method="POST">
-                            <input type="hidden" name="form_id" value="social">
+                        <form action="{{ url_for('admin.update_settings') }}" method="POST">
+                            <input type="hidden" name="section" value="social-branding">
                             <div class="row g-3">
                                 <div class="col-md-4">
                                     <label class="form-label">Facebook Profile URL</label>
@@ -738,13 +789,13 @@
                 <div id="section-smtp-config" class="admin-section d-none">
                     <div class="feed-card shadow-sm">
                         <h5 class="fw-bold mb-4">SMTP Configuration</h5>
-                        <form action="{{ url_for('admin.update_profile') }}" method="POST">
-                            <input type="hidden" name="form_id" value="smtp">
+                        <form action="{{ url_for('admin.update_settings') }}" method="POST">
+                            <input type="hidden" name="section" value="smtp-config">
                             <div class="row g-3">
                                 <div class="col-md-8"><label class="form-label">SMTP Host</label><input type="text" name="smtp_host" class="form-control" value="{{ site_config.smtp_host }}" placeholder="smtp.gmail.com"></div>
                                 <div class="col-md-4"><label class="form-label">Port</label><input type="number" name="smtp_port" class="form-control" value="{{ site_config.smtp_port }}" placeholder="587"></div>
                                 <div class="col-md-6"><label class="form-label">Username</label><input type="text" name="smtp_user" class="form-control" value="{{ site_config.smtp_user }}"></div>
-                                <div class="col-md-6"><label class="form-label">Password</label><input type="password" name="smtp_password" class="form-control" value="{{ site_config.smtp_password }}"></div>
+                                <div class="col-md-6"><label class="form-label">Password</label><input type="password" name="smtp_password" class="form-control" value="{{ site_config.smtp_password }}" autocomplete="new-password"></div>
                                 <div class="col-md-12">
                                     <div class="d-flex gap-4 pt-2">
                                         <div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="smtp_use_tls" {{ 'checked' if site_config.smtp_use_tls }}> <label class="small fw-bold">Use TLS</label></div>
@@ -772,15 +823,12 @@
                     </div>
                 </div>
 
-
-
-
-                <!-- Notification Configuration -->
+                <!-- Logic & Localization -->
                 <div id="section-notifications-config" class="admin-section d-none">
                     <div class="feed-card shadow-sm">
                         <h5 class="fw-bold mb-4">Notification Settings</h5>
-                        <form action="{{ url_for('admin.update_profile') }}" method="POST">
-                            <input type="hidden" name="form_id" value="notifications">
+                        <form action="{{ url_for('admin.update_settings') }}" method="POST">
+                            <input type="hidden" name="section" value="notifications-config">
                             <div class="row g-3">
                                 <div class="col-md-6">
                                     <div class="form-check form-switch mb-2">
@@ -861,7 +909,7 @@
                                 </thead>
                                 <tbody id="adminLogBody">
                                     {% for log in admin_data.all_logs %}
-                                    <tr class="log-row" data-action="{{ log.action }}" data-details="{{ log.details }}" data-email="{{ log.email }}" style="border-left: 3px solid {% if 'DELETE' in log.action %}#dc3545{% elif 'SALE' in log.action %}#31a24c{% elif 'LOGIN' in log.action %}#1877f2{% else %}#65676b{% endif %};">
+                                    <tr class="log-row {% if 'DELETE' in log.action %}log-row-delete{% elif 'SALE' in log.action %}log-row-sale{% elif 'LOGIN' in log.action %}log-row-login{% else %}log-row-default{% endif %}" data-action="{{ log.action }}" data-details="{{ log.details }}" data-email="{{ log.email }}">
                                         <td class="ps-3">
                                             <div class="d-flex align-items-center gap-2">
                                                 <div class="avatar shadow-sm" style="width:24px; height:24px; font-size:0.7rem; background:#e4e6eb; border: 1px solid white;">{{ log.email[0]|upper }}</div>
@@ -898,7 +946,7 @@
                                     {% for cat in admin_data.categories %}
                                     <div class="list-group-item d-flex justify-content-between align-items-center px-0">
                                         <span class="small fw-bold">{{ cat.name }}</span>
-                                        <button class="btn btn-link text-danger p-0 btn-sm" onclick="confirmAction('{{ url_for('admin.delete_category', id=cat._id) }}', 'Delete?')"><i class="bi bi-x-circle"></i></button>
+                                        <button class="btn btn-link text-danger p-0 btn-sm" onclick="confirmAction(this.dataset.url, 'Delete?')" data-url="{{ url_for('admin.delete_category', id=cat._id) }}"><i class="bi bi-x-circle"></i></button>
                                     </div>
                                     {% else %}
                                     <div class="text-center py-4 bg-light rounded border border-dashed mb-3">
@@ -923,7 +971,7 @@
                                             <span class="drag-handle"><i class="bi bi-grip-vertical"></i></span>
                                             <span class="small fw-bold">{{ m.name }}</span>
                                         </div>
-                                        <button class="btn btn-link text-danger p-0 btn-sm" onclick="confirmAction('{{ url_for('admin.delete_menu', id=m._id) }}', 'Delete?')"><i class="bi bi-trash"></i></button>
+                                        <button class="btn btn-link text-danger p-0 btn-sm" onclick="confirmAction(this.dataset.url, 'Delete?')" data-url="{{ url_for('admin.delete_menu', id=m._id) }}"><i class="bi bi-trash"></i></button>
                                     </div>
                                     {% else %}
                                     <div class="text-center py-4 bg-light rounded border border-dashed mb-3">
@@ -938,15 +986,14 @@
                     </div>
                 </div>
 
-
-                <!-- Maintenance -->
+                <!-- Offline Documentation -->
                 <div id="section-maintenance" class="admin-section d-none">
                     <div class="row">
                         <div class="col-md-5">
                             <div class="feed-card shadow-sm border-danger border-opacity-10 mb-4" style="background: #fffafa;">
                                 <h5 class="fw-bold text-danger mb-4"><i class="bi bi-tools me-2"></i>Danger Zone</h5>
                                 <div class="d-grid gap-3">
-                                    <a href="{{ url_for('admin.download_backup') }}" class="btn btn-outline-dark fw-bold py-2"><i class="bi bi-download me-2"></i>Export System Backup</a>
+                                    <a href="{{ url_for('developer.developer_backup') }}" class="btn btn-outline-dark fw-bold py-2"><i class="bi bi-download me-2"></i>Export System Backup</a>
                                     <hr class="my-2 border-danger opacity-25">
                                     <button class="btn btn-danger fw-bold py-2 shadow-sm" data-bs-toggle="modal" data-bs-target="#purgeDataModal"><i class="bi bi-trash-fill me-2"></i>PURGE ALL DATABASE RECORDS</button>
                                 </div>
@@ -1024,8 +1071,8 @@
             <div class="modal-header border-bottom-0 p-4 pb-0"><h5 class="fw-bold">Create New User</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
             <form action="{{ url_for('admin.add_user') }}" method="POST">
                 <div class="modal-body p-4">
-                    <div class="mb-3"><label class="form-label">Email</label><input type="email" name="email" class="form-control" required></div>
-                    <div class="mb-3"><label class="form-label">Password</label><input type="password" name="password" class="form-control" required></div>
+                    <div class="mb-3"><label class="form-label">Email</label><input type="email" name="email" class="form-control" required autocomplete="email"></div>
+                    <div class="mb-3"><label class="form-label">Password</label><input type="password" name="password" class="form-control" required autocomplete="new-password"></div>
                     <div class="mb-3"><label class="form-label">Role</label><select name="role" class="form-select"><option value="cashier">Cashier</option><option value="owner">Owner / Admin</option></select></div>
                 </div>
                 <div class="modal-footer border-top-0 p-4 pt-0"><button type="submit" class="btn btn-success fw-bold w-100">Add Account</button></div>
@@ -1043,11 +1090,11 @@
                 <div class="modal-body p-4">
                     <div class="mb-3">
                         <label class="form-label">Email Address</label>
-                        <input type="email" name="email" id="editEmail" class="form-control" required>
+                        <input type="email" name="email" id="editEmail" class="form-control" required autocomplete="email">
                     </div>
                     <div class="mb-3">
                         <label class="form-label text-primary">Change Password</label>
-                        <input type="password" name="password" class="form-control" placeholder="Leave empty to keep current">
+                        <input type="password" name="password" class="form-control" placeholder="Leave empty to keep current" autocomplete="new-password">
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Account Role</label>
@@ -1075,17 +1122,24 @@
 
 <div class="modal fade" id="purgeDataModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 rounded-4 overflow-hidden">
+        <div class="modal-content border-0 rounded-4 overflow-hidden shadow-lg">
             <div class="p-5 text-center bg-white">
                 <div class="rounded-circle bg-danger bg-opacity-10 p-4 d-inline-block mb-4">
-                    <i class="bi bi-shield-exclamation text-danger display-4"></i>
+                    <i class="bi bi-shield-exclamation text-danger" style="font-size: 3.5rem;"></i>
                 </div>
                 <h3 class="text-dark fw-bold mb-3">Instant Data Purge?</h3>
-                <p class="text-muted mb-4">You are about to permanently delete all business records. This action is <strong>irreversible</strong> and will take effect immediately upon confirmation.</p>
-                <form action="{{ url_for('admin.clear_all_data') }}" method="POST">
+                <p class="text-muted mb-4">You are about to permanently delete all business records. This action is <strong class="text-danger">irreversible</strong>.</p>
+                <form id="purgeForm" action="{{ url_for('admin.clear_all_data') }}" method="POST" onsubmit="showPurgeLoading()">
+                    <div class="p-3 bg-light rounded border border-danger border-opacity-25 mb-4 text-start">
+                        <h6 class="fw-bold text-danger mb-2 small"><i class="bi bi-shield-lock-fill me-2"></i>Authorization Required</h6>
+                        <div class="row g-2 align-items-end">
+                            <div class="col-8"><input type="text" name="verification_code" class="form-control form-control-sm text-center fw-bold text-danger" placeholder="------" maxlength="6" style="letter-spacing: 0.3rem;" required></div>
+                            <div class="col-4"><button type="button" class="btn btn-outline-dark btn-sm w-100 fw-bold" onclick="sendPurgeAuthCode(this)">Request</button></div>
+                        </div>
+                    </div>
                     <div class="d-grid gap-2">
-                        <button type="submit" class="btn btn-danger btn-lg fw-bold shadow-sm">YES, PURGE EVERYTHING</button>
-                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-danger btn-lg fw-bold shadow-sm py-3">YES, PURGE EVERYTHING</button>
+                        <button type="button" class="btn btn-light fw-bold text-muted" data-bs-dismiss="modal">Cancel</button>
                     </div>
                 </form>
             </div>
@@ -1097,6 +1151,10 @@
 
 {% block scripts %}
 <script>
+    window.profileSession = {
+        isOwner: "{{ session.get('role') }}" === "owner"
+    };
+
     window.onload = function() {
         const urlParams = new URLSearchParams(window.location.search);
         const tab = urlParams.get('tab');
@@ -1106,22 +1164,24 @@
                 document.querySelectorAll('.profile-tab').forEach(t => t.classList.remove('active'));
                 tabLink.classList.add('active');
                 document.querySelectorAll('.tab-content-area').forEach(area => area.classList.add('d-none'));
-                document.getElementById('tab-' + tab).classList.remove('d-none');
+                const tabArea = document.getElementById('tab-' + tab);
+                if (tabArea) tabArea.classList.remove('d-none');
             }
         }
         
         const section = urlParams.get('section');
         if (section) {
-            const secLink = document.querySelector(`.settings-link[onclick*="'${section}'"]`);
+            const secLink = document.querySelector(`.settings-link[data-section='${section}']`);
             if (secLink) {
                 document.querySelectorAll('.settings-link').forEach(l => l.classList.remove('active'));
                 secLink.classList.add('active');
                 document.querySelectorAll('.admin-section').forEach(sec => sec.classList.add('d-none'));
-                document.getElementById('section-' + section).classList.remove('d-none');
+                const secArea = document.getElementById('section-' + section);
+                if (secArea) secArea.classList.remove('d-none');
             }
         }
         
-        if ({{ 'true' if session.get('role') == 'owner' else 'false' }}) {
+        if (profileSession.isOwner) {
             updateServerStats();
             updateDatabaseStats();
             setInterval(updateServerStats, 10000);
@@ -1192,7 +1252,7 @@
     }
 
     function updateDatabaseStats() {
-        fetch('/admin/database-stats')
+        fetch('/settings/database-stats')
             .then(r => r.json())
             .then(data => {
                 if (data.status === 'Connected') {
@@ -1246,7 +1306,7 @@
         logBox.innerHTML = '<div class="text-muted small mb-2">--- SMTP TEST LOG INITIATED ---</div>';
         logBox.classList.remove('d-none');
         
-        fetch('/admin/test-email', { 
+        fetch('/settings/test-email', { 
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ recipient: recipient })
@@ -1328,7 +1388,7 @@
     function sendAuthCode() {
         const btn = document.querySelector('button[onclick="sendAuthCode()"]');
         if (btn) btn.disabled = true;
-        fetch('/admin/send-auth-code', {method:'POST', credentials:'same-origin'}).then(r=>r.json()).then(d=>{ 
+        fetch('/settings/send-auth-code', {method:'POST', credentials:'same-origin'}).then(r=>r.json()).then(d=>{ 
             alert(d.message); 
             if (btn) btn.disabled = false;
         }).catch(e => {
@@ -1537,5 +1597,74 @@
         updateLogsPagination();
     }
 
+</script>
+
+<script>
+    function sendPurgeAuthCode(btn) {
+        const originalText = btn.innerText;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+        fetch('{{ url_for("admin.send_auth_code") }}', { method: 'POST' })
+            .then(r => r.json())
+            .then(data => {
+                if(data.success) {
+                    Swal.fire({ title: 'Code Sent!', text: 'Security code dispatched to email.', icon: 'success', confirmButtonColor: '#1877f2', customClass: { popup: 'rounded-4' } });
+                    btn.innerText = 'Sent!';
+                    btn.classList.replace('btn-outline-dark', 'btn-success');
+                } else {
+                    Swal.fire({ title: 'Failed', text: data.message, icon: 'error' });
+                    btn.disabled = false;
+                    btn.innerText = originalText;
+                }
+            }).catch(() => {
+                Swal.fire('Network Error', 'Check connection.', 'error');
+                btn.disabled = false;
+                btn.innerText = originalText;
+            });
+    }
+
+    function sendImportAuthCode(btn) {
+        const originalText = btn.innerText;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+        fetch('{{ url_for("admin.send_auth_code") }}', { method: 'POST' })
+            .then(r => r.json())
+            .then(data => {
+                if(data.success) {
+                    Swal.fire({ title: 'Code Sent!', text: 'Security code dispatched to email.', icon: 'success', confirmButtonColor: '#1877f2', customClass: { popup: 'rounded-4' } });
+                    btn.innerText = 'Sent!';
+                } else {
+                    Swal.fire({ title: 'Failed', text: data.message, icon: 'error' });
+                    btn.disabled = false;
+                    btn.innerText = originalText;
+                }
+            }).catch(() => {
+                Swal.fire('Network Error', 'Check connection.', 'error');
+                btn.disabled = false;
+                btn.innerText = originalText;
+            });
+    }
+
+    function showPurgeLoading() {
+        const modalEl = document.getElementById('purgeDataModal');
+        const modal = bootstrap.Modal.getInstance(modalEl);
+        if (modal) modal.hide();
+        document.getElementById('loading-overlay').style.display = 'flex';
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const purgeAlert = document.querySelector('.alert-success-purge');
+        if (purgeAlert) {
+            purgeAlert.style.display = 'none';
+            Swal.fire({
+                title: 'System Purged!',
+                text: 'All database records have been permanently removed.',
+                icon: 'success',
+                confirmButtonColor: '#1877f2',
+                backdrop: 'rgba(220, 53, 69, 0.1)',
+                customClass: { popup: 'rounded-4 shadow-lg border-0', title: 'fw-bold text-dark', confirmButton: 'px-5 py-2 fw-bold rounded-pill' }
+            });
+        }
+    });
 </script>
 {% endblock %}

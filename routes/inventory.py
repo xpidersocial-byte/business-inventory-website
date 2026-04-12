@@ -1,11 +1,11 @@
-from flask import Blueprint, render_template, request, redirect, url_for, session, flash
+from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify
 from markupsafe import Markup
-from core.utils import calculate_item_metrics, log_action, get_site_config, send_email_notification
+from core.utils import calculate_item_metrics, log_action, get_site_config, send_email_notification, trigger_notification, update_item_stock
 from core.middleware import login_required, role_required
-from core.db import get_items_collection, get_categories_collection, get_menus_collection, get_inventory_log_collection, get_undo_logs_collection, get_purchase_collection, get_users_collection
+from core.db import get_items_collection, get_categories_collection, get_menus_collection, get_inventory_log_collection, get_undo_logs_collection, get_purchase_collection, get_users_collection, get_notifications_collection
 from extensions import socketio
 from bson.objectid import ObjectId
-from datetime import datetime
+from datetime import datetime, timezone
 
 inventory_bp = Blueprint('inventory', __name__)
 
@@ -19,7 +19,7 @@ def save_undo_log(action_type, item_id, previous_state=None):
         "action": action_type,
         "item_id": str(item_id),
         "previous_state": previous_state,
-        "timestamp": datetime.now().strftime('%Y-%m-%d %I:%M:%S %p')
+        "timestamp": datetime.now(timezone.utc)
     })
     return undo_id
 
@@ -29,25 +29,27 @@ def items():
     items_collection = get_items_collection()
     categories_collection = get_categories_collection()
     menus_collection = get_menus_collection()
-    
-    # Filter for active items only
     raw_items = list(items_collection.find({"active": {"$ne": False}}))
     processed = [calculate_item_metrics(item) for item in raw_items]
     categories = list(categories_collection.find().sort("name", 1))
-    
     site_config = get_site_config()
     threshold = site_config.get('low_stock_threshold', 5)
     menus = list(menus_collection.find().sort("order", 1))
     
-    # Mark as read for this user
+    # Update last view and clear persistent notifications for this section
+    user_email = session.get('email')
     try:
-        get_users_collection().update_one(
-            {"email": session.get('email')},
-            {"$set": {"last_views.items": datetime.now()}}
+        get_users_collection().update_one({"email": user_email}, {"$set": {"last_views.items": datetime.now(timezone.utc)}})
+        get_notifications_collection().update_many(
+            {"type": {"$in": ["item_added", "item_deleted", "item_edited", "item_reset"]}, "read_by": {"$ne": user_email}},
+            {"$addToSet": {"read_by": user_email}}
         )
+        socketio.emit('dashboard_update')
     except: pass
     
-    return render_template('items.html', items=processed, role=session.get('role'), categories=categories, low_stock_threshold=threshold, menus=menus)
+    return render_template('items.html', items=processed, role=session.get('role'), categories=categories, low_stock_threshold=threshold, menus=menus, site_config=get_site_config())
+
+
 
 @inventory_bp.route('/legend')
 @inventory_bp.route('/Legend')
@@ -56,119 +58,129 @@ def legend():
     items_collection = get_items_collection()
     raw_items = list(items_collection.find({"active": {"$ne": False}}))
     processed_items = [calculate_item_metrics(item) for item in raw_items]
-    
-    # Categorize items for the legend/notifications page
     out_of_stock = [i for i in processed_items if i['status_label'] == 'Out of Stock']
     low_stock = [i for i in processed_items if i['status_label'] == 'Low Stock']
     warnings = [i for i in processed_items if i['status_label'] == 'Warning']
-    
-    # Mark as read for this user
-    try:
-        get_users_collection().update_one(
-            {"email": session.get('email')},
-            {"$set": {"last_views.legend": datetime.now()}}
-        )
-    except: pass
 
-    return render_template('legend.html', 
-                           out_of_stock=out_of_stock, 
-                           low_stock=low_stock, 
-                           warnings=warnings)
+    try:
+        user_email = session.get('email')
+        get_users_collection().update_one(
+            {"email": user_email},
+            {"$set": {"last_views.legend": datetime.now(timezone.utc)}}
+        )
+        get_notifications_collection().update_many(
+            {"type": "stock_alert", "read_by": {"$ne": user_email}},
+            {"$addToSet": {"read_by": user_email}}
+        )
+        socketio.emit('dashboard_update')
+    except: pass
+    
+    return render_template('legend.html', out_of_stock=out_of_stock, low_stock=low_stock, warnings=warnings, site_config=get_site_config())
 
 @inventory_bp.route('/items/add', methods=['POST'])
 @login_required
+@role_required('cashier')
 def add_item():
     items_collection = get_items_collection()
     data = request.get_json() if request.is_json else request.form
     name = data.get('name')
     category = data.get('category')
-    menu = data.get('menu') # No default to None
+    menu = data.get('menu')
     cost_price = float(data.get('cost_price', 0))
     retail_price = float(data.get('retail_price', 0))
     stock = int(data.get('stock', 0))
     sold = int(data.get('sold', 0))
     if name:
         res = items_collection.insert_one({
-            "name": name, 
-            "category": category, 
-            "menu": menu, 
-            "cost_price": cost_price, 
-            "retail_price": retail_price, 
-            "stock": stock, 
-            "sold": sold,
-            "active": True, # Default to active
-            "created_at": datetime.now()
+            "name": name, "category": category, "menu": menu, 
+            "cost_price": cost_price, "retail_price": retail_price, 
+            "stock": stock, "sold": sold, "active": True, 
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc)
         })
-        undo_id = save_undo_log("ADD_ITEM", res.inserted_id)
+        item_id = res.inserted_id
+        undo_id = save_undo_log("ADD_ITEM", item_id)
         log_action("ADD_ITEM", f"Added: {name}")
         
-        # If initial stock is > 0, record it in inventory_log so dashboard reflects 'Stock Added'
+        trigger_notification(
+            "item_added",
+            "New Item Added",
+            f"'{name}' was added to the inventory.",
+            {"item_id": str(item_id), "category": category},
+            priority="SUCCESS"
+        )
+
         if stock > 0:
             ts = datetime.now().strftime('%Y-%m-%d %I:%M:%S %p')
             get_inventory_log_collection().insert_one({
-                "item_name": name,
-                "type": "IN",
-                "qty": stock,
-                "user": session.get('email', 'System'),
-                "timestamp": ts,
-                "new_stock": stock,
-                "details": "Initial stock upon item creation"
+                "item_name": name, "type": "IN", "qty": stock,
+                "user": session.get('email', 'System'), "timestamp": ts,
+                "new_stock": stock, "details": "Initial stock upon item creation"
             })
-        send_email_notification(
-            "New Item Added",
-            f"A new inventory item was added.\n\nItem: {name}\nCategory: {category}\nMenu: {menu}\nCost: ₱{cost_price:.2f} | Retail: ₱{retail_price:.2f}\nAdded by: {session.get('email')}\nTime: {datetime.now().strftime('%Y-%m-%d %I:%M %p')}",
-            notif_type="inventory"
-        )
+        send_email_notification("New Item Added", f"A new inventory item was added.\n\nItem: {name}\nCategory: {category}\nMenu: {menu}\nCost: ₱{cost_price:.2f} | Retail: ₱{retail_price:.2f}\nAdded by: {session.get('email')}\nTime: {datetime.now().strftime('%Y-%m-%d %I:%M %p')}", notif_type="inventory")
+        socketio.emit('dashboard_update')
+        
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
+            return jsonify({"success": True, "message": f"Item '{name}' added."})
+            
         undo_url = url_for('inventory.undo_action', undo_id=undo_id)
         flash(Markup(f"Item '{name}' added! <a href='{undo_url}' class='alert-link fw-bold ms-2 text-decoration-underline'>Undo</a>"), "success")
     return redirect(url_for('inventory.items'))
 
 @inventory_bp.route('/items/edit/<id>', methods=['POST'])
 @login_required
-@role_required('owner')
+@role_required('cashier')
 def edit_item(id):
     items_collection = get_items_collection()
     data = request.get_json() if request.is_json else request.form
     name = data.get('name')
     category = data.get('category')
-    menu = data.get('menu') # No default to None
+    menu = data.get('menu')
     cost_price = float(data.get('cost_price', 0))
     retail_price = float(data.get('retail_price', 0))
     if name:
         old_item = items_collection.find_one({'_id': ObjectId(id)})
-        # Save state excluding _id
         prev_state = {k: v for k, v in old_item.items() if k != '_id'}
         undo_id = save_undo_log("EDIT_ITEM", id, prev_state)
-        
-        items_collection.update_one({'_id': ObjectId(id)}, {'$set': {"name": name, "category": category, "menu": menu, "cost_price": cost_price, "retail_price": retail_price}})
+        items_collection.update_one({'_id': ObjectId(id)}, {'$set': {"name": name, "category": category, "menu": menu, "cost_price": cost_price, "retail_price": retail_price, "updated_at": datetime.now(timezone.utc)}})
         log_action("EDIT_ITEM", f"Updated: {name}")
-        send_email_notification(
-            "Item Updated",
-            f"An inventory item was edited.\n\nItem: {name}\nCategory: {category}\nCost: ₱{cost_price:.2f} | Retail: ₱{retail_price:.2f}\nEdited by: {session.get('email')}\nTime: {datetime.now().strftime('%Y-%m-%d %I:%M %p')}",
-            notif_type="inventory"
+        trigger_notification(
+            "item_edited",
+            "Item Details Updated",
+            f"Information for '{name}' was modified by {session.get('email')}.",
+            {"item_id": id}
         )
+        send_email_notification("Item Updated", f"An inventory item was edited.\n\nItem: {name}\nCategory: {category}\nCost: ₱{cost_price:.2f} | Retail: ₱{retail_price:.2f}\nEdited by: {session.get('email')}\nTime: {datetime.now().strftime('%Y-%m-%d %I:%M %p')}", notif_type="inventory")
+        socketio.emit('dashboard_update')
+        
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
+            return jsonify({"success": True, "message": f"Item '{name}' updated."})
+            
         undo_url = url_for('inventory.undo_action', undo_id=undo_id)
-        flash(Markup(f"Item '{name}' updated! <a href='{undo_url}' class='alert-link fw-bold ms-2 text-decoration-underline'>Undo</a>"), "success")
+        flash(Markup(f"Item '{name}' updated! <a href='{url_for('inventory.undo_action', undo_id=undo_id)}' class='alert-link fw-bold ms-2 text-decoration-underline'>Undo</a>"), "info")
     return redirect(url_for('inventory.items'))
 
 @inventory_bp.route('/items/delete/<id>', methods=['POST'])
 @login_required
-@role_required('owner')
+@role_required('cashier')
 def delete_item(id):
     items_collection = get_items_collection()
-    item = items_collection.find_one({'_id': ObjectId(id)})
+    item = items_collection.find_one({"_id": ObjectId(id)})
     if item:
-        undo_id = save_undo_log("DELETE_ITEM", id)
-        # Soft Delete: Set active to False instead of deleting
-        items_collection.update_one({'_id': ObjectId(id)}, {'$set': {"active": False}})
-        log_action("DELETE_ITEM", f"Soft Deleted (Hidden): {item['name']}")
-        send_email_notification(
-            "Item Deleted",
-            f"An inventory item was removed.\n\nItem: {item['name']}\nDeleted by: {session.get('email')}\nTime: {datetime.now().strftime('%Y-%m-%d %I:%M %p')}\n\nNote: This is a soft delete. The item can be restored.",
-            notif_type="inventory"
+        items_collection.update_one({"_id": ObjectId(id)}, {"$set": {"active": False, "updated_at": datetime.now(timezone.utc)}})
+        log_action("DELETE_ITEM", f"Deleted: {item['name']}")
+        trigger_notification(
+            "item_deleted",
+            "Item Removed",
+            f"Item '{item['name']}' was soft-deleted from inventory.",
+            {"item_id": id},
+            priority="WARNING"
         )
-        undo_url = url_for('inventory.undo_action', undo_id=undo_id)
-        flash(Markup(f"Item '{item['name']}' removed from master list. <a href='{undo_url}' class='alert-link fw-bold ms-2 text-decoration-underline'>Undo</a>"), "info")
+        send_email_notification("Item Deleted", f"An inventory item was removed.\n\nItem: {item['name']}\nDeleted by: {session.get('email')}\nTime: {datetime.now().strftime('%Y-%m-%d %I:%M %p')}\n\nNote: This is a soft delete. The item can be restored.", notif_type="inventory")
+        socketio.emit('dashboard_update')
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
+            return jsonify({"success": True, "message": f"Item '{item['name']}' deleted."})
+        flash(f"Item '{item['name']}' deleted.", "warning")
     return redirect(url_for('inventory.items'))
 
 @inventory_bp.route('/items/reset/<id>', methods=['POST'])
@@ -176,28 +188,42 @@ def delete_item(id):
 @role_required('owner')
 def reset_item(id):
     items_collection = get_items_collection()
-    item = items_collection.find_one({'_id': ObjectId(id)})
+    item = items_collection.find_one({"_id": ObjectId(id)})
     if item:
-        prev_state = {k: v for k, v in item.items() if k != '_id'}
-        undo_id = save_undo_log("RESET_ITEM", id, prev_state)
-        # Zero out performance counters but keep prices to preserve item definition
-        items_collection.update_one(
-            {'_id': ObjectId(id)},
-            {'$set': {
-                'stock': 0, 
-                'sold': 0,
-                'inventory_in': 0,
-                'inventory_out': 0
-            }}
-        )
-        log_action("RESET_ITEM", f"Reset counters for: {item['name']}")
-        send_email_notification(
+        items_collection.update_one({"_id": ObjectId(id)}, {"$set": {"stock": 0, "sold": 0, "inventory_in": 0, "inventory_out": 0, "updated_at": datetime.now(timezone.utc)}})
+        log_action("RESET_ITEM", f"Reset metrics: {item['name']}")
+        trigger_notification(
+            "item_reset",
             "Item Metrics Reset",
-            f"An inventory item's performance metrics have been reset.\n\nItem: {item['name']}\nReset by: {session.get('email')}\nTime: {datetime.now().strftime('%Y-%m-%d %I:%M %p')}\n\nNote: Historical sales records in the ledger are preserved.",
-            notif_type="inventory"
+            f"Performance metrics for '{item['name']}' were cleared.",
+            {"item_id": id}
         )
-        undo_url = url_for('inventory.undo_action', undo_id=undo_id)
-        flash(Markup(f"Data for '{item['name']}' has been completely reset. <a href='{undo_url}' class='alert-link fw-bold ms-2 text-decoration-underline'>Undo</a>"), "warning")
+        send_email_notification("Item Metrics Reset", f"An inventory item's performance metrics have been reset.\n\nItem: {item['name']}\nReset by: {session.get('email')}\nTime: {datetime.now().strftime('%Y-%m-%d %I:%M %p')}\n\nNote: Historical sales records in the ledger are preserved.", notif_type="inventory")
+        socketio.emit('dashboard_update')
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
+            return jsonify({"success": True, "message": f"Metrics for '{item['name']}' reset."})
+        flash(f"Metrics for '{item['name']}' reset to zero.", "info")
+    return redirect(url_for('inventory.items'))
+
+@inventory_bp.route('/items/restore/<id>', methods=['POST'])
+@login_required
+@role_required('owner')
+def restore_item(id):
+    items_collection = get_items_collection()
+    item = items_collection.find_one({"_id": ObjectId(id)})
+    if item:
+        items_collection.update_one({"_id": ObjectId(id)}, {"$set": {"active": True, "updated_at": datetime.now(timezone.utc)}})
+        log_action("RESTORE_ITEM", f"Restored: {item['name']}")
+        trigger_notification(
+            "item_added",
+            "Item Restored",
+            f"Item '{item['name']}' was restored to active inventory.",
+            {"item_id": id}
+        )
+        socketio.emit('dashboard_update')
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
+            return jsonify({"success": True, "message": f"Item '{item['name']}' restored."})
+        flash(f"Item '{item['name']}' restored.", "success")
     return redirect(url_for('inventory.items'))
 
 @inventory_bp.route('/items/undo/<undo_id>')
@@ -205,198 +231,125 @@ def reset_item(id):
 def undo_action(undo_id):
     undo_logs_collection = get_undo_logs_collection()
     items_collection = get_items_collection()
-    inventory_log_collection = get_inventory_log_collection()
-    purchase_collection = get_purchase_collection()
-    
     log = undo_logs_collection.find_one({"undo_id": undo_id})
     if not log:
-        flash("Undo action expired or not found.", "danger")
+        flash("Undo record not found or expired.", "danger")
         return redirect(url_for('inventory.items'))
     
-    action = log['action']
-    item_id = log['item_id']
-    prev_state = log.get('previous_state')
+    action = log.get('action')
+    item_id = log.get('item_id')
     
-    success = False
-    message = ""
+    if action == "ADD_ITEM":
+        items_collection.delete_one({"_id": ObjectId(item_id)})
+        flash("Action undone: Item removed.", "success")
+    elif action == "EDIT_ITEM":
+        prev_state = log.get('previous_state')
+        items_collection.update_one({"_id": ObjectId(item_id)}, {"$set": prev_state})
+        flash("Action undone: Changes reversed.", "success")
+    elif action == "STOCK_IN":
+        qty = log.get('previous_state', {}).get('qty', 0)
+        items_collection.update_one({"_id": ObjectId(item_id)}, {"$inc": {"stock": -qty, "inventory_in": -qty}})
+        flash("Action undone: Stock entry reversed.", "success")
+    elif action == "STOCK_OUT":
+        qty = log.get('previous_state', {}).get('qty', 0)
+        items_collection.update_one({"_id": ObjectId(item_id)}, {"$inc": {"stock": qty, "inventory_out": -qty}})
+        flash("Action undone: Stock reduction reversed.", "success")
+    elif action == "SALE": return redirect(url_for('sales.sales_list'))
     
-    try:
-        if action == "ADD_ITEM":
-            # Undo Add = Delete
-            items_collection.delete_one({"_id": ObjectId(item_id)})
-            success = True
-            message = "Added item removed successfully."
-        elif action == "EDIT_ITEM" or action == "RESET_ITEM":
-            # Undo Edit/Reset = Restore previous state
-            if prev_state:
-                items_collection.update_one({"_id": ObjectId(item_id)}, {"$set": prev_state})
-                success = True
-                message = "Changes reverted successfully."
-        elif action == "DELETE_ITEM":
-            # Undo Delete = Set active: True
-            items_collection.update_one({"_id": ObjectId(item_id)}, {"$set": {"active": True}})
-            success = True
-            message = "Item restored successfully."
-        elif action == "STOCK_IN":
-            # Undo Stock In = Revert stock increment
-            if prev_state and 'qty' in prev_state:
-                qty = prev_state['qty']
-                items_collection.update_one({"_id": ObjectId(item_id)}, {"$inc": {"stock": -qty, "inventory_in": -qty}})
-                # Remove the IN log too
-                inventory_log_collection.delete_one({"item_name": prev_state['item_name'], "type": "IN", "timestamp": log['timestamp']})
-                success = True
-                message = "Stock addition reverted successfully."
-        elif action == "STOCK_OUT":
-            # Undo Stock Out (Damage) = Revert stock decrement
-            if prev_state and 'qty' in prev_state:
-                qty = prev_state['qty']
-                items_collection.update_one({"_id": ObjectId(item_id)}, {"$inc": {"stock": qty, "inventory_out": -qty}})
-                # Remove the DAMAGE log
-                inventory_log_collection.delete_one({"item_name": prev_state['item_name'], "type": "DAMAGE", "timestamp": log['timestamp']})
-                success = True
-                message = "Inventory adjustment (Damage/Loss) reverted successfully."
-        elif action == "SALE":
-            # Undo Sale = Revert stock deduction, remove purchase record and log
-            if prev_state and 'qty' in prev_state:
-                qty = prev_state['qty']
-                purchase_id = prev_state.get('purchase_id')
-                items_collection.update_one({"_id": ObjectId(item_id)}, {"$inc": {"stock": qty, "sold": -qty, "inventory_out": -qty}})
-                if purchase_id:
-                    purchase_collection.delete_one({"_id": ObjectId(purchase_id)})
-                inventory_log_collection.delete_one({"item_name": prev_state['item_name'], "type": "OUT", "timestamp": log['timestamp']})
-                success = True
-                message = "Sale transaction reverted successfully."
-    except Exception as e:
-        message = f"Error during undo: {str(e)}"
-        success = False
-            
-    if success:
-        undo_logs_collection.delete_one({"undo_id": undo_id})
-        log_action("UNDO_ACTION", f"Undone: {action} for Item {item_id}")
-        flash(message, "success")
-    else:
-        flash(message or "Failed to undo action.", "danger")
-        
-    # Redirect based on where the action likely happened
-    if action in ["STOCK_IN", "STOCK_OUT"]:
-        return redirect(url_for('inventory.restock'))
-    elif action == "SALE":
-        return redirect(url_for('sales.sales_list'))
+    undo_logs_collection.delete_one({"undo_id": undo_id})
+    socketio.emit('dashboard_update')
     return redirect(url_for('inventory.items'))
 
 @inventory_bp.route("/restock")
 @login_required
+@role_required('cashier')
 def restock():
     inventory_log_collection = get_inventory_log_collection()
     items_collection = get_items_collection()
     items_list = list(items_collection.find({"active": {"$ne": False}}).sort("name", 1))
-
-    PER_PAGE = 50
-    page = max(1, int(request.args.get('page', 1)))
+    PER_PAGE = 50; page = max(1, int(request.args.get('page', 1)))
     total = inventory_log_collection.count_documents({"type": {"$in": ["IN", "DAMAGE"]}})
     total_pages = max(1, (total + PER_PAGE - 1) // PER_PAGE)
-    page = min(page, total_pages)
-    skip = (page - 1) * PER_PAGE
-
-    logs = list(inventory_log_collection.find({"type": {"$in": ["IN", "DAMAGE"]}})
-                .sort("timestamp", -1).skip(skip).limit(PER_PAGE))
-    # Mark as read for this user
+    page = min(page, total_pages); skip = (page - 1) * PER_PAGE
+    logs = list(inventory_log_collection.find({"type": {"$in": ["IN", "DAMAGE"]}}).sort("timestamp", -1).skip(skip).limit(PER_PAGE))
+    
+    user_email = session.get('email')
     try:
-        get_users_collection().update_one(
-            {"email": session.get('email')},
-            {"$set": {"last_views.restocks": datetime.now()}}
+        get_users_collection().update_one({"email": user_email}, {"$set": {"last_views.restocks": datetime.now(timezone.utc)}})
+        get_notifications_collection().update_many(
+            {"type": {"$in": ["stock_in", "stock_out"]}, "read_by": {"$ne": user_email}},
+            {"$addToSet": {"read_by": user_email}}
         )
+        socketio.emit('dashboard_update')
     except: pass
-
+    
     item_id = request.args.get('item_id')
-    return render_template('inventory_io.html', logs=logs, items=items_list,
-                           role=session.get('role'), page=page, total_pages=total_pages, total=total, preselected_item_id=item_id)
-
+    return render_template('inventory_io.html', logs=logs, items=items_list, role=session.get('role'), page=page, total_pages=total_pages, total=total, preselected_item_id=item_id, site_config=get_site_config())
 
 @inventory_bp.route('/inventory/stock-in', methods=['POST'])
 @login_required
+@role_required('cashier')
 def stock_in():
     items_collection = get_items_collection()
     data = request.get_json() if request.is_json else request.form
-    item_id = data.get('item_id')
-    qty = int(data.get('qty', 0))
+    item_id = data.get('item_id'); qty = int(data.get('qty', 0))
     inventory_log_collection = get_inventory_log_collection()
     if item_id and qty > 0:
         item = items_collection.find_one({"_id": ObjectId(item_id)})
         if item:
-            ts = datetime.now().strftime('%Y-%m-%d %I:%M:%S %p')
-            new_stock = item.get('stock', 0) + qty
-            items_collection.update_one({"_id": ObjectId(item_id)}, {"$inc": {"stock": qty, "inventory_in": qty}})
-            inventory_log_collection.insert_one({
-                "item_name": item['name'], 
-                "type": "IN", 
-                "qty": qty, 
-                "user": session['email'], 
-                "timestamp": ts,
-                "new_stock": new_stock
-            })
-            
+            ts = datetime.now().strftime('%Y-%m-%d %I:%M:%S %p'); new_stock = item.get('stock', 0) + qty
+            # Use centralized helper for stock update and notifications
+            success, msg = update_item_stock(item_id, qty, action_type="IN")
+            if not success:
+               flash(f"Error: {msg}", "danger")
+               return redirect(url_for('inventory.restock'))
+
+            inventory_log_collection.insert_one({"item_name": item['name'], "type": "IN", "qty": qty, "user": session['email'], "timestamp": ts, "new_stock": new_stock})
             undo_id = save_undo_log("STOCK_IN", item_id, {"qty": qty, "item_name": item['name']})
-            
             log_action("STOCK_IN", f"In: {qty} x {item['name']}")
             
-            send_email_notification(
+            trigger_notification(
+                "stock_in",
                 "Stock In Recorded",
-                f"New stock added: {qty} units of '{item['name']}' by {session.get('email')}.",
-                notif_type="stock_in"
+                f"{qty} units of '{item['name']}' added to stock.",
+                {"item_id": str(item_id), "qty": qty}
             )
-            
-            # Real-time trigger for sidebar badges
+
+            # Manual email notification for Stock IN specifically (optional, as helper handles critical ones)
+            # send_email_notification(...) - Not strictly needed if it's just normal stock-in
             socketio.emit('dashboard_update')
-            
             undo_url = url_for('inventory.undo_action', undo_id=undo_id)
             flash(Markup(f"Stock IN recorded! <a href='{undo_url}' class='alert-link fw-bold ms-2 text-decoration-underline'>Undo</a>"), "success")
     return redirect(url_for('inventory.restock'))
 
 @inventory_bp.route('/inventory/stock-out', methods=['POST'])
 @login_required
+@role_required('cashier')
 def stock_out():
-    """Handles damages and losses."""
     items_collection = get_items_collection()
     data = request.get_json() if request.is_json else request.form
-    item_id = data.get('item_id')
-    qty = int(data.get('qty', 0))
-    reason = data.get('reason', 'Damage/Loss')
+    item_id = data.get('item_id'); qty = int(data.get('qty', 0)); reason = data.get('reason', 'Damage/Loss')
     inventory_log_collection = get_inventory_log_collection()
-    
     if item_id and qty > 0:
         item = items_collection.find_one({"_id": ObjectId(item_id)})
         if item:
-            if item.get('stock', 0) >= qty:
-                ts = datetime.now().strftime('%Y-%m-%d %I:%M:%S %p')
-                new_stock = item.get('stock', 0) - qty
-                items_collection.update_one({"_id": ObjectId(item_id)}, {"$inc": {"stock": -qty, "inventory_out": qty}})
-                inventory_log_collection.insert_one({
-                    "item_name": item['name'], 
-                    "type": "DAMAGE", 
-                    "qty": qty, 
-                    "user": session['email'], 
-                    "timestamp": ts,
-                    "new_stock": new_stock,
-                    "reason": reason
-                })
-                
-                # Save undo log
-                undo_id = save_undo_log("STOCK_OUT", item_id, {"qty": qty, "item_name": item['name']})
-                
-                log_action("DAMAGE_RECORDED", f"Damage/Loss: {qty} x {item['name']} - Reason: {reason}")
-                
-                send_email_notification(
-                    "Damage/Loss Recorded",
-                    f"Stock reduction recorded: {qty} units of '{item['name']}' removed due to {reason}. Recorded by {session.get('email')}.",
-                    notif_type="stock_out"
-                )
-                
-                # Real-time trigger for sidebar badges
-                socketio.emit('dashboard_update')
-                
-                undo_url = url_for('inventory.undo_action', undo_id=undo_id)
-                flash(Markup(f"Damage/Loss of '{item['name']}' recorded! Stock deducted. <a href='{undo_url}' class='alert-link fw-bold ms-2 text-decoration-underline'>Undo</a>"), "warning")
-            else:
-                flash(f"Insufficient stock for {item['name']} to record damage!", "danger")
+            ts = datetime.now().strftime('%Y-%m-%d %I:%M:%S %p'); new_stock = item.get('stock', 0) - qty
+            # Use centralized helper
+            success, msg = update_item_stock(item_id, qty, action_type="OUT", reason=reason)
+            if not success:
+                flash(f"Error: {msg}", "danger")
+                return redirect(url_for('inventory.restock'))
+
+            inventory_log_collection.insert_one({"item_name": item['name'], "type": "DAMAGE", "qty": qty, "user": session['email'], "timestamp": ts, "new_stock": new_stock, "details": reason})
+            undo_id = save_undo_log("STOCK_OUT", item_id, {"qty": qty, "item_name": item['name']})
+            log_action("STOCK_OUT", f"Out: {qty} x {item['name']} ({reason})")
+            
+            trigger_notification(
+                "stock_out",
+                "Damage/Loss Recorded",
+                f"{qty} units of '{item['name']}' removed due to {reason}.",
+                {"item_id": str(item_id), "qty": qty, "reason": reason}
+            )
+            socketio.emit('dashboard_update')
+            flash(Markup(f"Stock reduction recorded! <a href='{url_for('inventory.undo_action', undo_id=undo_id)}' class='alert-link fw-bold ms-2 text-decoration-underline'>Undo</a>"), "warning")
     return redirect(url_for('inventory.restock'))

@@ -9,9 +9,23 @@ from email.mime.text import MIMEText
 from pywebpush import webpush, WebPushException
 from flask import session, request
 from extensions import socketio
-from core.db import get_settings_collection, get_subscriptions_collection, get_system_log_collection, get_menus_collection
+from core.db import get_settings_collection, get_subscriptions_collection, get_system_log_collection, get_menus_collection, get_notifications_collection, get_items_collection
 from bson.objectid import ObjectId
 from flask.json.provider import DefaultJSONProvider
+from werkzeug.security import generate_password_hash, check_password_hash
+from datetime import datetime, timezone
+
+# Password Security Helpers
+def hash_password(password):
+    return generate_password_hash(password)
+
+def verify_password(hashed_password, plain_password):
+    if not hashed_password or not plain_password:
+        return False
+    # Legacy support: check if it's plain text (not starting with scrypt: or pbkdf2:)
+    if not (hashed_password.startswith('scrypt:') or hashed_password.startswith('pbkdf2:')):
+        return hashed_password == plain_password
+    return check_password_hash(hashed_password, plain_password)
 
 class MongoJSONProvider(DefaultJSONProvider):
     def default(self, obj):
@@ -216,6 +230,52 @@ def log_action(action_type, details, send_push=True):
         'timestamp': timestamp
     })
 
+def trigger_notification(notif_type, title, message, data=None, priority='INFO'):
+    """
+    Professional notification engine for DB persistence and real-time SocketIO emission.
+    Supports Priority: INFO, SUCCESS, WARNING, CRITICAL
+    """
+    notif_col = get_notifications_collection()
+    now = datetime.now(timezone.utc)
+    
+    notif_doc = {
+        "type": notif_type,
+        "title": title,
+        "message": message,
+        "priority": priority,
+        "author": session.get('email', 'System'),
+        "created_at": now,
+        "read_by": [],
+        "metadata": data or {}
+    }
+    
+    try:
+        res = notif_col.insert_one(notif_doc)
+        notif_id = str(res.inserted_id)
+    except Exception as e:
+        print(f"[NOTIF-ERROR] DB insert failed: {e}")
+        notif_id = None
+        
+    # Real-time Broadcast
+    payload = {
+        'id': notif_id,
+        'type': notif_type,
+        'title': title,
+        'message': message,
+        'priority': priority,
+        'user': session.get('email', 'System'),
+        'data': data,
+        'timestamp': now.isoformat()
+    }
+    
+    # Broadcast to all
+    socketio.emit('system_notification', payload)
+    
+    # Also trigger generic dashboard update to refresh counts
+    socketio.emit('dashboard_update')
+    
+    return notif_id
+
 def calculate_item_metrics(item):
     cost = item.get('cost_price', 0)
     retail = item.get('retail_price', 0)
@@ -259,6 +319,23 @@ def calculate_item_metrics(item):
         status_label = "Warning"
         status_color = "info"
 
+    # Calculate days dormant
+    updated_at = item.get('updated_at')
+    days_dormant = 0
+    if updated_at:
+        if isinstance(updated_at, str):
+            try:
+                updated_at = datetime.fromisoformat(updated_at.replace('Z', '+00:00'))
+            except:
+                updated_at = None
+        
+        if updated_at:
+            if updated_at.tzinfo is None:
+                updated_at = updated_at.replace(tzinfo=timezone.utc)
+            now = datetime.now(timezone.utc)
+            delta = now - updated_at
+            days_dormant = delta.days
+
     return {
         **item,
         "profit": profit,
@@ -271,5 +348,72 @@ def calculate_item_metrics(item):
         "status_label": status_label,
         "status_color": status_color,
         "warning_threshold": warning_threshold,
-        "low_threshold": low_threshold
+        "low_threshold": low_threshold,
+        "days_dormant": days_dormant
     }
+
+def update_item_stock(item_id, qty_change, action_type="OUT", reason="Sale"):
+    """
+    Centralized stock management with automatic notification triggering.
+    qty_change: positive number
+    action_type: 'IN' or 'OUT'
+    """
+    items_collection = get_items_collection()
+    item = items_collection.find_one({"_id": ObjectId(item_id)})
+    if not item:
+        return False, "Item not found"
+
+    old_stock = item.get('stock', 0)
+    
+    if action_type == "OUT":
+        if old_stock < qty_change:
+            return False, f"Insufficient stock for {item['name']}"
+        new_stock = old_stock - qty_change
+        update_query = {
+            "$inc": {"stock": -qty_change, "sold": qty_change, "inventory_out": qty_change},
+            "$set": {"updated_at": datetime.now(timezone.utc)}
+        }
+    else:
+        new_stock = old_stock + qty_change
+        update_query = {
+            "$inc": {"stock": qty_change, "inventory_in": qty_change},
+            "$set": {"updated_at": datetime.now(timezone.utc)}
+        }
+
+    items_collection.update_one({"_id": ObjectId(item_id)}, update_query)
+    
+    # Notification Logic
+    site_config = get_site_config()
+    low_threshold = item.get('low_threshold')
+    if low_threshold is None:
+        # Check menu threshold or global
+        menu_name = item.get('menu')
+        if menu_name:
+            menu_doc = get_menus_collection().find_one({"name": menu_name})
+            low_threshold = menu_doc.get('low_stock_threshold') if menu_doc else None
+    
+    if low_threshold is None:
+        low_threshold = site_config.get('low_stock_threshold', 5)
+
+    if action_type == "OUT":
+        if new_stock == 0:
+            trigger_notification(
+                "stock_alert",
+                "Out of Stock!",
+                f"Item '{item['name']}' is now OUT OF STOCK.",
+                {"item_id": str(item_id), "stock": 0},
+                priority="CRITICAL"
+            )
+            send_email_notification("Out of Stock Alert", f"Item '{item['name']}' is now out of stock.", notif_type="low_stock")
+        elif new_stock <= low_threshold:
+            trigger_notification(
+                "stock_alert",
+                "Low Stock Warning",
+                f"Item '{item['name']}' is running low ({new_stock} left).",
+                {"item_id": str(item_id), "stock": new_stock},
+                priority="WARNING"
+            )
+            send_email_notification("Low Stock Alert", f"Item '{item['name']}' is low ({new_stock} left).", notif_type="low_stock")
+
+    socketio.emit('dashboard_update')
+    return True, "Stock updated"

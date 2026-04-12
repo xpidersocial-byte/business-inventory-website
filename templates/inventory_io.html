@@ -23,7 +23,6 @@
         <div class="d-flex gap-2 w-100 w-md-auto">
             <div class="position-relative flex-grow-1 search-container">
                 <i class="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-theme-muted"></i>
-                <!-- Removed bg-dark for theme adaptability -->
                 <input type="text" id="restockSearch" class="form-control text-theme-main border-theme-soft ps-5" placeholder="Search restocks..." onkeyup="filterRestocks()">
             </div>
             <div class="d-flex flex-wrap gap-2">
@@ -114,7 +113,7 @@
                     <h5 class="modal-title text-success fw-bold d-flex align-items-center">
                         <i class="bi bi-plus-circle-fill me-2"></i> Add Restock Items
                     </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body p-4">
                     <div class="mb-4">
@@ -156,7 +155,7 @@
                     <h5 class="modal-title text-warning fw-bold d-flex align-items-center">
                         <i class="bi bi-dash-circle-fill me-2"></i> Record Damage/Loss
                     </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body p-4">
                     <div class="mb-4">
@@ -194,17 +193,15 @@
 </div>
 
 <script>
-    // Live search filter for item select dropdowns in modals
     function filterSelect(inputId, selectId) {
         const q = document.getElementById(inputId).value.toLowerCase();
         const sel = document.getElementById(selectId);
         Array.from(sel.options).forEach(opt => {
-            if (!opt.value) return; // keep the placeholder
+            if (!opt.value) return; 
             const match = opt.text.toLowerCase().includes(q);
             opt.hidden = !match;
             opt.style.display = match ? '' : 'none';
         });
-        // Reset selection if current selection no longer visible
         if (sel.selectedOptions.length && sel.selectedOptions[0].hidden) sel.value = '';
     }
 
@@ -213,7 +210,6 @@
         const filter = input.value.toLowerCase();
         const rows = document.querySelectorAll('.restock-row');
         let visibleCount = 0;
-
         rows.forEach(row => {
             const text = row.innerText.toLowerCase();
             if (text.includes(filter)) {
@@ -223,7 +219,6 @@
                 row.classList.add('d-none');
             }
         });
-
         document.getElementById('noResults').classList.toggle('d-none', visibleCount > 0);
     }
 
@@ -232,20 +227,15 @@
         const table = document.getElementById("restockTable");
         const rows = Array.from(table.querySelectorAll(".restock-row"));
         const headers = table.querySelectorAll("th");
-        
         headers.forEach(h => h.classList.remove('sort-active'));
         headers[n].classList.add('sort-active');
-
         if (currentSort.col === n) currentSort.asc = !currentSort.asc;
         else { currentSort.col = n; currentSort.asc = true; }
-
         const sortedRows = rows.sort((a, b) => {
             let x = a.getElementsByTagName("td")[n];
             let y = b.getElementsByTagName("td")[n];
-            
             let v1 = x.getAttribute('data-sort') || x.innerText;
             let v2 = y.getAttribute('data-sort') || y.innerText;
-
             if (type === 'float' || type === 'int') {
                 v1 = parseFloat(v1.replace(/[^\d.-]/g, '')) || 0;
                 v2 = parseFloat(v2.replace(/[^\d.-]/g, '')) || 0;
@@ -256,17 +246,14 @@
                 v1 = v1.toLowerCase();
                 v2 = v2.toLowerCase();
             }
-
             if (v1 < v2) return currentSort.asc ? -1 : 1;
             if (v1 > v2) return currentSort.asc ? 1 : -1;
             return 0;
         });
-
         const tbody = document.getElementById("restockTableBody");
         sortedRows.forEach(row => tbody.appendChild(row));
     }
 
-    // Handle form submissions with offline compatibility
     async function handleLogSubmit(event, url) {
         event.preventDefault();
         const form = event.target;
@@ -278,14 +265,11 @@
         submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Processing...';
 
         try {
-            const res = await offlineSafePost(url, formData);
-            if (res.offline) {
-                // Action queued offline
-                bootstrap.Modal.getInstance(form.closest('.modal')).hide();
-                form.reset();
-            } else {
-                // Online success
+            const res = await fetch(url, { method: 'POST', body: formData });
+            if (res.ok) {
                 window.location.reload();
+            } else {
+                alert('Failed to process request');
             }
         } catch (err) {
             console.error('Submission error:', err);
@@ -296,20 +280,15 @@
         }
     }
 
-    // Auto-open modal if item_id is provided in URL
     document.addEventListener('DOMContentLoaded', function() {
         const urlParams = new URLSearchParams(window.location.search);
         const itemId = urlParams.get('item_id');
-        
         if (itemId) {
             const select = document.querySelector('select[name="item_id"]');
             if (select) {
-                // Find if the option exists and select it
                 const option = Array.from(select.options).find(opt => opt.value === itemId);
                 if (option) {
                     select.value = itemId;
-                    
-                    // Open modal using Bootstrap API
                     const modalEl = document.getElementById('stockInModal');
                     if (modalEl) {
                         const stockModal = new bootstrap.Modal(modalEl);

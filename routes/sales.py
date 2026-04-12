@@ -1,10 +1,11 @@
-from flask import Blueprint, render_template, request, redirect, url_for, session, flash, send_file
+from extensions import socketio
+from flask import Blueprint, render_template, request, redirect, url_for, session, flash, send_file, jsonify
 from markupsafe import Markup
-from core.utils import calculate_item_metrics, log_action, get_site_config, send_email_notification
+from core.utils import calculate_item_metrics, log_action, get_site_config, send_email_notification, trigger_notification
 from core.middleware import login_required, role_required
-from core.db import get_items_collection, get_purchase_collection, get_inventory_log_collection, get_undo_logs_collection, get_users_collection
+from core.db import get_items_collection, get_purchase_collection, get_inventory_log_collection, get_undo_logs_collection, get_users_collection, get_notifications_collection
 from bson.objectid import ObjectId
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import io
 import os
 
@@ -22,7 +23,7 @@ def save_undo_log(action_type, item_id, previous_state=None):
     undo_logs_collection.insert_one({
         "_id": ObjectId(undo_id),
         "undo_id": undo_id,
-        "user": session.get('email'),
+        "user": session.get("email"),
         "action": action_type,
         "item_id": str(item_id),
         "previous_state": previous_state,
@@ -49,9 +50,14 @@ def sales_list():
     # Mark as read for this user
     try:
         get_users_collection().update_one(
-            {"email": session.get('email')},
-            {"$set": {"last_views.sales": datetime.now()}}
+            {"email": session.get("email")},
+            {"$set": {"last_views.sales": datetime.now(timezone.utc)}}
         )
+        get_notifications_collection().update_many(
+            {"type": {"$in": ["sale", "sale_refund", "sale_delete"]}, "read_by": {"$ne": session.get("email")}},
+            {"$addToSet": {"read_by": session.get("email")}}
+        )
+        socketio.emit('dashboard_update')
     except: pass
 
     return render_template('sales.html', purchases=purchases, items=items_list,
@@ -86,7 +92,7 @@ def add_sale():
                     "unit_cost": unit_price,
                     "total": total,
                     "status": "Sold",
-                    "user": session.get('email')
+                    "user": session.get("email")
                 }
                 res = purchase_collection.insert_one(purchase_doc)
                 purchase_id = res.inserted_id
@@ -101,157 +107,132 @@ def add_sale():
                     "new_stock": total_stock
                 })
 
-                undo_id = save_undo_log("SALE", item_id, {"qty": qty, "item_name": item['name'], "purchase_id": str(purchase_id), "timestamp": ts})
-                log_action("SALE", f"Sold: {qty} x {item['name']} for ₱{total}")
-
-                send_email_notification("New Sale Recorded", f"A new sale was recorded: {qty} x '{item['name']}' for {total}.", notif_type="sales")
-    
-    # 4. Tag the original OUT log as refunded so it is excluded from dashboard/summaries
-                undo_url = url_for('inventory.undo_action', undo_id=undo_id)
-                flash(Markup(f"Sale recorded! Stock deducted for {item['name']}. <a href='{undo_url}' class='alert-link fw-bold ms-2 text-decoration-underline'>Undo</a>"), "success")
+                log_action("SALE", f"Sold {qty} x {item['name']}")
+                trigger_notification(
+                    "sale",
+                    "New Sale Recorded",
+                    f"Sold {qty} x {item['name']} for ₱{total:,.2f}.",
+                    {"item_id": str(item_id), "qty": qty, "purchase_id": str(purchase_id)},
+                    priority="SUCCESS"
+                )
+                flash(f"Sale recorded for {item['name']}.", "success")
             else:
-                flash(f"Insufficient stock for {item['name']}!", "danger")
+                flash("Insufficient stock.", "danger")
     return redirect(url_for('sales.sales_list'))
 
 
-@sales_bp.route('/sales/refund/<id>', methods=['POST'])
+@sales_bp.route('/sales/refund/<purchase_id>', methods=['POST'])
 @login_required
 @role_required('owner')
-def refund_sale(id):
+def refund_sale(purchase_id):
     purchase_collection = get_purchase_collection()
     items_collection = get_items_collection()
     inventory_log_collection = get_inventory_log_collection()
-    
-    sale = purchase_collection.find_one({"_id": ObjectId(id)})
-    if not sale:
-        flash("Transaction not found.", "danger")
-        return redirect(url_for('sales.sales_list'))
+
+    purchase = purchase_collection.find_one({"_id": ObjectId(purchase_id)})
+    if purchase and purchase.get('status') != 'Refunded':
+        item_name = purchase['item_name']
+        qty = purchase['qty']
+
+        # Update item stock
+        items_collection.update_one({"name": item_name}, {"$inc": {"stock": qty, "sold": -qty, "inventory_out": -qty}})
         
-    if sale.get('status') == 'Refunded':
-        flash("This transaction has already been refunded.", "warning")
-        return redirect(url_for('sales.sales_list'))
+        # Mark purchase as refunded
+        purchase_collection.update_one({"_id": ObjectId(purchase_id)}, {"$set": {"status": "Refunded"}})
         
-    item_name = sale.get('item_name')
-    qty = sale.get('qty', 0)
-    
-    # 1. Update items collection (Restore stock, reverse sold/inventory_out)
-    items_collection.update_one(
-        {"name": item_name},
-        {"$inc": {"stock": qty, "sold": -qty, "inventory_out": -qty}}
-    )
-    
-    # 2. Insert Inventory Log (IN event for return)
-    ts = datetime.now().strftime('%Y-%m-%d %I:%M:%S %p')
-    # Fetch new stock for the log
-    updated_item = items_collection.find_one({"name": item_name})
-    new_stock = updated_item.get('stock', 0) if updated_item else 0
-    
-    inventory_log_collection.insert_one({
-        "item_name": item_name,
-        "type": "IN",
-        "qty": qty,
-        "user": session['email'],
-        "timestamp": ts,
-        "details": f"Refund for transaction {id}",
-        "new_stock": new_stock
-    })
-    
-    # 3. Mark sale as Refunded
-    purchase_collection.update_one(
-        {"_id": ObjectId(id)},
-        {"$set": {"status": "Refunded", "refunded_at": ts, "refunded_by": session['email']}}
-    )
-    
-    log_action("SALE_REFUND", f"Refunded: {qty} x {item_name} (Trans ID: {id})")
-    send_email_notification("Transaction Refunded", f"A transaction was refunded by {session['email']}: {qty} x '{item_name}'.", notif_type="sales")
-    
-    # 4. Tag the original OUT log as refunded so it is excluded from dashboard/summaries
-    inventory_log_collection.update_one(
-        {"item_name": item_name, "qty": qty, "type": "OUT", "timestamp": sale.get('date')},
-        {"$set": {"refunded": True}}
-    )
-    
-    flash(f"Transaction for {item_name} has been refunded and items returned to stock.", "success")
+        # Log the refund in inventory logs
+        ts = datetime.now().strftime('%Y-%m-%d %I:%M:%S %p')
+        inventory_log_collection.insert_one({
+            "item_name": item_name,
+            "type": "IN",
+            "qty": qty,
+            "user": session['email'],
+            "timestamp": ts,
+            "details": f"Refund for purchase {purchase_id}"
+        })
+
+        log_action("REFUND", f"Refunded {qty} x {item_name}")
+        trigger_notification(
+            "sale_refund",
+            "Sale Refunded",
+            f"Refunded {qty} x {item_name} (Purchase ID: {purchase_id})",
+            {"purchase_id": purchase_id, "item": item_name, "qty": qty},
+            priority="WARNING"
+        )
+        flash(f"Refund processed for {item_name}.", "info")
+    else:
+        flash("Invalid purchase or already refunded.", "danger")
     return redirect(url_for('sales.sales_list'))
-@sales_bp.route('/sales-summary')
+
+
+@sales_bp.route('/sales/summary')
 @login_required
 def sales_summary():
+    view_type = request.args.get('view', 'monthly')
     inventory_log_collection = get_inventory_log_collection()
     items_collection = get_items_collection()
-    view_type = request.args.get('view', 'monthly')
     now = datetime.now()
-    current_year = now.year
 
+    # Get all sales logs
     all_logs = list(inventory_log_collection.find({"type": "OUT", "refunded": {"$ne": True}}))
     items_by_name = {item['name']: item for item in items_collection.find()}
 
+    # Data structures for different views
     months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-    monthly_revenue = [0] * 12
-    monthly_profit = [0] * 12
+    monthly_revenue = [0.0] * 12
+    monthly_profit = [0.0] * 12
+
+    weekly_revenue = [0.0] * 12
+    weekly_profit = [0.0] * 12
+    weeks_labels = []
+    for i in range(11, -1, -1):
+        label = (now - timedelta(weeks=i)).strftime('%-m/%-d/%y')
+        weeks_labels.append(label)
+
+    daily_revenue = [0.0] * 30
+    daily_profit = [0.0] * 30
+    daily_labels = []
+    for i in range(29, -1, -1):
+        label = (now - timedelta(days=i)).strftime('%-m/%-d/%y')
+        daily_labels.append(label)
 
     for log in all_logs:
         try:
-            log_date = datetime.strptime(log['timestamp'], '%Y-%m-%d %I:%M:%S %p')
-            if log_date.year == current_year:
-                item = items_by_name.get(log['item_name'])
-                if item:
-                    qty = log.get('qty', 0)
-                    month_idx = log_date.month - 1
-                    monthly_revenue[month_idx] += qty * item.get('retail_price', 0)
-                    profit_per_unit = abs(item.get('retail_price', 0) - item.get('cost_price', 0))
-                    monthly_profit[month_idx] += qty * profit_per_unit
+            raw_ts = log.get('timestamp')
+            if isinstance(raw_ts, datetime):
+                log_date = raw_ts
+            else:
+                log_date = datetime.strptime(str(raw_ts), '%Y-%m-%d %I:%M:%S %p')
+                
+            item = items_by_name.get(log['item_name'])
+            if not item: continue
+
+            qty = log.get('qty', 0)
+            revenue = qty * item.get('retail_price', 0)
+            profit = qty * (item.get('retail_price', 0) - item.get('cost_price', 0))
+
+            # Monthly (Current Year)
+            if log_date.year == now.year:
+                monthly_revenue[log_date.month - 1] += revenue
+                monthly_profit[log_date.month - 1] += profit
+
+            # Weekly (Last 12 weeks)
+            for i in range(12):
+                start = now - timedelta(weeks=i + 1)
+                end = now - timedelta(weeks=i)
+                if start <= log_date < end:
+                    weekly_revenue[11 - i] += revenue
+                    weekly_profit[11 - i] += profit
+
+            # Daily (Last 30 days)
+            for i in range(30):
+                target_date = (now - timedelta(days=i)).date()
+                if log_date.date() == target_date:
+                    daily_revenue[29 - i] += revenue
+                    daily_profit[29 - i] += profit
         except: continue
 
-    weeks_labels = []
-    weekly_revenue = []
-    weekly_profit = []
-    
-    for i in range(11, -1, -1):
-        start_date = now - timedelta(weeks=i+1)
-        end_date = now - timedelta(weeks=i)
-        weeks_labels.append(start_date.strftime('%-m/%-d/%y'))
-        
-        week_rev = 0
-        week_prof = 0
-        for log in all_logs:
-            try:
-                log_date = datetime.strptime(log['timestamp'], '%Y-%m-%d %I:%M:%S %p')
-                if start_date <= log_date < end_date:
-                    item = items_by_name.get(log['item_name'])
-                    if item:
-                        qty = log.get('qty', 0)
-                        week_rev += qty * item.get('retail_price', 0)
-                        profit_per_unit = abs(item.get('retail_price', 0) - item.get('cost_price', 0))
-                        week_prof += qty * profit_per_unit
-            except: continue
-        
-        weekly_revenue.append(week_rev)
-        weekly_profit.append(week_prof)
-
-    daily_labels = []
-    daily_revenue = []
-    daily_profit = []
-    for i in range(29, -1, -1):
-        target_date = now - timedelta(days=i)
-        daily_labels.append(target_date.strftime('%-m/%-d/%y'))
-        
-        day_rev = 0
-        day_prof = 0
-        for log in all_logs:
-            try:
-                log_date = datetime.strptime(log['timestamp'], '%Y-%m-%d %I:%M:%S %p')
-                if log_date.date() == target_date.date():
-                    item = items_by_name.get(log['item_name'])
-                    if item:
-                        qty = log.get('qty', 0)
-                        day_rev += qty * item.get('retail_price', 0)
-                        profit_per_unit = abs(item.get('retail_price', 0) - item.get('cost_price', 0))
-                        day_prof += qty * profit_per_unit
-            except: continue
-                
-        daily_revenue.append(day_rev)
-        daily_profit.append(day_prof)
-
+    # Summary metrics based on view_type
     if view_type == 'weekly':
         total_revenue = sum(weekly_revenue)
         total_profit = sum(weekly_profit)
@@ -304,6 +285,68 @@ def sales_summary():
                            view_type=view_type,
                            now=now)
 
+@sales_bp.route('/api/sales/report-data')
+@login_required
+def get_report_data():
+    view_type = request.args.get('view', 'monthly')
+    now = datetime.now()
+    
+    inventory_log_collection = get_inventory_log_collection()
+    items_collection = get_items_collection()
+    all_logs = list(inventory_log_collection.find({"type": "OUT", "refunded": {"$ne": True}}))
+    items_by_name = {item['name']: item for item in items_collection.find()}
+    
+    data = []
+    total_revenue = 0
+    total_profit = 0
+    
+    for log in all_logs:
+        try:
+            raw_ts = log.get('timestamp')
+            if isinstance(raw_ts, datetime):
+                log_date = raw_ts
+            else:
+                log_date = datetime.strptime(str(raw_ts), '%Y-%m-%d %I:%M:%S %p')
+                
+            is_match = False
+            if view_type == 'daily':
+                if log_date.date() == now.date(): is_match = True
+            elif view_type == 'weekly':
+                week_ago = now - timedelta(days=7)
+                if log_date >= week_ago: is_match = True
+            elif view_type == 'monthly':
+                if log_date.year == now.year and log_date.month == now.month: is_match = True
+            elif view_type == 'yearly':
+                if log_date.year == now.year: is_match = True
+                
+            if is_match:
+                item = items_by_name.get(log['item_name'])
+                if item:
+                    qty = log.get('qty', 0)
+                    revenue = qty * item.get('retail_price', 0)
+                    profit = qty * (item.get('retail_price', 0) - item.get('cost_price', 0))
+                    
+                    total_revenue += revenue
+                    total_profit += profit
+                    
+                    ts_str = log_date.strftime('%Y-%m-%d %I:%M:%S %p') if isinstance(raw_ts, datetime) else str(raw_ts)
+                    
+                    data.append({
+                        "date": ts_str,
+                        "item_name": log['item_name'],
+                        "qty": qty,
+                        "type": "OUT",
+                        "revenue": revenue,
+                        "profit": profit
+                    })
+        except: continue
+        
+    return jsonify({
+        "total_revenue": total_revenue,
+        "total_profit": total_profit,
+        "data": data
+    })
+
 @sales_bp.route('/sales/generate-report')
 @login_required
 def generate_report():
@@ -321,7 +364,12 @@ def generate_report():
     # Filter data based on view_type
     for log in all_logs:
         try:
-            log_date = datetime.strptime(log['timestamp'], '%Y-%m-%d %I:%M:%S %p')
+            raw_ts = log.get('timestamp')
+            if isinstance(raw_ts, datetime):
+                log_date = raw_ts
+            else:
+                log_date = datetime.strptime(str(raw_ts), '%Y-%m-%d %I:%M:%S %p')
+                
             is_match = False
             
             if view_type == 'daily':
@@ -342,8 +390,11 @@ def generate_report():
                     cost = item.get('cost_price', 0)
                     revenue = qty * retail
                     profit = qty * (retail - cost)
+                    
+                    ts_str = log_date.strftime('%Y-%m-%d %I:%M:%S %p') if isinstance(raw_ts, datetime) else str(raw_ts)
+                    
                     report_data.append({
-                        "Date": log['timestamp'],
+                        "Date": ts_str,
                         "Item Name": log['item_name'],
                         "Quantity": qty,
                         "Unit Price": f"P{retail:,.2f}",
@@ -423,7 +474,8 @@ def generate_report():
         # Monthly
         for log in all_out_logs:
             try:
-                ld = datetime.strptime(log['timestamp'], '%Y-%m-%d %I:%M:%S %p')
+                raw_ld = log.get('timestamp')
+                ld = raw_ld if isinstance(raw_ld, datetime) else datetime.strptime(str(raw_ld), '%Y-%m-%d %I:%M:%S %p')
                 if ld.year == now.year:
                     item = items_by_name2.get(log['item_name'])
                     if item:
@@ -442,7 +494,8 @@ def generate_report():
             wr = wp = 0.0
             for log in all_out_logs:
                 try:
-                    ld = datetime.strptime(log['timestamp'], '%Y-%m-%d %I:%M:%S %p')
+                    raw_ld = log.get('timestamp')
+                    ld = raw_ld if isinstance(raw_ld, datetime) else datetime.strptime(str(raw_ld), '%Y-%m-%d %I:%M:%S %p')
                     if start <= ld < end:
                         item = items_by_name2.get(log['item_name'])
                         if item:
@@ -460,7 +513,8 @@ def generate_report():
             dr = dp = 0.0
             for log in all_out_logs:
                 try:
-                    ld = datetime.strptime(log['timestamp'], '%Y-%m-%d %I:%M:%S %p')
+                    raw_ld = log.get('timestamp')
+                    ld = raw_ld if isinstance(raw_ld, datetime) else datetime.strptime(str(raw_ld), '%Y-%m-%d %I:%M:%S %p')
                     if ld.date() == td.date():
                         item = items_by_name2.get(log['item_name'])
                         if item:
@@ -492,51 +546,40 @@ def generate_report():
             trend_values = weekly_rev
 
         # Chart 1 — Bar (Revenue) + Line overlay (Profit)  [matches mainChart]
-        #   Colors: bars = rgba(13,110,253,0.6)/#0d6efd, line = #198754
         dark_bg = "#1a1a2e"
         fig1, ax1 = plt.subplots(figsize=(9, 3.5), facecolor=dark_bg)
         ax1.set_facecolor(dark_bg)
 
         x_pos = np.arange(len(main_labels))
-        bars = ax1.bar(x_pos, main_revenue,
-                       color='rgba(13,110,253,0.6)'.replace('rgba(13,110,253,0.6)', '#0d6efd'),
-                       alpha=0.7, label='Revenue', zorder=2)
-        ax1.plot(x_pos, main_profit, color='#198754', linewidth=2.5,
-                 marker='o', markersize=4, label='Profit', zorder=3)
+        bars = ax1.bar(x_pos, main_revenue, color='#0d6efd', alpha=0.7, label='Revenue', zorder=2)
+        ax1.plot(x_pos, main_profit, color='#198754', linewidth=2.5, marker='o', markersize=4, label='Profit', zorder=3)
 
-        ax1.set_title(f"{view_type.capitalize()} Revenue & Profit",
-                      fontsize=12, fontweight='bold', color='white', pad=10)
+        ax1.set_title(f"{view_type.capitalize()} Revenue & Profit", fontsize=12, fontweight='bold', color='white', pad=10)
         ax1.set_xticks(x_pos)
-        ax1.set_xticklabels(main_labels, rotation=45, ha='right',
-                            fontsize=6.5, color='#aaa')
+        ax1.set_xticklabels(main_labels, rotation=45, ha='right', fontsize=6.5, color='#aaa')
         ax1.tick_params(axis='y', colors='#aaa', labelsize=7)
-        ax1.yaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"₱{v:,.0f}"))
+        ax1.yaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"P{v:,.0f}"))
         ax1.spines[['top', 'right', 'left', 'bottom']].set_color('#333')
         ax1.yaxis.set_tick_params(color='#333')
         ax1.set_axisbelow(True)
         ax1.yaxis.grid(True, color='#333', linewidth=0.6)
         ax1.xaxis.grid(False)
-        leg1 = ax1.legend(fontsize=8, facecolor='#2a2a3e',
-                          edgecolor='#333', labelcolor='white', loc='upper left')
+        ax1.legend(fontsize=8, facecolor='#2a2a3e', edgecolor='#333', labelcolor='white', loc='upper left')
         plt.tight_layout()
         plt.savefig(chart_main_path, dpi=140, bbox_inches='tight', facecolor=dark_bg)
         plt.close(fig1)
 
         # Chart 2 — Filled area line  [matches trendChart]
-        #   Colors: border=#0dcaf0, fill=rgba(13,202,240,0.1)
         fig2, ax2 = plt.subplots(figsize=(5.5, 3.5), facecolor=dark_bg)
         ax2.set_facecolor(dark_bg)
 
         x2 = np.arange(len(trend_labels))
         ax2.fill_between(x2, trend_values, color='#0dcaf0', alpha=0.1)
-        ax2.plot(x2, trend_values, color='#0dcaf0', linewidth=2,
-                 marker='o', markersize=2)
+        ax2.plot(x2, trend_values, color='#0dcaf0', linewidth=2, marker='o', markersize=2)
 
-        ax2.set_title("Revenue Trend", fontsize=11, fontweight='bold',
-                      color='#0dcaf0', pad=10)
+        ax2.set_title("Revenue Trend", fontsize=11, fontweight='bold', color='#0dcaf0', pad=10)
         ax2.set_xticks(x2)
-        ax2.set_xticklabels(trend_labels, rotation=45, ha='right',
-                            fontsize=5.5, color='#aaa')
+        ax2.set_xticklabels(trend_labels, rotation=45, ha='right', fontsize=5.5, color='#aaa')
         ax2.yaxis.set_visible(False)
         ax2.spines[['top', 'right', 'left', 'bottom']].set_color('#333')
         ax2.xaxis.grid(False)
@@ -547,20 +590,14 @@ def generate_report():
     except Exception as e:
         chart_main_path = chart_trend_path = None
         print("DEBUG: Chart generation failed -", e)
-    # ─────────────────────────────────────────────────────────────────────────
 
 
     if format_type == 'excel':
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            # Shift dataframe down to make room for metadata header
             export_df.to_excel(writer, index=False, sheet_name='Sales', startrow=7)
-            
-            # Write Summary
             summary_df = pd.DataFrame([{"Item Name": "TOTAL", "Total Revenue": f"P{total_rev:,.2f}", "Total Profit": f"P{total_prof:,.2f}"}])
             summary_df.to_excel(writer, index=False, sheet_name='Sales', startrow=len(export_df)+9)
-            
-            # Inject Header Metadata natively into OpenPyxl
             wb = writer.book
             ws = writer.sheets['Sales']
             ws['A1'] = business_name
@@ -568,162 +605,81 @@ def generate_report():
             ws['A3'] = f"Generated by: {issuer_email}"
             ws['A4'] = f"Issuer IP: {issuer_ip}"
             ws['A5'] = f"Timestamp: {now.strftime('%Y-%m-%d %I:%M %p')}"
-
-            # Add Logo
             try:
                 if os.path.exists(png_path):
                     from openpyxl.drawing.image import Image as OpenPyxlImage
-                    img = OpenPyxlImage(png_path)
-                    img.width = 100
-                    img.height = 100
-                    ws.add_image(img, 'F1')
-            except Exception as e: print("DEBUG: Excel logo adding failed -", e)
-
-            # Add Profile Pic
-            try:
+                    img = OpenPyxlImage(png_path); img.width = 100; img.height = 100; ws.add_image(img, 'F1')
                 if profile_pic:
                     from openpyxl.drawing.image import Image as OpenPyxlImage
-                    img2 = OpenPyxlImage(profile_pic)
-                    img2.width = 60
-                    img2.height = 60
-                    ws.add_image(img2, 'H1')
-            except Exception as e: print("DEBUG: Excel profile pic adding failed -", e)
-
-            # Charts — main bar+line & trend area (2 sheets or 1 wide sheet)
-            try:
-                from openpyxl.drawing.image import Image as OpenPyxlImage
+                    img2 = OpenPyxlImage(profile_pic); img2.width = 60; img2.height = 60; ws.add_image(img2, 'H1')
                 if chart_main_path and os.path.exists(chart_main_path):
                     chart_ws = wb.create_sheet(title='Charts')
-                    img_main = OpenPyxlImage(chart_main_path)
-                    img_main.width = 640; img_main.height = 250
-                    chart_ws.add_image(img_main, 'A1')
+                    img_main = OpenPyxlImage(chart_main_path); img_main.width = 640; img_main.height = 250; chart_ws.add_image(img_main, 'A1')
                 if chart_trend_path and os.path.exists(chart_trend_path):
-                    img_trend = OpenPyxlImage(chart_trend_path)
-                    img_trend.width = 400; img_trend.height = 250
-                    chart_ws.add_image(img_trend, 'L1')
-            except Exception as e: print("DEBUG: Excel chart adding failed -", e)
-
+                    from openpyxl.drawing.image import Image as OpenPyxlImage
+                    img_trend = OpenPyxlImage(chart_trend_path); img_trend.width = 400; img_trend.height = 250; chart_ws.add_image(img_trend, 'L1')
+            except: pass
         output.seek(0)
         return send_file(output, as_attachment=True, download_name=f"{filename}.xlsx", mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
 
     elif format_type == 'word':
         doc = Document()
-        
-        # Header text
         doc.add_heading(f'{business_name} - Sales Report', 0)
         doc.add_paragraph(f'Report Type: {view_type.capitalize()} Overview')
         doc.add_paragraph(f'Generated by: {issuer_email}')
-        doc.add_paragraph(f'Issuer IP: {issuer_ip}')
-        doc.add_paragraph(f'Generated on: {now.strftime("%Y-%m-%d %I:%M %p")}')
         doc.add_paragraph(f'Total Revenue: P{total_rev:,.2f}')
         doc.add_paragraph(f'Total Profit: P{total_prof:,.2f}')
-        
-        # Images Table for side-by-side
         try:
-            p = doc.add_paragraph()
-            r = p.add_run()
-            if os.path.exists(png_path):
-                r.add_picture(png_path, width=Inches(1.0))
-            if profile_pic:
-                r.add_text("      ") # Spacer
-                r.add_picture(profile_pic, width=Inches(0.6))
-        except Exception as e: print("DEBUG: Word image adding failed -", e)
-        
+            p = doc.add_paragraph(); r = p.add_run()
+            if os.path.exists(png_path): r.add_picture(png_path, width=Inches(1.0))
+            if profile_pic: r.add_text("      "); r.add_picture(profile_pic, width=Inches(0.6))
+        except: pass
         table = doc.add_table(rows=1, cols=len(export_df.columns))
         table.style = 'Table Grid'
         hdr_cells = table.rows[0].cells
-        for i, col in enumerate(export_df.columns):
-            hdr_cells[i].text = col
-            
+        for i, col in enumerate(export_df.columns): hdr_cells[i].text = col
         for _, row in export_df.iterrows():
             row_cells = table.add_row().cells
-            for i, val in enumerate(row):
-                row_cells[i].text = str(val)
-                
-        # Charts — main + trend side by side
+            for i, val in enumerate(row): row_cells[i].text = str(val)
         try:
-            doc.add_heading('Sales Charts', level=2)
-            p = doc.add_paragraph()
-            r = p.add_run()
-            if chart_main_path and os.path.exists(chart_main_path):
-                r.add_picture(chart_main_path, width=Inches(4.5))
-            if chart_trend_path and os.path.exists(chart_trend_path):
-                r.add_text('  ')
-                r.add_picture(chart_trend_path, width=Inches(2.5))
-        except Exception as e: print("DEBUG: Word chart adding failed -", e)
-
-        output = io.BytesIO()
-        doc.save(output)
-        output.seek(0)
+            doc.add_heading('Sales Charts', level=2); p = doc.add_paragraph(); r = p.add_run()
+            if chart_main_path and os.path.exists(chart_main_path): r.add_picture(chart_main_path, width=Inches(4.5))
+            if chart_trend_path and os.path.exists(chart_trend_path): r.add_text('  '); r.add_picture(chart_trend_path, width=Inches(2.5))
+        except: pass
+        output = io.BytesIO(); doc.save(output); output.seek(0)
         return send_file(output, as_attachment=True, download_name=f"{filename}.docx", mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
 
-    else: # PDF default
+    else: # PDF
         pdf = FPDF()
         pdf.add_page()
-        
-        # Add logos on top corners
         try:
-            if os.path.exists(png_path):
-                pdf.image(png_path, x=10, y=8, w=22)
-            if profile_pic:
-                pdf.image(profile_pic, x=175, y=8, w=15)
-        except Exception as e: print("DEBUG: PDF image adding failed -", e)
-
-        # Header Info (Indented via set_x to clear the left logo
-        pdf.set_y(10)
-        pdf.set_x(38)
-        pdf.set_font("Arial", 'B', 14)
-        pdf.cell(0, 6, business_name, ln=True, align='L')
-        
-        pdf.set_x(38)
-        pdf.set_font("Arial", '', 8)
-        pdf.cell(0, 4, f'Report Name: {view_type.capitalize()} Sales Summary', ln=True, align='L')
-        pdf.set_x(38)
-        pdf.cell(0, 4, f'Generated by: {issuer_email} (IP: {issuer_ip})', ln=True, align='L')
-        pdf.set_x(38)
-        pdf.cell(0, 4, f'Timestamp: {now.strftime("%Y-%m-%d %I:%M %p")}', ln=True, align='L')
-        
-        pdf.ln(15) # Clear the header images
-        
-        # Summary
-        pdf.set_font("Arial", 'B', 10)
-        pdf.cell(0, 8, f'Total Revenue: P{total_rev:,.2f}', ln=True)
-        pdf.cell(0, 8, f'Total Profit: P{total_prof:,.2f}', ln=True)
-        pdf.ln(5)
-        
-        # Table Header
-        pdf.set_font("Arial", 'B', 8)
-        cols = ["Date", "Item Name", "Qty", "Revenue", "Profit"]
+            if os.path.exists(png_path): pdf.image(png_path, x=10, y=8, w=22)
+            if profile_pic: pdf.image(profile_pic, x=175, y=8, w=15)
+        except: pass
+        pdf.set_y(10); pdf.set_x(38); pdf.set_font("helvetica", 'B', 14)
+        pdf.cell(0, 6, str(business_name).encode('latin-1', 'replace').decode('latin-1'), new_x="LMARGIN", new_y="NEXT", align='L')
+        pdf.set_x(38); pdf.set_font("helvetica", '', 8)
+        pdf.cell(0, 4, f'Report Name: {view_type.capitalize()} Sales Summary', new_x="LMARGIN", new_y="NEXT", align='L')
+        pdf.set_x(38); pdf.cell(0, 4, f'Generated by: {issuer_email} (IP: {issuer_ip})', new_x="LMARGIN", new_y="NEXT", align='L')
+        pdf.set_x(38); pdf.cell(0, 4, f'Timestamp: {now.strftime("%Y-%m-%d %I:%M %p")}', new_x="LMARGIN", new_y="NEXT", align='L')
+        pdf.ln(15); pdf.set_font("helvetica", 'B', 10)
+        pdf.cell(0, 8, f'Total Revenue: P{total_rev:,.2f}', new_x="LMARGIN", new_y="NEXT")
+        pdf.cell(0, 8, f'Total Profit: P{total_prof:,.2f}', new_x="LMARGIN", new_y="NEXT"); pdf.ln(5)
+        pdf.set_font("helvetica", 'B', 8); cols = ["Date", "Item Name", "Qty", "Revenue", "Profit"]
         col_widths = [40, 60, 20, 35, 35]
-        for i, col in enumerate(cols):
-            pdf.cell(col_widths[i], 8, col, border=1, fill=False)
-        pdf.ln()
-        
-        # Table Data
-        pdf.set_font("Arial", '', 7)
+        for i, col in enumerate(cols): pdf.cell(col_widths[i], 8, col, border=1)
+        pdf.ln(); pdf.set_font("helvetica", '', 7)
         for _, row in df.iterrows():
-            pdf.cell(col_widths[0], 6, str(row['Date']), border=1)
-            pdf.cell(col_widths[1], 6, str(row['Item Name']), border=1)
+            pdf.cell(col_widths[0], 6, str(row['Date']).encode('latin-1', 'replace').decode('latin-1'), border=1)
+            pdf.cell(col_widths[1], 6, str(row['Item Name']).encode('latin-1', 'replace').decode('latin-1'), border=1)
             pdf.cell(col_widths[2], 6, str(row['Quantity']), border=1)
             pdf.cell(col_widths[3], 6, str(row['Total Revenue']), border=1)
-            pdf.cell(col_widths[4], 6, str(row['Total Profit']), border=1)
-            pdf.ln()
-            
-        # Charts page — main (left) + trend (right) on a new PDF page
+            pdf.cell(col_widths[4], 6, str(row['Total Profit']), border=1); pdf.ln()
         try:
-            pdf.add_page()
-            pdf.set_font("Arial", 'B', 12)
-            pdf.cell(0, 10, f'{view_type.capitalize()} Sales Charts', ln=True, align='C')
-            pdf.ln(3)
+            pdf.add_page(); pdf.set_font("helvetica", 'B', 12)
+            pdf.cell(0, 10, f'{view_type.capitalize()} Sales Charts', new_x="LMARGIN", new_y="NEXT", align='C'); pdf.ln(3)
             y_start = pdf.get_y()
-            if chart_main_path and os.path.exists(chart_main_path):
-                pdf.image(chart_main_path, x=8, y=y_start, w=130)
-            if chart_trend_path and os.path.exists(chart_trend_path):
-                pdf.image(chart_trend_path, x=143, y=y_start, w=60)
-        except Exception as e: print("DEBUG: PDF chart adding failed -", e)
-
-        output = io.BytesIO()
-        pdf_content = pdf.output(dest='S')
-        output.write(pdf_content)
-        output.seek(0)
-        return send_file(output, as_attachment=True, download_name=f"{filename}.pdf", mimetype='application/pdf')
+            if chart_main_path and os.path.exists(chart_main_path): pdf.image(chart_main_path, x=8, y=y_start, w=130)
+            if chart_trend_path and os.path.exists(chart_trend_path): pdf.image(chart_trend_path, x=143, y=y_start, w=60)
+        except: pass
+        output = io.BytesIO(pdf.output()); return send_file(output, as_attachment=True, download_name=f"{filename}.pdf", mimetype='application/pdf')

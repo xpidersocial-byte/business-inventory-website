@@ -1,9 +1,9 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify, Response, current_app
-from core.utils import get_site_config, log_action, send_email_notification, MongoJSONProvider
+from core.utils import get_site_config, log_action, send_email_notification, MongoJSONProvider, trigger_notification
 from core.middleware import login_required, role_required, get_cashier_permissions, get_owner_permissions
 from core.db import get_users_collection, get_settings_collection, get_items_collection, get_categories_collection, get_menus_collection, get_purchase_collection, get_sales_collection, get_inventory_log_collection, get_system_log_collection, get_notes_collection
 from bson.objectid import ObjectId
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import os
 import json
 import random
@@ -37,6 +37,7 @@ def update_permissions():
     new_perms = {field: (request.form.get(field) == 'on') for field in fields}
     settings_collection.update_one({"type": "cashier_permissions"}, {"$set": new_perms}, upsert=True)
     log_action("UPDATE_PERMISSIONS", "Owner updated cashier access levels.")
+    trigger_notification("perms_update", "Cashier Roles Updated", "Global permissions for Cashier staff have been modified.", priority="INFO")
     flash("Cashier permissions updated successfully!", "success")
     return redirect(url_for('auth.profile', tab='settings'))
 
@@ -56,6 +57,7 @@ def update_owner_permissions():
     new_perms = {field: (request.form.get(field) == 'on') for field in fields}
     settings_collection.update_one({"type": "owner_permissions"}, {"$set": new_perms}, upsert=True)
     log_action("UPDATE_OWNER_PERMISSIONS", "Owner updated global access levels for Owners.")
+    trigger_notification("perms_update", "Owner Roles Updated", "Global access control for Owner accounts has been modified.", priority="CRITICAL")
     flash("Owner access control updated successfully!", "success")
     return redirect(url_for('auth.profile', tab='settings'))
 
@@ -130,6 +132,7 @@ def update_profile():
         update_fields["updated_at"] = datetime.now()
         settings_collection.update_one({"type": "general"}, {"$set": update_fields}, upsert=True)
         log_action("UPDATE_CONFIG", f"Updated settings section: {form_section or 'generic'}")
+        trigger_notification("settings_update", "Configuration Changed", f"The '{form_section or 'general'}' system configuration was updated.", {"section": form_section}, priority="INFO")
     
     flash("Settings updated successfully!", "success")
     return redirect(url_for('auth.profile', tab='settings'))
@@ -159,6 +162,7 @@ def add_category():
         if not get_categories_collection().find_one({"name": name}):
             get_categories_collection().insert_one({"name": name})
             log_action("ADD_CATEGORY", f"Added category: {name}")
+            trigger_notification("settings_update", "New Category Added", f"Category '{name}' was added to the system.", priority="INFO")
             flash(f"Category '{name}' added!", "success")
     return redirect(url_for('auth.profile', tab='settings'))
 
@@ -170,6 +174,7 @@ def delete_category(id):
     if cat:
         get_categories_collection().delete_one({"_id": ObjectId(id)})
         log_action("DELETE_CATEGORY", f"Deleted category: {cat['name']}")
+        trigger_notification("settings_update", "Category Deleted", f"Category '{cat['name']}' was removed from the system.", priority="WARNING")
         flash("Category deleted.", "info")
     return redirect(url_for('auth.profile', tab='settings'))
 
@@ -184,6 +189,7 @@ def add_user():
         if not get_users_collection().find_one({"email": email}):
             get_users_collection().insert_one({"email": email, "password": password, "role": role})
             log_action("ADD_USER", f"Created user: {email} ({role})")
+            trigger_notification("user_added", "Account Created", f"A new {role} account for {email} was created.", {"email": email}, priority="SUCCESS")
             flash(f"User '{email}' created successfully!", "success")
     return redirect(url_for('auth.profile', tab='settings'))
 
@@ -198,6 +204,7 @@ def delete_user(id):
         else:
             get_users_collection().delete_one({"_id": ObjectId(id)})
             log_action("DELETE_USER", f"Deleted user: {user['email']}")
+            trigger_notification("user_deleted", "Account Removed", f"The user account for {user['email']} was deleted.", priority="WARNING")
             flash("User deleted.", "info")
     return redirect(url_for('auth.profile', tab='settings'))
 
@@ -233,6 +240,7 @@ def edit_user(id):
     if update_data:
         get_users_collection().update_one({"_id": ObjectId(id)}, {"$set": update_data})
         log_action("EDIT_USER_ADMIN", f"Admin updated account for: {user['email']}")
+        trigger_notification("user_updated", "Account Updated", f"Administrative changes were made to the account for {user['email']}.", {"email": user['email']}, priority="INFO")
         flash(f"Account for {user['email']} updated!", "success")
     return redirect(url_for('auth.profile', tab='settings'))
 
@@ -248,6 +256,7 @@ def add_menu():
             order = (last_menu.get('order', 0) + 1) if last_menu else 1
             get_menus_collection().insert_one({"name": name, "order": order})
             log_action("ADD_MENU", f"Added menu: {name}")
+            trigger_notification("settings_update", "New Menu Created", f"A new sales menu '{name}' was added.", priority="INFO")
             flash(f"Menu '{name}' created!", "success")
     return redirect(url_for('auth.profile', tab='settings'))
 
@@ -272,12 +281,13 @@ def delete_menu(id):
     if menu:
         get_menus_collection().delete_one({"_id": ObjectId(id)})
         log_action("DELETE_MENU", f"Deleted menu: {menu['name']}")
+        trigger_notification("settings_update", "Sales Menu Removed", f"The sales menu '{menu['name']}' was deleted.", priority="WARNING")
         flash("Menu deleted.", "info")
     return redirect(url_for('auth.profile', tab='settings'))
 
 @admin_bp.route('/settings/menu/thresholds', methods=['POST'])
 @login_required
-@role_required('owner')
+@role_required('cashier')
 def update_menu_thresholds():
     data = request.json
     type_ = data.get('type')
@@ -312,6 +322,7 @@ def clear_all_data():
     get_system_log_collection().delete_many({})
     
     log_action("CLEAR_DATABASE", "Owner wiped all business records without code.")
+    trigger_notification("data_purge", "SYSTEM DATA PURGE", "A complete database wipe was executed by the owner.", priority="CRITICAL")
     flash("All data has been cleared successfully!", "warning")
     return redirect(url_for('auth.profile', tab='settings'))
 
@@ -391,7 +402,7 @@ def import_backup():
 
     return redirect(url_for('auth.profile', tab='settings'))
 
-@admin_bp.route('/admin/send-auth-code', methods=['POST'])
+@admin_bp.route('/settings/send-auth-code', methods=['POST'])
 @login_required
 @role_required('owner')
 def send_auth_code():
@@ -401,7 +412,7 @@ def send_auth_code():
     recipient = session.get("email")
     success = send_email_notification("Owner Security Authorization Code", f"SECURITY ALERT: Your Authorization Code is: {code}", override_recipient=recipient)
     return jsonify({"success": success, "message": f"Verification code sent to {recipient}" if success else "Failed to send email."})
-@admin_bp.route('/admin/database-stats')
+@admin_bp.route('/settings/database-stats')
 @login_required
 @role_required('owner')
 def database_stats():
@@ -465,7 +476,7 @@ def database_stats():
         
     return jsonify(stats)
 
-@admin_bp.route('/admin/test-email', methods=['POST'])
+@admin_bp.route('/settings/test-email', methods=['POST'])
 @login_required
 @role_required('owner')
 def test_email():
@@ -536,260 +547,45 @@ def test_email():
 
 
 
-# ── Notification API ─────────────────────────────────────────────────────────
-@admin_bp.route('/api/notifications')
+
+
+@admin_bp.route('/admin/settings/update', methods=['POST'])
 @login_required
-def get_notifications():
-    """Returns aggregated in-app notifications: low stock + unread bulletins."""
-    notifications = []
-    try:
-        config = get_site_config()
-        threshold = config.get('low_stock_threshold', 5)
-        
-        user_email = session.get('email', '')
-        users_col = get_users_collection()
-        user = users_col.find_one({"email": user_email}) or {}
-        read_notif_ids = user.get('read_notif_ids', [])
+@role_required('owner')
+def update_settings():
+    section = request.form.get('section', 'general')
+    upd = {}
+    
+    # Define which keys are expected as checkboxes for each section
+    # This ensures that if they are missing from request.form (unchecked), they are set to False
+    checkbox_map = {
+        "notifications-config": [
+            "email_notif_stock_in", "email_notif_stock_out", 
+            "email_notif_low_stock", "email_notif_sales", 
+            "email_notif_login", "email_notif_profile", 
+            "email_notif_inventory", "email_notif_bulletin"
+        ],
+        "setup-smtp": ["smtp_use_tls", "smtp_use_ssl"]
+    }
 
-        # 1. Low-stock / out-of-stock items
-        # Filter out items already dismissed in this session
-        dismissed_notifs = session.get('dismissed_notifs', [])
-        items_col = get_items_collection()
-        low_items = list(items_col.find(
-            {"active": {"$ne": False}, "_id": {"$nin": [ObjectId(id) for id in dismissed_notifs if ObjectId.is_valid(id)]}, "stock": {"$lte": threshold}},
-            {"name": 1, "stock": 1}
-        ).limit(50))
-
-        unread_count = 0
-        for item in low_items:
-            stock = item.get('stock', 0)
-            item_id = str(item['_id'])
-            is_read = item_id in read_notif_ids
-            if not is_read:
-                unread_count += 1
-                
-            if stock == 0:
-                notifications.append({
-                    "id": item_id + "_stock",
-                    "item_id": item_id,
-                    "title": "Out of Stock",
-                    "body": f"{item['name']} has run out of stock.",
-                    "icon": "bi-exclamation-circle-fill",
-                    "color": "#dc3545",
-                    "time": "Now",
-                    "type": "stock",
-                    "is_read": is_read,
-                    "url": f"/restock?item_id={item_id}"
-                })
+    # Handle explicit form fields
+    for k in request.form:
+        if k != 'section':
+            v = request.form.get(k)
+            # Standard checkbox 'on' handling
+            if v == 'on':
+                upd[k] = True
             else:
-                notifications.append({
-                    "id": item_id + "_low",
-                    "item_id": item_id,
-                    "title": "Low Stock Warning",
-                    "body": f"{item['name']} — only {stock} unit(s) left.",
-                    "icon": "bi-exclamation-triangle-fill",
-                    "color": "#fd7e14",
-                    "time": "Now",
-                    "type": "stock",
-                    "is_read": is_read,
-                    "url": f"/restock?item_id={item_id}"
-                })
+                upd[k] = v
 
-        # 2. Bulletin notes (show both read/unread for feed)
-        notes_col = get_notes_collection()
-        recent_notes = list(notes_col.find(
-            {"status": {"$ne": "done"}},
-            {"title": 1, "created_at": 1, "read_by": 1}
-        ).sort("created_at", -1).limit(20))
+    # Explicitly handle unchecked checkboxes for the current section
+    if section in checkbox_map:
+        for key in checkbox_map[section]:
+            if key not in request.form:
+                upd[key] = False
 
-        for note in recent_notes:
-            note_id = str(note['_id'])
-            read_by_list = note.get('read_by', [])
-            is_read = user_email in read_by_list
-            if not is_read:
-                unread_count += 1
-                
-            notifications.append({
-                "id": note_id + "_note",
-                "item_id": note_id,
-                "title": "Bulletin Board",
-                "body": note.get('title', 'New bulletin notice'),
-                "icon": "bi-clipboard-data",
-                "color": "#f02849",
-                "time": str(note.get('created_at', '')),
-                "type": "bulletin",
-                "is_read": is_read,
-                "url": "/bulletin"
-            })
-
-        # Sort notifications so unread are at the top
-        notifications = sorted(notifications, key=lambda x: x['is_read'])
-
-        # 3. Sidebar Category Counts (Activity since last visit)
-        last_views = user.get('last_views', {})
-
-        
-        # Helper to get the correct comparison time
-        def get_comp_time(key):
-            val = last_views.get(key)
-            if isinstance(val, str):
-                try: return datetime.fromisoformat(val)
-                except: pass
-            return val if isinstance(val, datetime) else datetime(2020, 1, 1)
-
-        ts_items = get_comp_time('items')
-        ts_sales = get_comp_time('sales')
-        ts_restocks = get_comp_time('restocks')
-        ts_legend = get_comp_time('legend')
-
-        items_col = get_items_collection()
-        purchase_col = get_purchase_collection()
-        log_col = get_inventory_log_collection()
-        
-        # New Items since last visit
-        new_items_count = items_col.count_documents({
-            "created_at": {"$gt": ts_items}
-        })
-        
-        # New Sales (purchase has 'date' string in "%Y-%m-%d %I:%M:%S %p")
-        last_sales_str = ts_sales.strftime('%Y-%m-%d %I:%M:%S %p')
-        new_sales_count = purchase_col.count_documents({
-            "date": {"$gt": last_sales_str}
-        })
-        
-        # New Restocks (log has 'timestamp' string in "%Y-%m-%d %I:%M:%S %p")
-        last_restock_str = ts_restocks.strftime('%Y-%m-%d %I:%M:%S %p')
-        new_restocks_count = log_col.count_documents({
-            "type": {"$in": ["IN", "DAMAGE"]},
-            "timestamp": {"$gt": last_restock_str}
-        })
-        
-        # New Bulletins (notes created after last visit to /bulletin)
-        ts_bulletins = get_comp_time('bulletins')
-        new_bulletins_count = notes_col.count_documents({
-            "status": {"$ne": "done"},
-            "created_at": {"$gt": ts_bulletins}
-        })
-
-        # Legend Alerts (Warning or Low) - Now ONLY shows unread transitions
-        config = get_site_config()
-        warn_threshold = config.get('warning_threshold', 10)
-        
-        # All items currently in Warning/Low state
-        current_alerts = list(items_col.find({
-            "active": {"$ne": False},
-            "stock": {"$gt": 0, "$lte": warn_threshold} 
-        }, {"name": 1}))
-        
-        legend_alerts = 0
-        if current_alerts:
-            # For each alerting item, check if its most recent 'OUT' log is newer than ts_legend
-            last_legend_str = ts_legend.strftime('%Y-%m-%d %H:%M:%S')
-            for alert_item in current_alerts:
-                has_new_activity = log_col.find_one({
-                    "item_name": alert_item['name'],
-                    "type": "OUT",
-                    "timestamp": {"$gt": last_legend_str}
-                })
-                if has_new_activity:
-                    legend_alerts += 1
-
-    except Exception as e:
-        print(f"[Notif Error] {e}")
-        notifications = []
-
-    # The global unread_count is the sum of stock alerts + bulletins + sidebar activity
-    global_unread = unread_count + new_sales_count + new_restocks_count + new_items_count + new_bulletins_count + legend_alerts
-
-    return jsonify({
-        "unread_count": global_unread,
-        "notifications": notifications,
-        "sidebar": {
-            "dashboard": 0,
-            "items": new_items_count,
-            "sales": new_sales_count,
-            "restocks": new_restocks_count,
-            "sales_summary": 0,
-            "legend": legend_alerts,
-            "bulletins": new_bulletins_count,
-            "settings": 0
-        }
-    })
-
-
-@admin_bp.route('/api/notifications/mark-read', methods=['POST'])
-@login_required
-def mark_notifications_read():
-    """Mark all notifications as read for the current user."""
-    try:
-        user_email = session.get('email', '')
-        if not user_email: return jsonify({"success": False}), 401
-        
-        # 1. Mark bulletins as read
-        get_notes_collection().update_many(
-            {"status": {"$ne": "deleted"}},
-            {"$addToSet": {"read_by": user_email}}
-        )
-        
-        # 2. Mark low stock as read
-        config = get_site_config()
-        threshold = config.get('low_stock_threshold', 5)
-        low_ids = [str(i['_id']) for i in get_items_collection().find({"active": {"$ne": False}, "stock": {"$lte": threshold}}, {"_id": 1})]
-        
-        if low_ids:
-            get_users_collection().update_one(
-                {"email": user_email},
-                {"$addToSet": {"read_notif_ids": {"$each": low_ids}}}
-            )
-        
-        # 3. Mark all sidebar activity as read (update last_views)
-        now = datetime.now()
-        get_users_collection().update_one(
-            {"email": user_email},
-            {"$set": {
-                "last_views.items": now,
-                "last_views.sales": now,
-                "last_views.restocks": now,
-                "last_views.legend": now,
-                "last_views.bulletins": now
-            }}
-        )
-        
-    except Exception as e:
-        print(f"[Mark Read Error] {e}")
-    return jsonify({"success": True})
-
-
-@admin_bp.route('/api/notifications/dismiss', methods=['POST'])
-@login_required
-def dismiss_notification():
-    """Add an item ID to the session's dismissed list."""
-    data = request.get_json() or {}
-    item_id = data.get('item_id')
-    if item_id:
-        if 'dismissed_notifs' not in session:
-            session['dismissed_notifs'] = []
-        if item_id not in session['dismissed_notifs']:
-            session['dismissed_notifs'].append(item_id)
-            session.modified = True
-    return jsonify({"success": True})
-
-
-@admin_bp.route('/api/notifications/mark-one', methods=['POST'])
-@login_required
-def mark_one_notification_read():
-    """Mark a single bulletin note as read by its ID."""
-    data = request.get_json() or {}
-    note_id = data.get('note_id')
-    notif_type = data.get('type', '')
-    if notif_type == 'bulletin' and note_id:
-        try:
-            user_email = session.get('email', '')
-            notes_col = get_notes_collection()
-            notes_col.update_one(
-                {"_id": ObjectId(note_id)},
-                {"$addToSet": {"read_by": user_email}}
-            )
-        except Exception as e:
-            print(f"[Mark One Read Error] {e}")
-    return jsonify({"success": True})
+    upd['updated_at'] = datetime.now(timezone.utc)
+    get_settings_collection().update_one({"type": "general"}, {"$set": upd}, upsert=True)
+    trigger_notification("settings_update", "System Settings Updated", f"Global settings for '{section}' were modified by {session.get('email')}.", {"section": section}, priority="INFO")
+    flash(f"Settings for {section} updated.", "success")
+    return redirect(url_for('auth.profile', tab='settings', section=section))

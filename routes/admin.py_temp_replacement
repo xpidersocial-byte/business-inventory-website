@@ -1,0 +1,40 @@
+@admin_bp.route('/admin/settings/update', methods=['POST'])
+@login_required
+@role_required('owner')
+def update_settings():
+    section = request.form.get('section', 'general')
+    upd = {}
+    
+    # Define which keys are expected as checkboxes for each section
+    # This ensures that if they are missing from request.form (unchecked), they are set to False
+    checkbox_map = {
+        "notifications-config": [
+            "email_notif_stock_in", "email_notif_stock_out", 
+            "email_notif_low_stock", "email_notif_sales", 
+            "email_notif_login", "email_notif_profile", 
+            "email_notif_inventory", "email_notif_bulletin"
+        ],
+        "setup-smtp": ["smtp_use_tls", "smtp_use_ssl"]
+    }
+
+    # Handle explicit form fields
+    for k in request.form:
+        if k != 'section':
+            v = request.form.get(k)
+            # Standard checkbox 'on' handling
+            if v == 'on':
+                upd[k] = True
+            else:
+                upd[k] = v
+
+    # Explicitly handle unchecked checkboxes for the current section
+    if section in checkbox_map:
+        for key in checkbox_map[section]:
+            if key not in request.form:
+                upd[key] = False
+
+    upd['updated_at'] = datetime.now(timezone.utc)
+    get_settings_collection().update_one({"type": "general"}, {"$set": upd}, upsert=True)
+    trigger_notification("settings_update", "System Settings Updated", f"Global settings for '{section}' were modified by {session.get('email')}.", {"section": section}, priority="INFO")
+    flash(f"Settings for {section} updated.", "success")
+    return redirect(url_for('auth.profile', tab='settings', section=section))

@@ -3,10 +3,11 @@ import markdown
 import re
 import requests
 from flask import Blueprint, render_template, request, session, jsonify, url_for, abort
-from datetime import datetime, timedelta
-from core.utils import calculate_item_metrics
+from datetime import datetime, timedelta, timezone
+from extensions import socketio
+from core.utils import calculate_item_metrics, get_site_config
 from core.middleware import login_required
-from core.db import get_items_collection, get_dev_updates_collection, get_inventory_log_collection, get_purchase_collection, get_notes_collection
+from core.db import get_items_collection, get_dev_updates_collection, get_inventory_log_collection, get_purchase_collection, get_notes_collection, get_users_collection, get_notifications_collection
 
 dashboard_bp = Blueprint('dashboard', __name__)
 
@@ -50,8 +51,10 @@ def dashboard():
     processed_items = [calculate_item_metrics(item) for item in raw_items]
     item_details_map = {item['name']: item for item in processed_items}
     
-    sales_logs = list(inventory_log_collection.find({"type": "OUT", "refunded": {"$ne": True}}))
-    in_logs = list(inventory_log_collection.find({"type": "IN"}))
+    # INCLUDE 'DAMAGE' logs as losses in dashboard calculation
+    sales_logs = list(inventory_log_collection.find({"type": {"$in": ["OUT", "DAMAGE"]}, "refunded": {"$ne": True}}))
+    # EXCLUDE Refunds from Stock Added calculation
+    in_logs = list(inventory_log_collection.find({"type": "IN", "is_refund": {"$ne": True}}))
     
     now = datetime.now()
     if view == 'daily':
@@ -101,20 +104,32 @@ def dashboard():
     for log in period_sales_logs:
         name = log.get('item_name')
         qty = log.get('qty', 0)
+        log_type = log.get('type')
         if name in item_details_map:
             details = item_details_map[name]
             retail = float(details.get('retail_price', 0))
             cost = float(details.get('cost_price', 0))
             
-            period_revenue += qty * retail
-            period_profit += qty * (retail - cost)
-            period_qty += qty
+            if log_type == 'DAMAGE':
+                # Damage is a total loss of cost
+                period_revenue += 0 
+                period_profit -= (qty * cost)
+            else:
+                # Regular sale (OUT)
+                period_revenue += qty * retail
+                period_profit += qty * (retail - cost)
+                period_qty += qty
             
             if name not in period_item_sales:
                 period_item_sales[name] = {"qty": 0, "revenue": 0, "profit": 0, "name": name}
-            period_item_sales[name]["qty"] += qty
-            period_item_sales[name]["revenue"] += qty * retail
-            period_item_sales[name]["profit"] += qty * (retail - cost)
+            
+            if log_type == 'OUT':
+                period_item_sales[name]["qty"] += qty
+                period_item_sales[name]["revenue"] += qty * retail
+            
+            # Profit logic handles both types
+            item_profit = qty * (retail - cost) if log_type == 'OUT' else -(qty * cost)
+            period_item_sales[name]["profit"] += item_profit
 
     period_inventory_added_value = sum(log.get('qty', 0) * float(item_details_map.get(log.get('item_name'), {}).get('cost_price', 0)) for log in period_in_logs if log.get('item_name') in item_details_map)
 
@@ -130,6 +145,26 @@ def dashboard():
     
     cold_stock = sorted([i for i in processed_items if i['stock'] > 0 and i.get('days_dormant', 0) > 30], key=lambda x: x.get('days_dormant', 0), reverse=True)[:5]
     sporadic_stock = sorted([i for i in processed_items if i['sold'] < 5], key=lambda x: x['sold'], reverse=True)[:5]
+
+    # Fetch recently added items
+    recent_items = list(items_collection.find({"active": {"$ne": False}})
+                        .sort("created_at", -1).limit(5))
+    processed_recent = [calculate_item_metrics(item) for item in recent_items]
+
+    # Mark as read for this user using UTC
+    user_email = session.get('email')
+    try:
+        get_notifications_collection().update_many(
+            {"type": {"$in": ["sale", "sale_refund", "sale_delete"]}, "read_by": {"$ne": user_email}},
+            {"$addToSet": {"read_by": user_email}}
+        )
+        socketio.emit('dashboard_update')
+        get_users_collection().update_one(
+            {"email": user_email},
+            {"$set": {"last_views.dashboard": datetime.now(timezone.utc)}}
+        )
+        socketio.emit('dashboard_update')
+    except: pass
 
     return render_template('dashboard.html', 
                            email=session['email'], 
@@ -149,7 +184,8 @@ def dashboard():
                            warning_items=warning_items,
                            cold_stock=cold_stock,
                            sporadic_stock=sporadic_stock,
-                           current_view=view)
+                           current_view=view, site_config=get_site_config(),
+                           recent_items=processed_recent)
 
 @dashboard_bp.route('/global-search')
 @login_required

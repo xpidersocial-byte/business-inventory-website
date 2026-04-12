@@ -74,3 +74,6 @@ markdown
 
 eventlet
 flask-compress
+Pillow
+matplotlib
+numpy

@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify, g, current_app
-from core.utils import get_site_config, log_action, send_email_notification
+from core.utils import get_site_config, log_action, send_email_notification, trigger_notification, verify_password, hash_password
 from core.middleware import login_required, get_cashier_permissions, get_owner_permissions
 from core.db import get_users_collection, get_subscriptions_collection, get_system_log_collection, get_menus_collection, get_categories_collection
 from datetime import datetime, timedelta
@@ -48,8 +48,8 @@ def login():
     users_collection = get_users_collection()
     email = request.form.get('email', '').strip().lower()
     password = request.form.get('password', '')
-    user = users_collection.find_one({"email": email, "password": password})
-    if user:
+    user = users_collection.find_one({"email": email})
+    if user and verify_password(user.get('password'), password):
         session['email'] = email
         session['role'] = user.get('role', 'cashier')
         session['theme'] = user.get('theme', 'default')
@@ -112,6 +112,18 @@ def profile():
     # Get personal activity logs
     logs = list(system_log_collection.find({"email": email}).sort("timestamp", -1).limit(20))
     
+    # Mark admin settings as read if viewing settings tab
+    tab = request.args.get('tab')
+    if tab == 'settings':
+        try:
+            from core.db import get_notifications_collection
+            get_notifications_collection().update_many(
+                {"type": {"$in": ["user_added", "user_updated", "user_deleted", "perms_update", "settings_update", "backup_import", "data_purge"]}, "read_by": {"$ne": email}},
+                {"$addToSet": {"read_by": email}}
+            )
+            socketio.emit('dashboard_update')
+        except: pass
+
     # Get all users for messaging directory
     raw_users = list(users_collection.find({}, {"email": 1, "role": 1, "profile_pic": 1, "first_name": 1, "last_name": 1, "last_active": 1}))
     all_users = []
@@ -205,7 +217,7 @@ def update_profile():
         update_data['email'] = new_email
         
     if new_password:
-        update_data['password'] = new_password
+        update_data['password'] = hash_password(new_password)
         
     users_collection.update_one({"email": email}, {"$set": update_data})
     
@@ -213,13 +225,17 @@ def update_profile():
         session['email'] = update_data['email']
         
     log_action("PROFILE_UPDATE", f"User '{email}' updated their profile.")
+    trigger_notification("user_updated", "Profile Updated", f"User '{email}' updated their profile information.", priority="SUCCESS")
+    
     send_email_notification(
         "Profile Updated",
         f"The profile for '{email}' was successfully updated at {datetime.now().strftime('%Y-%m-%d %I:%M %p')}.\n\nIf you did not make this change, please contact your administrator immediately.",
         notif_type="profile"
     )
+    tab = request.form.get('tab', 'about')
+    section = request.form.get('section')
     flash("Profile information updated successfully!", "success")
-    return redirect(url_for('auth.profile'))
+    return redirect(url_for('auth.profile', tab=tab, section=section))
 
 @auth_bp.route('/profile/upload-photo', methods=['POST'])
 @login_required
@@ -247,6 +263,7 @@ def upload_photo():
         )
         
         log_action("UPDATE_PROFILE_PIC", "Updated profile picture.")
+        trigger_notification("user_updated", "Avatar Updated", f"{session['email']} updated their profile picture.", priority="INFO")
         return jsonify({"success": True, "path": photo_path})
 
 @auth_bp.route('/profile/upload-cover', methods=['POST'])
@@ -272,6 +289,7 @@ def upload_cover():
         )
         
         log_action("UPDATE_COVER_PHOTO", "Updated cover photo.")
+        trigger_notification("user_updated", "Cover Updated", f"{session['email']} updated their cover photo.", priority="INFO")
         return jsonify({"success": True, "path": cover_path})
 
 @auth_bp.route('/forgot-password')
@@ -371,7 +389,7 @@ def forgot_password_reset():
     users_collection.update_one(
         {"email": email},
         {
-            "$set": {"password": new_password},
+            "$set": {"password": hash_password(new_password)},
             "$unset": {"reset_code": "", "reset_code_expiry": ""}
         }
     )

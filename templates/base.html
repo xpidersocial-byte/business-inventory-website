@@ -401,16 +401,11 @@
     </style>
     <script>
         // Pre-declare updateSidebarBadge to avoid early call errors
-        function updateSidebarBadge(id, count) {
-            const b = document.getElementById(id);
-            if (!b) return;
-            if (count > 0) {
-                b.textContent = count > 99 ? '99+' : count;
-                b.classList.remove('d-none');
-                b.style.display = 'flex';
-            } else {
-                b.classList.add('d-none');
-                b.style.display = 'none';
+        function updateSidebarBadge(badgeId, count) {
+            const badge = document.getElementById(badgeId);
+            if (badge) {
+                badge.innerText = count > 99 ? '99+' : count;
+                badge.classList.toggle('d-none', count <= 0);
             }
         }
     </script>
@@ -441,11 +436,6 @@
         </div>
 
         <div class="ms-auto d-flex align-items-center gap-2">
-            <!-- Connectivity Badge -->
-            <div id="offline-sync-badge" class="me-2 fs-4 d-flex align-items-center">
-                <i class="bi bi-cloud-check-fill text-success" id="connectivity-icon" title="Online & Synced"></i>
-            </div>
-
 
             <div class="d-none d-sm-flex align-items-center me-2 py-1 px-2 rounded-pill hover-bg-nav" style="cursor: pointer; color: white;" onclick="window.location.href='/profile';">
                 <div class="avatar me-2" style="width: 28px; height: 28px; font-size: 0.8rem; overflow: hidden; padding: 0;">
@@ -459,6 +449,9 @@
             </div>
             
             <!-- Theme toggle removed as Facebook theme is now enforced globally -->
+            
+
+            <!-- Notification Center Dropdown removed as per user request -->
             
             <div class="dropdown">
                 <button class="btn rounded-circle p-0 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; background: rgba(255,255,255,0.1); color: white;" data-bs-toggle="dropdown">
@@ -592,6 +585,7 @@
         {% block content %}{% endblock %}
     </main>
 
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -604,30 +598,104 @@
         }
     </style>
     <script>
-        // Theme toggle removed for Facebook theme enforcement
-        const socket = io();
+        const socket = io({
+            reconnection: true,
+            reconnectionAttempts: 10,
+            timeout: 10000
+        });
+
+        socket.on('connect', () => {
+            console.log("[Socket] Connected to server");
+        });
+
+        socket.on('connect_error', (err) => {
+            console.error("[Socket] Connection Error:", err);
+        });
+
         socket.on('theme_update', (data) => {
-            // Theme consistency check
-            if(data.theme !== 'facebook') {
-                 console.log("[Theme Oversight] Enforcing Facebook theme...");
-            }
+            if(data.theme !== 'facebook') console.log("[Theme Oversight] Enforcing Facebook theme...");
         });
 
-        // Real-time Sidebar Refresh
         socket.on('dashboard_update', () => {
-            if (typeof fetchNotifications === 'function') {
-                fetchNotifications();
-            }
+            if (typeof fetchNotifications === 'function') fetchNotifications();
         });
 
-        // Global Search Logic
+        socket.on('system_notification', (data) => {
+            console.log("[Socket] Incoming notification:", data);
+            markToastAsShown(data.id);
+            showSystemToast(data);
+        });
+
+        const shownToastsKey = 'xpider_shown_toasts';
+        function getShownToasts() {
+            try { return JSON.parse(sessionStorage.getItem(shownToastsKey) || '[]'); } catch(e) { return []; }
+        }
+        function markToastAsShown(id) {
+            if (!id) return;
+            const shown = getShownToasts();
+            if (!shown.includes(id)) {
+                shown.push(id);
+                sessionStorage.setItem(shownToastsKey, JSON.stringify(shown.slice(-50))); // Keep last 50
+            }
+        }
+
+        function getNotificationConfig(type) {
+            const mappings = {
+                'sale': { icon: 'bi-cart-check-fill', color: '#10b981', title: 'New Sale', url: '/sales' },
+                'sale_refund': { icon: 'bi-arrow-counterclockwise', color: '#f59e0b', title: 'Sale Refunded', url: '/sales' },
+                'sale_delete': { icon: 'bi-trash-fill', color: '#ef4444', title: 'Sale Deleted', url: '/sales' },
+                'item_added': { icon: 'bi-plus-circle-fill', color: '#1877f2', title: 'New Item', url: '/items' },
+                'item_edited': { icon: 'bi-pencil-square', color: '#6366f1', title: 'Item Updated', url: '/items' },
+                'item_deleted': { icon: 'bi-x-circle-fill', color: '#f43f5e', title: 'Item Removed', url: '/items' },
+                'item_reset': { icon: 'bi-arrow-repeat', color: '#8b5cf6', title: 'Metrics Reset', url: '/items' },
+                'stock_in': { icon: 'bi-box-arrow-in-down', color: '#10b981', title: 'Stock In', url: '/restock' },
+                'stock_out': { icon: 'bi-box-arrow-up', color: '#ef4444', title: 'Stock Out', url: '/restock' },
+                'user_added': { icon: 'bi-person-plus-fill', color: '#1877f2', title: 'User Created', url: '/profile?tab=settings&section=user-mgmt' },
+                'user_updated': { icon: 'bi-person-lines-fill', color: '#6366f1', title: 'User Updated', url: '/profile?tab=settings&section=user-mgmt' },
+                'user_deleted': { icon: 'bi-person-x-fill', color: '#f43f5e', title: 'User Removed', url: '/profile?tab=settings&section=user-mgmt' },
+                'perms_update': { icon: 'bi-shield-lock-fill', color: '#7c3aed', title: 'Permissions Changed', url: '/profile?tab=settings&section=perms-control' },
+                'settings_update': { icon: 'bi-gear-fill', color: '#4b5563', title: 'Settings Updated', url: '/profile?tab=settings' },
+                'bulletin': { icon: 'bi-megaphone-fill', color: '#f02849', title: 'Bulletin Posted', url: '/bulletin' },
+                'stock_alert': { icon: 'bi-exclamation-triangle-fill', color: '#f02849', title: 'Inventory Alert', url: '/legend' },
+                'data_purge': { icon: 'bi-exclamation-octagon-fill', color: '#000', title: 'DATA PURGE', url: '/profile?tab=settings&section=maintenance' }
+            };
+            return mappings[type] || { icon: 'bi-bell-fill', color: '#1877f2', title: 'System Alert', url: '#' };
+        }
+
+        function showSystemToast(data) {
+            const config = getNotificationConfig(data.type);
+            const email = data.user ? data.user.split('@')[0] : 'System';
+            
+            // Priority Styling
+            let iconType = 'info';
+            if (data.priority === 'CRITICAL' || data.priority === 'WARNING') iconType = 'warning';
+            if (data.priority === 'SUCCESS' || data.type === 'sale') iconType = 'success';
+
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: iconType,
+                iconColor: config.color,
+                title: `<span style="color:${config.color}">${config.title}</span>`,
+                html: `<div class="text-start"><small class="d-block mb-1 text-secondary">${data.message}</small><div class="d-flex align-items-center gap-1"><span class="badge bg-light text-dark border" style="font-size:0.55rem;"><i class="bi bi-person me-1"></i>${email}</span><span class="badge bg-primary-subtle text-primary" style="font-size:0.55rem;">Live</span></div></div>`,
+                showConfirmButton: false,
+                timer: 5000,
+                timerProgressBar: true,
+                background: 'var(--card-bg)',
+                color: 'var(--text-main)',
+                didOpen: (toast) => {
+                    toast.addEventListener('mouseenter', Swal.stopTimer);
+                    toast.addEventListener('mouseleave', Swal.resumeTimer);
+                    if (notifSound && typeof notifSound.play === 'function') {
+                        notifSound.play().catch(() => {});
+                    }
+                }
+            });
+        }
+
         function doGlobalSearch(q) {
             const resultsDiv = document.getElementById('globalSearchResults');
-            if (q.length < 2) {
-                resultsDiv.style.display = 'none';
-                return;
-            }
-
+            if (q.length < 2) { resultsDiv.style.display = 'none'; return; }
             fetch(`/global-search?q=${encodeURIComponent(q)}`)
                 .then(r => r.json())
                 .then(data => {
@@ -638,15 +706,7 @@
                         data.results.forEach(item => {
                             const div = document.createElement('div');
                             div.className = 'search-result-item';
-                            div.innerHTML = `
-                                <div class="d-flex align-items-center gap-2">
-                                    <i class="bi ${item.icon} text-primary"></i>
-                                    <div>
-                                        <div class="fw-bold small">${item.title}</div>
-                                        <div class="x-small text-muted">${item.type} • ${item.subtitle}</div>
-                                    </div>
-                                </div>
-                            `;
+                            div.innerHTML = `<div class="d-flex align-items-center gap-2"><i class="bi ${item.icon} text-primary"></i><div><div class="fw-bold small">${item.title}</div><div class="x-small text-muted">${item.type} • ${item.subtitle}</div></div></div>`;
                             div.onclick = () => { window.location.href = item.url; };
                             resultsDiv.appendChild(div);
                         });
@@ -655,32 +715,19 @@
                 });
         }
 
-        // Consolidated click-outside logic (Global Search, Sidebar)
         document.addEventListener('click', function(e) {
-            // 1. Global Search
             const searchContainer = document.querySelector('.fb-search-container');
             const searchResults = document.getElementById('globalSearchResults');
-            if (searchContainer && searchResults) {
-                if (!searchContainer.contains(e.target)) {
-                    searchResults.style.display = 'none';
-                }
-            }
+            if (searchContainer && searchResults && !searchContainer.contains(e.target)) searchResults.style.display = 'none';
 
-            // 2. Sidebar Auto-Close (mobile/click-outside)
             const sidebar = document.getElementById('sidebar');
             const mainContent = document.getElementById('main-content');
             const overlay = document.getElementById('sidebarOverlay');
-            if (sidebar && sidebar.classList.contains('active')) {
-                if ((mainContent && mainContent.contains(e.target)) || (overlay && overlay.contains(e.target))) {
-                    if (window.innerWidth < 992) {
-                        sidebar.classList.remove('active');
-                        if (overlay) overlay.classList.remove('active');
-                    }
-                }
+            if (sidebar && sidebar.classList.contains('active') && ((mainContent && mainContent.contains(e.target)) || (overlay && overlay.contains(e.target)))) {
+                if (window.innerWidth < 992) { sidebar.classList.remove('active'); if (overlay) overlay.classList.remove('active'); }
             }
         });
 
-        // Topbar Real-time Clock
         function updateTopbarClock() {
             const clockEl = document.getElementById('topbar-clock');
             if (clockEl) {
@@ -689,10 +736,8 @@
                 clockEl.innerText = now.toLocaleString(undefined, options);
             }
         }
-        setInterval(updateTopbarClock, 1000);
-        updateTopbarClock();
+        setInterval(updateTopbarClock, 1000); updateTopbarClock();
 
-        // ── Notification Bell ──────────────────────────────────────────
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
             const overlay = document.getElementById('sidebarOverlay');
@@ -700,27 +745,8 @@
             if (overlay) overlay.classList.toggle('active');
         }
 
-        // Auto-close sidebar on link click (mobile)
-        document.addEventListener('DOMContentLoaded', function() {
-            const sidebarLinks = document.querySelectorAll('#sidebar .sidebar-link');
-            sidebarLinks.forEach(link => {
-                link.addEventListener('click', () => {
-                    if (window.innerWidth < 992 && document.getElementById('sidebar').classList.contains('active')) {
-                        toggleSidebar();
-                    }
-                });
-            });
-        });
-
         let notifSound;
-        try {
-            // Using local asset for offline reliability
-            notifSound = new Audio("/static/sounds/notification.mp3");
-            notifSound.volume = 0.5;
-        } catch (e) {
-            console.error("[Audio] Sound initialization failed:", e);
-            notifSound = { play: () => Promise.resolve() };
-        }
+        try { notifSound = new Audio("/static/sounds/notification.mp3"); notifSound.volume = 0.5; } catch (e) { notifSound = { play: () => Promise.resolve() }; }
         let lastTotalUnread = null;
 
         function updateSidebarBadge(badgeId, count) {
@@ -731,161 +757,122 @@
             }
         }
 
-        // Snap-clear badges when clicked
-        document.querySelectorAll('.sidebar-link').forEach(link => {
-            link.addEventListener('click', function() {
-                const badge = this.querySelector('.s-badge');
-                if (badge && !badge.id.includes('legend')) {
-                    badge.classList.add('d-none');
-                }
+        function markOneRead(type, id, redirectUrl = null) {
+            const payload = type === 'bulletin' ? { note_id: id } : { notif_id: id };
+            fetch('/api/notifications/mark-one', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            }).then(() => {
+                fetchNotifications();
+                if (redirectUrl) window.location.href = redirectUrl;
             });
-        });
+        }
 
         function fetchNotifications() {
             fetch('/api/notifications', { cache: 'no-store' })
                 .then(r => r.json())
                 .then(data => {
-                    // Update main navigation notification badge
-                    updateSidebarBadge('badge-notifs', data.unread_count || 0);
+                    updateSidebarBadge('badge-notifs', (data.unread_count || 0));
 
-                    // Update specific activity Sidebar Badges
                     let currentTotal = 0;
                     if (data.sidebar) {
-                        updateSidebarBadge('badge-dashboard', data.sidebar.dashboard);
-                        updateSidebarBadge('badge-items', data.sidebar.items);
-                        updateSidebarBadge('badge-sales', data.sidebar.sales);
-                        updateSidebarBadge('badge-restocks', data.sidebar.restocks);
-                        updateSidebarBadge('badge-sales-summary', data.sidebar.sales_summary);
-                        updateSidebarBadge('badge-legend', data.sidebar.legend);
-                        updateSidebarBadge('badge-bulletin', data.sidebar.bulletins);
-                        updateSidebarBadge('badge-settings', data.sidebar.settings);
-
-                        // Calculate total unread to trigger sound
-                        currentTotal = Object.values(data.sidebar).reduce((a, b) => a + (b || 0), 0) + (data.unread_count || 0);
+                        updateSidebarBadge('badge-dashboard', (data.sidebar.dashboard || 0));
+                        updateSidebarBadge('badge-items', (data.sidebar.items || 0));
+                        updateSidebarBadge('badge-sales', (data.sidebar.sales || 0));
+                        updateSidebarBadge('badge-restocks', (data.sidebar.restocks || 0));
+                        updateSidebarBadge('badge-sales-summary', (data.sidebar.sales_summary || 0));
+                        updateSidebarBadge('badge-legend', (data.sidebar.legend || 0));
+                        updateSidebarBadge('badge-bulletin', (data.sidebar.bulletins || 0));
+                        updateSidebarBadge('badge-settings', (data.sidebar.settings || 0));
+                        currentTotal = (data.unread_count || 0);
                     }
 
-                    // Play sound if new notification arrives
-                    if (lastTotalUnread !== null && currentTotal > lastTotalUnread) {
-                        notifSound.play().catch(() => {
-                            // Suppress browser autoplay restrictions until first user interaction
-                            console.log("[Audio] Waiting for interaction to enable sounds.");
+                    const list = document.getElementById('notification-list');
+                    if (list) {
+                        let html = '';
+                        
+                        // 1. Legend Alerts
+                        if (data.sidebar && data.sidebar.legend > 0) {
+                            html += `<li class="p-3 border-bottom hover-bg">
+                                <a href="/Legend" class="text-decoration-none d-flex gap-3">
+                                    <div class="bg-danger-subtle text-danger rounded-circle d-flex align-items-center justify-content-center" style="width:40px; height:40px;"><i class="bi bi-exclamation-triangle-fill"></i></div>
+                                    <div><div class="fw-bold text-dark small">Low Stock Alert</div><div class="x-small text-muted">${data.sidebar.legend} items require attention</div></div>
+                                </a></li>`;
+                        }
+
+                        // 2. Bulletin Alerts
+                        if (data.sidebar && data.sidebar.bulletins > 0) {
+                            html += `<li class="p-3 border-bottom hover-bg">
+                                <a href="/bulletin" class="text-decoration-none d-flex gap-3">
+                                    <div class="bg-primary-subtle text-primary rounded-circle d-flex align-items-center justify-content-center" style="width:40px; height:40px;"><i class="bi bi-megaphone-fill"></i></div>
+                                    <div><div class="fw-bold text-dark small">New Bulletins</div><div class="x-small text-muted">${data.sidebar.bulletins} unread messages on the board</div></div>
+                                </a></li>`;
+                        }
+
+                    if (data.notifications && data.notifications.length > 0) {
+                        const shown = getShownToasts();
+                        const now = new Date();
+                        
+                        data.notifications.forEach((n, idx) => {
+                            const cfg = getNotificationConfig(n.type);
+                            
+                            // ZERO-LOSS TOAST LOGIC:
+                            // If notification is less than 30s old and hasn't been toasted yet, toast it now.
+                            const created = new Date(n.created_at);
+                            const ageMs = now - created;
+                            if (ageMs < 30000 && !shown.includes(n.id)) {
+                                markToastAsShown(n.id);
+                                // Delay slightly for multiple toasts to avoid overlap
+                                setTimeout(() => showSystemToast(n), idx * 500);
+                            }
+
+                            html += `<li class="p-3 border-bottom hover-bg position-relative">
+                                <div class="position-absolute top-0 end-0 p-2" style="z-index: 5;"><button class="btn btn-sm text-muted" onclick="event.preventDefault(); event.stopPropagation(); markOneRead('notif', '${n.id}')"><i class="bi bi-x"></i></button></div>
+                                <a href="javascript:void(0)" onclick="markOneRead('notif', '${n.id}', '${cfg.url}')" class="text-decoration-none d-flex gap-3">
+                                    <div class="bg-light text-dark rounded-circle d-flex align-items-center justify-content-center border" style="width:40px; height:40px; border-color:${cfg.color} !important;"><i class="bi ${cfg.icon}" style="color:${cfg.color}"></i></div>
+                                    <div><div class="fw-bold text-dark small">${(cfg.title || 'System Alert')}</div><div class="x-small text-muted">${(n.message || 'No details available.')}</div></div>
+                                </a></li>`;
                         });
                     }
+
+                        if (!html) html = '<li class="p-4 text-center text-muted"><i class="bi bi-bell fs-1 opacity-25 d-block mb-2"></i><span class="small">No new notifications.</span></li>';
+                        list.innerHTML = html;
+                    }
+
+                    if (lastTotalUnread !== null && currentTotal > lastTotalUnread) notifSound.play().catch(() => {});
                     lastTotalUnread = currentTotal;
-                })
-                .catch(() => {});
+                }).catch(() => {});
         }
 
         function markAllNotifsRead() {
             fetch('/api/notifications/mark-read', { method: 'POST' })
                 .then(() => {
-                    updateSidebarBadge('badge-notifs', 0);
-                    // Also clear specific badges that were merged into notifications
-                    updateSidebarBadge('badge-bulletin', 0);
-                    lastTotalUnread = 0; // Reset tracking
-                    Swal.fire({
-                        title: 'Done!',
-                        text: 'All notifications marked as read',
-                        icon: 'success',
-                        timer: 1500,
-                        showConfirmButton: false
-                    });
+                    fetchNotifications();
+                    Swal.fire({ title: 'Done!', text: 'All notifications marked as read', icon: 'success', timer: 1500, showConfirmButton: false });
                 }).catch(() => {});
         }
 
-        // ── PWA Offline Capability ──────────────────────────────────────
-        function updateConnectivityUI() {
-            const icon = document.getElementById('connectivity-icon');
-            const mainContent = document.getElementById('main-content');
-            let banner = document.getElementById('offline-banner');
-
-            if (navigator.onLine) {
-                if (icon) {
-                    icon.classList.remove('bi-cloud-slash-fill', 'text-warning', 'text-danger');
-                    icon.classList.add('bi-cloud-check-fill', 'text-success');
-                    icon.title = "Online & Synced";
-                }
-                if (banner) banner.remove();
-                console.log("[PWA] Back Online. Ready for sync.");
-            } else {
-                if (icon) {
-                    icon.classList.remove('bi-cloud-check-fill', 'text-success');
-                    icon.classList.add('bi-cloud-slash-fill', 'text-warning');
-                    icon.title = "Offline (Viewing Cached Data)";
-                }
-                
-                if (!banner) {
-                    banner = document.createElement('div');
-                    banner.id = 'offline-banner';
-                    banner.className = 'alert alert-warning py-2 mb-3 shadow-sm d-flex align-items-center justify-content-between';
-                    banner.innerHTML = `
-                        <div class="d-flex align-items-center">
-                            <i class="bi bi-exclamation-triangle-fill me-2"></i>
-                            <span class="small fw-bold">Offline Mode: Viewing cached data. Changes will sync when online.</span>
-                        </div>
-                        <button class="btn btn-sm btn-outline-dark py-0" onclick="window.location.reload()">Retry</button>
-                    `;
-                    if (mainContent) mainContent.prepend(banner);
-                }
-                console.warn("[PWA] Device is Offline. Serving cached content.");
-            }
-        }
-
-        window.addEventListener('online', updateConnectivityUI);
-        window.addEventListener('offline', updateConnectivityUI);
-        document.addEventListener('DOMContentLoaded', updateConnectivityUI);
-
-        // Fetch immediately and then every 30s
         fetchNotifications();
         setInterval(fetchNotifications, 30000);
     </script>
 
-
-    
-    <!-- PWA / Offline Scripts -->
-    <script src="/static/js/offline-manager.js"></script>
     <script>
-        // SERVICE WORKER REGISTRATION (Faster registration on DOMContentLoaded)
-        if ('serviceWorker' in navigator) {
-            document.addEventListener('DOMContentLoaded', () => {
-                navigator.serviceWorker.register('/sw.js')
-                    .then(reg => console.log('[PWA] Service Worker registered:', reg.scope))
-                    .catch(err => console.error('[PWA] Service Worker failed:', err));
-            });
-        }
-    </script>
-    <script>
-        // DB HEALTH MONITOR — poll every 15s, redirect to /offline on 2 consecutive failures
         (function() {
             let dbFailures = 0;
-            const badge = document.getElementById('offline-sync-badge');
-
             async function checkDbHealth() {
                 try {
                     const res = await fetch('/health', { cache: 'no-store' });
                     const data = await res.json();
-                    if (data.db === 'connected') {
-                        dbFailures = 0;
-                        if (badge) badge.innerHTML = '<i class="bi bi-cloud-check-fill text-success" title="Online &amp; Synced"></i>';
-                    } else {
-                        dbFailures++;
-                        if (badge) badge.innerHTML = '<i class="bi bi-database-slash text-warning fs-4" title="Database Disconnected"></i>';
-                        if (dbFailures >= 2) window.location.href = '/offline';
-                    }
-                } catch (e) {
-                    // Network failure — trust the existing offline-manager
-                }
+                    if (data.db === 'connected') dbFailures = 0;
+                    else { dbFailures++; if (dbFailures >= 2) window.location.href = '/offline'; }
+                } catch (e) {}
             }
-
             setInterval(checkDbHealth, 15000);
         })();
-
-        // Global fix for preventing page jump when clicking empty hash links
         document.addEventListener('click', function(e) {
             const anchor = e.target.closest('a');
-            if (anchor && anchor.getAttribute('href') === '#') {
-                e.preventDefault();
-            }
+            if (anchor && anchor.getAttribute('href') === '#') e.preventDefault();
         });
     </script>
     {% block scripts %}{% endblock %}

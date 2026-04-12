@@ -87,7 +87,7 @@
             </div>
             
             <div class="card-body p-4">
-                <form id="siteConfigForm" action="{{ url_for('admin.update_profile') }}" method="POST">
+                <form id="siteConfigForm" action="{{ url_for('admin.update_general_settings') }}" method="POST">
                     <div class="tab-content" id="setupTabsContent">
                         <!-- Identity -->
                         <div class="tab-pane fade show active" id="identity" role="tabpanel">
@@ -326,7 +326,7 @@
                                         <h6 class="text-theme-main fw-bold mb-3">Backup & Recovery</h6>
                                         <p class="text-theme-muted small mb-4">Export all your business data into a JSON file.</p>
                                         <div class="d-grid gap-3">
-                                            <a href="{{ url_for('admin.download_backup') }}" class="btn btn-outline-primary fw-bold">DOWNLOAD BACKUP</a>
+                                            <a href="{{ url_for('developer.developer_backup') }}" class="btn btn-outline-primary fw-bold">DOWNLOAD BACKUP</a>
                                             <form action="{{ url_for('admin.restore_backup') }}" method="POST" enctype="multipart/form-data">
                                                 <div class="input-group">
                                                     <input type="file" name="backup_file" class="form-control border-theme-soft" accept=".json" required>
@@ -417,7 +417,7 @@
     function sendAuthCode(target) {
         const status = document.getElementById('authStatusSetup');
         status.innerHTML = '<span class="text-info">Sending...</span>';
-        fetch('/admin/send-auth-code', {
+        fetch('{{ url_for('auth.send_profile_confirm_code') }}', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' }
         }).then(r => r.json()).then(data => {

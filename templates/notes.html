@@ -150,7 +150,7 @@
                                     <i class="bi bi-three-dots-vertical"></i>
                                 </button>
                                 <ul class="dropdown-menu dropdown-menu-end shadow border" style="background: var(--card-bg); border-color: var(--border-soft) !important;">
-                                    <li><button class="dropdown-item" onclick="markDone('{{ note._id }}')" style="color: var(--text-main);">
+                                    <li><button class="dropdown-item" onclick="markDone('{{ note._id }}', this)" style="color: var(--text-main);">
                                         <i class="bi bi-check-circle-fill text-success me-2"></i> Mark as Done
                                     </button></li>
                                     <li><button class="dropdown-item" onclick="pinNote('{{ note._id }}')" style="color: var(--text-main);">
@@ -198,15 +198,21 @@
     <!-- Sidebar: Done Items -->
     <div class="col-lg-3">
         <div class="done-sidebar">
-            <h6 class="text-uppercase fw-bold small mb-4 d-flex justify-content-between" style="color: var(--text-muted);">
+            {% set done_notes = notes|selectattr('status', 'equalto', 'done')|list %}
+            <h6 class="text-uppercase fw-bold small mb-4 d-flex justify-content-between align-items-center" style="color: var(--text-muted);">
                 <span><i class="bi bi-check2-all me-2"></i>Completed</span>
+                {% if done_notes|length > 0 and session.get('role') == 'owner' %}
+                <button type="button" onclick="purgeDoneBulletins()" class="btn btn-sm btn-outline-danger border-0 fw-bold py-0" style="font-size: 0.75rem;">
+                    <i class="bi bi-trash-fill me-1"></i>PURGE ALL
+                </button>
+                {% elif done_notes|length > 0 %}
+                 <i class="bi bi-check2-circle text-success"></i>
+                {% else %}
                 <i class="bi bi-archive"></i>
+                {% endif %}
             </h6>
 
-            {% set done_count = 0 %}
-            {% for note in notes %}
-            {% if note.status == 'done' %}
-            {% set done_count = done_count + 1 %}
+            {% for note in done_notes %}
             <div class="done-card">
                 <div class="d-flex justify-content-between align-items-start mb-2">
                     <span class="countdown-timer" data-done-at="{{ note.done_at }}">
@@ -222,10 +228,9 @@
                     <div class="text-success"><i class="bi bi-check-all me-1"></i>{{ note.done_by.split('@')[0] if note.done_by else 'Unknown' }}</div>
                 </div>
             </div>
-            {% endif %}
             {% endfor %}
 
-            {% if done_count == 0 %}
+            {% if done_notes|length == 0 %}
             <div class="text-center py-4 opacity-25">
                 <i class="bi bi-inbox" style="font-size: 2rem;"></i>
                 <p class="small mt-2">No completed items</p>
@@ -332,12 +337,14 @@
         if (badge) {
             fetch('/api/notifications/mark-one', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
                 body: JSON.stringify({ note_id: id, type: 'bulletin' })
             }).then(() => {
                 badge.remove();
                 element.classList.remove('border-primary');
-                // Optionally update top-bar count if global function exists
                 if (typeof fetchNotifications === 'function') fetchNotifications();
             }).catch(() => {});
         }
@@ -346,47 +353,103 @@
     async function handleBulletinAction(id, actionPath) {
         const url = `/bulletin/${actionPath}/${id}`;
         try {
-            const res = await offlineSafePost(url, new FormData());
-            if (res.offline) {
-                // For UI responsiveness, we might want to reload or update manually
-                window.location.reload();
-            } else {
-                window.location.reload();
+            const res = await fetch(url, { 
+                method: "POST",
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            
+            if (res.redirected) {
+                window.location.href = res.url;
+                return;
             }
-        } catch (err) { console.error(err); }
+
+            const data = await res.json();
+            if (res.ok && data.success) {
+                Swal.fire({ title: 'Success!', text: data.message || "Action completed", icon: 'success', timer: 1000, showConfirmButton: false });
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                Swal.fire({ title: 'Error', text: data.message || "Action failed", icon: 'error' });
+            }
+        } catch (err) { 
+            console.error(err);
+            Swal.fire({ title: 'Network Error', text: "Could not reach the server", icon: 'error' });
+        }
     }
 
     function toggleStatus(id) {
-        handleBulletinAction(id, 'toggle_status');
+        handleBulletinAction(id, 'toggle');
     }
 
-    // Mark as done: animate the card out, then submit
-    function markDone(id) {
-        // Find the parent col that contains the card with this note id
-        const btn = document.querySelector(`[onclick="markDone('${id}')"]`);
-        if (btn) {
-            const card = btn.closest('.col-xl-4, .col-md-6');
-            if (card) {
-                card.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
-                card.style.opacity = '0';
-                card.style.transform = 'scale(0.9)';
-                setTimeout(() => {
-                    card.remove();
-                    toggleStatus(id);
-                }, 300);
-                return;
-            }
+    function markDone(id, element) {
+        let card;
+        if (element) {
+            card = element.closest('.col-xl-4, .col-md-6');
+        } else {
+            const btn = document.querySelector(`[onclick*="markDone('${id}')"]`);
+            if (btn) card = btn.closest('.col-xl-4, .col-md-6');
         }
-        toggleStatus(id);
+
+        if (card) {
+            card.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+            card.style.opacity = '0';
+            card.style.transform = 'scale(0.9)';
+            setTimeout(() => {
+                card.remove();
+                toggleStatus(id);
+            }, 300);
+        } else {
+            toggleStatus(id);
+        }
     }
 
     function pinNote(id) {
         handleBulletinAction(id, 'pin');
     }
 
-    function deleteNote(id) {
-        if (confirm('Permanently delete your bulletin?')) {
+    async function deleteNote(id) {
+        const result = await Swal.fire({
+            title: 'Delete Post?',
+            text: "Are you sure you want to permanently delete this bulletin?",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#1877f2',
+            confirmButtonText: 'Yes, delete it!'
+        });
+
+        if (result.isConfirmed) {
             handleBulletinAction(id, 'delete');
+        }
+    }
+
+    async function purgeDoneBulletins() {
+        const result = await Swal.fire({
+            title: 'Purge All Completed?',
+            text: "This will permanently delete all finished items. This action cannot be undone!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#1877f2',
+            confirmButtonText: 'Yes, purge them all!'
+        });
+
+        if (result.isConfirmed) {
+            try {
+                const res = await fetch("/bulletin/purge-done", { 
+                    method: "POST",
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    Swal.fire({ title: "Purged!", text: data.message, icon: "success", timer: 1500, showConfirmButton: false });
+                    setTimeout(() => window.location.reload(), 1500);
+                } else {
+                    Swal.fire({ title: "Error", text: data.message || "Action failed", icon: "error" });
+                }
+            } catch (err) {
+                console.error(err);
+                Swal.fire({ title: "Network Error", text: "Could not reach the server", icon: "error" });
+            }
         }
     }
 
@@ -396,24 +459,44 @@
         const btn = form.querySelector('button[type="submit"]');
         const originalBtnText = btn.innerHTML;
         
-        // Show loading state
         btn.disabled = true;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Posting...';
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Processing...';
         
         const formData = new FormData(form);
         const url = urlOverride || form.action;
         
         try {
-            const res = await offlineSafePost(url, formData);
-            if (res.offline) {
-                bootstrap.Modal.getInstance(form.closest('.modal')).hide();
-                window.location.reload();
+            const res = await fetch(url, { 
+                method: "POST", 
+                body: formData,
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+
+            if (res.redirected) {
+                window.location.href = res.url;
+                return;
+            }
+
+            // Check if response is JSON
+            const contentType = res.headers.get("content-type");
+            if (contentType && contentType.indexOf("application/json") !== -1) {
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    window.location.reload();
+                } else {
+                    throw new Error(data.message || "Server returned error");
+                }
             } else {
-                window.location.reload();
+                // Not JSON, just reload if OK
+                if (res.ok) {
+                    window.location.reload();
+                } else {
+                    throw new Error("Server returned error");
+                }
             }
         } catch (err) { 
             console.error(err); 
-            alert("Submission failed");
+            alert("Action failed: " + err.message);
             btn.disabled = false;
             btn.innerHTML = originalBtnText;
         }
@@ -427,11 +510,30 @@
         new bootstrap.Modal(document.getElementById('editNoteModal')).show();
     }
 
+
+    function parseDate(dateStr) {
+        if (!dateStr) return null;
+        if (typeof dateStr !== 'string') return null;
+        if (dateStr.includes("{'$date':")) {
+            try {
+                // Handle MongoDB BSON string format: {'$date': '2026-04-10T00:13:19.148Z'}
+                const match = dateStr.match(/'\$date':\s*'([^']+)'/);
+                if (match && match[1]) return new Date(match[1]);
+            } catch (e) {}
+        }
+        return new Date(dateStr);
+    }
+
     function updateCountdowns() {
         const timers = document.querySelectorAll('.countdown-timer');
         const now = new Date();
         timers.forEach(timer => {
-            const doneAt = new Date(timer.getAttribute('data-done-at'));
+            const dateVal = timer.getAttribute('data-done-at');
+            const doneAt = parseDate(dateVal);
+            if (!doneAt || isNaN(doneAt.getTime())) {
+                timer.innerHTML = '<i class="bi bi-clock"></i> N/A';
+                return;
+            }
             const expiryDate = new Date(doneAt.getTime() + (7 * 24 * 60 * 60 * 1000));
             const diff = expiryDate - now;
             if (diff <= 0) {
