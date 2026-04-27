@@ -55,6 +55,16 @@ def create_app():
     def favicon():
         return app.send_static_file('favicon.ico')
 
+    @app.route('/health')
+    def health_check():
+        """Health check endpoint for monitoring."""
+        try:
+            from core.db import get_items_collection
+            get_items_collection().find_one()
+            return jsonify({"status": "healthy", "db": "connected"}), 200
+        except Exception as e:
+            return jsonify({"status": "unhealthy", "db": "disconnected", "error": str(e)}), 503
+
     @app.before_request
     def maintenance_mode_check():
         # Allow static files and login always
