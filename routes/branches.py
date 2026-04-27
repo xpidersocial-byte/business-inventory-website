@@ -324,6 +324,15 @@ def select_branch():
 
     top_cashiers = sorted(cashier_stats.values(), key=lambda x: x['sales_total'], reverse=True)[:10]
 
+    # --- Fleet Aggregation for Master View ---
+    fleet_stats = {
+        "revenue": sum(b.get('weekly_revenue', 0) for b in branches),
+        "profit": sum(b.get('weekly_profit', 0) for b in branches),
+        "transactions": sum(b.get('weekly_transactions', 0) for b in branches),
+        "alerts": sum(b.get('low_stock_count', 0) for b in branches),
+        "total_terminals": len(branches)
+    }
+
     # Sort branches by revenue for gamification ranking
     branches = sorted(branches, key=lambda x: (x.get('weekly_revenue', 0), x['name']), reverse=True)
 
@@ -331,6 +340,7 @@ def select_branch():
                            branches=branches, 
                            user=user,
                            top_cashiers=top_cashiers,
+                           fleet_stats=fleet_stats,
                            current_branch=current_branch,
                            current_branch_id=str(session.get('branch_id')) if session.get('branch_id') else None,
                            site_config=get_site_config())
