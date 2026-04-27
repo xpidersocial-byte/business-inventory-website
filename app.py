@@ -32,8 +32,8 @@ def create_app():
     from routes.branches import branches_bp
     from routes.system import system_bp
     from routes.admin import admin_bp
-    from routes.developer import dev_bp
-    from routes.notes import notes_bp
+    from routes.developer import developer_bp
+    from routes.notes import bulletin_bp
     from routes.docs import docs_bp
     from routes.pos import pos_bp
 
@@ -44,8 +44,8 @@ def create_app():
     app.register_blueprint(branches_bp)
     app.register_blueprint(system_bp)
     app.register_blueprint(admin_bp)
-    app.register_blueprint(dev_bp)
-    app.register_blueprint(notes_bp)
+    app.register_blueprint(developer_bp)
+    app.register_blueprint(bulletin_bp)
     app.register_blueprint(docs_bp)
     app.register_blueprint(pos_bp)
 
