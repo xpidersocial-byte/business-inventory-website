@@ -389,93 +389,76 @@
         }
         @media (max-width: 991px) {
             .main-layout { grid-template-columns: 1fr; }
-            .profile-sidebar { height: auto; position: relative; border-right: none; border-bottom: 1px solid rgba(0,0,0,0.05); }
+            .profile-sidebar { display: none !important; }
+            .content-area { padding: 1.5rem; }
+            .mobile-header { 
+                display: flex !important; 
+                align-items: center; 
+                justify-content: space-between; 
+                padding: 1rem 1.5rem; 
+                background: var(--sidebar-bg);
+                backdrop-filter: blur(15px);
+                border-bottom: 1px solid rgba(0,0,0,0.05);
+                position: sticky;
+                top: 0;
+                z-index: 1040;
+            }
+        }
+        
+        .mobile-header { display: none; }
+        
+        .offcanvas {
+            background-color: var(--sidebar-bg);
+            backdrop-filter: blur(15px);
+            border-right: 1px solid rgba(0,0,0,0.1);
+        }
+        
+        .toggle-btn {
+            background: var(--primary-gradient);
+            color: white;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            box-shadow: 0 4px 12px rgba(24, 119, 242, 0.2);
         }
     </style>
 </head>
 <body>
+    <!-- Mobile Header -->
+    <div class="mobile-header">
+        <div class="d-flex align-items-center gap-2">
+            <div class="bg-primary text-white rounded-2 d-flex align-items-center justify-content-center fw-bold" style="width: 32px; height: 32px; font-size: 0.9rem;">
+                {{ site_config.business_name[0] if site_config.business_name else 'X' }}
+            </div>
+            <span class="fw-bold small text-uppercase ls-1">Command Center</span>
+        </div>
+        <button class="toggle-btn" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebarOffcanvas">
+            <i class="bi bi-list"></i>
+        </button>
+    </div>
+
+    <!-- Mobile Off-canvas Sidebar -->
+    <div class="offcanvas offcanvas-start" tabindex="-1" id="sidebarOffcanvas" aria-labelledby="sidebarOffcanvasLabel">
+        <div class="offcanvas-header border-bottom border-light">
+            <h5 class="offcanvas-title fw-bold" id="sidebarOffcanvasLabel">Navigation</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+        </div>
+        <div class="offcanvas-body p-0">
+            <div class="profile-sidebar h-100 border-0" style="display: flex !important; position: static !important; background: transparent;">
+                {% include 'partials/cc_sidebar_content.html' %}
+            </div>
+        </div>
+    </div>
+
     <div class="main-layout">
-        <!-- Sidebar Section -->
+        <!-- Desktop Sidebar Section -->
         <aside class="profile-sidebar">
-            <div class="user-info-section">
-                <div class="user-avatar text-white position-relative">
-                    {{ user.email[0].upper() if user else 'X' }}
-                </div>
-                <h3 class="user-name">{{ user.email.split('@')[0] if user else 'Administrator' }}</h3>
-                <span class="user-role">{{ session.get('role', 'N/A') }}</span>
-            </div>
-
-            <div class="current-assignment shadow-sm p-0 overflow-hidden">
-                <form action="{{ url_for('branches.set_branch') }}" method="POST">
-                    <input type="hidden" name="branch_id" value="{{ current_branch._id if current_branch else '' }}">
-                    <button type="submit" class="w-100 border-0 text-start bg-transparent p-0">
-                        <div class="p-3">
-                            <span class="label">Primary Station</span>
-                            <div class="branch-banner">
-                                <i class="bi bi-building-fill text-primary"></i>
-                                {{ current_branch.name if current_branch else 'Internal Command (Global)' }}
-                            </div>
-                            <div class="small text-muted mt-1" style="font-size: 0.75rem;">
-                                <i class="bi bi-geo-alt-fill me-1"></i> {{ current_branch.location if current_branch else 'Cross-Branch Network' }}
-                            </div>
-                        </div>
-                        <div class="bg-primary text-white p-2 text-center small fw-bold" style="letter-spacing: 1px; font-size: 0.7rem;">
-                            LAUNCH TERMINAL <i class="bi bi-chevron-right ms-1"></i>
-                        </div>
-                    </button>
-                </form>
-            </div>
-
-            <!-- Mini Leaderboard for Quick Glance -->
-            {% if site_config.get('cc_show_fleet_ranking', True) %}
-            <div class="mt-4 p-3 rounded-4" style="background: rgba(0,0,0,0.03);">
-                <div class="small fw-bold text-muted text-uppercase mb-3" style="font-size: 0.65rem; letter-spacing: 1px;">Fleet Rankings ({{ site_config.get('cc_fleet_reset', 'weekly').title() }})</div>
-                {% set f_limit = site_config.get('cc_fleet_limit', '10')|int %}
-                {% for b in branches[:f_limit] %}
-                <div class="d-flex align-items-center justify-content-between mb-2 text-truncate">
-                    <div class="small fw-bold text-truncate" style="font-size: 0.7rem;">
-                        {% if loop.index == 1 %}🥇{% elif loop.index == 2 %}🥈{% elif loop.index == 3 %}🥉{% else %}<span class="me-1 opacity-50">{{ loop.index }}</span>{% endif %}
-                        {{ b.name }}
-                    </div>
-                    <div class="small text-success fw-bold" style="font-size: 0.7rem;">₱{{ "{:,.0f}".format(b.weekly_profit or 0) }}</div>
-                </div>
-                {% endfor %}
-            </div>
-            {% endif %}
-
-            <!-- Cashier Gamification Section -->
-            {% if site_config.get('cc_show_elite_cashiers', True) and top_cashiers %}
-            <div class="mt-4 p-3 rounded-4" style="background: linear-gradient(135deg, rgba(255, 215, 0, 0.05) 0%, rgba(255, 255, 255, 0) 100%); border: 1px solid rgba(255, 215, 0, 0.1);">
-                <div class="small fw-bold text-warning text-uppercase mb-3" style="font-size: 0.65rem; letter-spacing: 1px;">Elite Cashiers 🎖️ ({{ site_config.get('cc_cashier_reset', 'weekly').title() }})</div>
-                {% for cashier in top_cashiers[:10] %}
-                <div class="d-flex align-items-center gap-2 mb-2">
-                    <div class="bg-white rounded-circle shadow-sm d-flex align-items-center justify-content-center fw-bold text-primary" style="width: 22px; height: 22px; font-size: 0.6rem;">
-                        {{ loop.index }}
-                    </div>
-                    <div class="flex-grow-1 text-truncate">
-                        <div class="fw-bold text-truncate" style="font-size: 0.7rem; color: var(--text-main);">{{ cashier.name }}</div>
-                    </div>
-                    <div class="fw-bold text-success" style="font-size: 0.7rem;">₱{{ "{:,.0f}".format(cashier.sales_total) }}</div>
-                </div>
-                {% endfor %}
-                <div class="mt-2 text-center">
-                    <span class="badge bg-warning text-dark" style="font-size: 0.55rem; padding: 4px 8px;">TOP 10 ELITE STATUS</span>
-                </div>
-            </div>
-            {% endif %}
-
-            <div class="nav-links">
-                {% if session.get('role') == 'owner' %}
-                <div class="mb-4 small fw-bold text-muted text-uppercase tracking-wider">Administration</div>
-                {% endif %}
-                
-                <a href="{{ url_for('auth.profile') }}" class="nav-item">
-                    <i class="bi bi-person-circle"></i> View Profile
-                </a>
-                <a href="{{ url_for('auth.logout') }}" class="nav-item logout mt-4">
-                    <i class="bi bi-box-arrow-left"></i> Logout Securely
-                </a>
-            </div>
+            {% include 'partials/cc_sidebar_content.html' %}
         </aside>
 
         <!-- Main Content Section -->
