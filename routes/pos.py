@@ -19,7 +19,7 @@ def pos_view():
     
     query = {"active": {"$ne": False}, "stock": {"$gt": 0}}
     if branch_id:
-        query["branch_id"] = branch_id
+        query["branch_id"] = {"$in": [branch_id, ObjectId(branch_id)]}
 
     # Only send active items with stock > 0 to POS
     items_list = list(items_collection.find(query).sort("name", 1))
@@ -32,7 +32,7 @@ def pos_view():
             used_menus.add(menu)
             
     # Also fetch defined menus from the menus collection to be safe
-    menu_query = {"branch_id": branch_id} if branch_id else {}
+    menu_query = {"branch_id": {"$in": [branch_id, ObjectId(branch_id)]}} if branch_id else {}
     defined_menus = [m['name'] for m in menus_collection.find(menu_query) if 'name' in m]
     for m in defined_menus:
         used_menus.add(m)

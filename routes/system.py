@@ -28,7 +28,7 @@ def get_notifications():
     notifs_col = get_notifications_collection()
     notif_query = {"read_by": {"$ne": user_email}}
     if branch_id:
-        notif_query["branch_id"] = branch_id
+        notif_query["branch_id"] = {"$in": [branch_id, ObjectId(branch_id)]}
     
     unread_notifs = list(notifs_col.find(notif_query).sort("created_at", -1))
     
@@ -41,7 +41,7 @@ def get_notifications():
     # 2. Bulletins - filtered by branch
     bulletin_query = {"read_by": {"$ne": user_email}}
     if branch_id:
-        bulletin_query["branch_id"] = branch_id
+        bulletin_query["branch_id"] = {"$in": [branch_id, ObjectId(branch_id)]}
     unread_bulletins = get_notes_collection().count_documents(bulletin_query)
     
     # 3. Legend (Low Stock) - Keep logic but maybe user wants this persistent too? 
@@ -64,7 +64,7 @@ def get_notifications():
     
     item_query = {"active": {"$ne": False}}
     if branch_id:
-        item_query["branch_id"] = branch_id
+        item_query["branch_id"] = {"$in": [branch_id, ObjectId(branch_id)]}
         
     items = list(get_items_collection().find(item_query))
     total_low_stock = 0
@@ -112,13 +112,13 @@ def mark_all_notifications_read():
     # 1. Mark Bulletins
     bulletin_q = {"read_by": {"$ne": user_email}}
     if branch_id:
-        bulletin_q["branch_id"] = branch_id
+        bulletin_q["branch_id"] = {"$in": [branch_id, ObjectId(branch_id)]}
     get_notes_collection().update_many(bulletin_q, {"$addToSet": {"read_by": user_email}})
     
     # 2. Mark Persistent Notifications
     notif_q = {"read_by": {"$ne": user_email}}
     if branch_id:
-        notif_q["branch_id"] = branch_id
+        notif_q["branch_id"] = {"$in": [branch_id, ObjectId(branch_id)]}
     get_notifications_collection().update_many(notif_q, {"$addToSet": {"read_by": user_email}})
     
     # 3. Reset Legend Timestamp

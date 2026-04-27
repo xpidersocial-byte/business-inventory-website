@@ -24,8 +24,9 @@ def sales_list():
     query = {}
     item_query = {}
     if branch_id:
-        query["branch_id"] = branch_id
-        item_query["branch_id"] = branch_id
+        branch_filter = {"$in": [branch_id, ObjectId(branch_id)]}
+        query["branch_id"] = branch_filter
+        item_query["branch_id"] = branch_filter
 
     # Filter by date if provided
     date_filter = request.args.get('date')
@@ -133,8 +134,9 @@ def refund_sale(purchase_id):
         # Update purchase status
         purchase_collection.update_one({"_id": ObjectId(purchase_id)}, {"$set": {"status": "Refunded"}})
         
-        # Restore stock
-        item = items_collection.find_one({"name": item_name, "branch_id": purchase.get('branch_id')})
+        # Restore stock - uses original branch_id from purchase
+        branch_id = purchase.get('branch_id')
+        item = items_collection.find_one({"name": item_name, "branch_id": {"$in": [branch_id, ObjectId(branch_id)] if branch_id else [None]}})
         if item:
             items_collection.update_one(
                 {"_id": item['_id']}, 
@@ -151,7 +153,7 @@ def refund_sale(purchase_id):
                 "user": session['email'],
                 "timestamp": ts,
                 "new_stock": item.get('stock', 0) + qty,
-                "branch_id": purchase.get('branch_id')
+                "branch_id": branch_id
             })
             
             log_action("REFUND", f"Refunded {qty} x {item_name}")
@@ -185,8 +187,9 @@ def sales_summary():
     item_query = {}
     
     if branch_id:
-        log_query["branch_id"] = branch_id
-        item_query["branch_id"] = branch_id
+        branch_filter = {"$in": [branch_id, ObjectId(branch_id)]}
+        log_query["branch_id"] = branch_filter
+        item_query["branch_id"] = branch_filter
 
     # Get all logs for this branch/context
     all_logs = list(inventory_log_collection.find(log_query))

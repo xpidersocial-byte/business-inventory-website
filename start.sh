@@ -1,14 +1,10 @@
 #!/bin/bash
 echo "🚀 Starting FBIHM Inventory Engine..."
-# Detect if in Docker or Host
-if [ -d "/app" ]; then
-    cd /app
-    python3 app.py
-else
-    # Use current directory
-    SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd)
-    cd "$SCRIPT_DIR"
-    source venv/bin/activate
-    # Use python directly since socketio.run handles gevent
-    python3 app.py
-fi
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd)
+cd "$SCRIPT_DIR"
+
+# Clean up any existing processes on port 5000
+fuser -k 5000/tcp 2>/dev/null || true
+
+# Start the app using the virtual environment
+./venv/bin/python3 run.py

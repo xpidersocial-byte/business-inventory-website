@@ -26,7 +26,7 @@ def bulletin():
     
     query = {}
     if branch_id:
-        query["branch_id"] = branch_id
+        query["branch_id"] = {"$in": [branch_id, ObjectId(branch_id)]}
 
     all_notes = list(notes_collection.find(query).sort([
         ("status", -1), 
@@ -43,7 +43,7 @@ def bulletin():
         # Mark all notes in this branch as read by this user
         note_q = {"read_by": {"$ne": user_email}}
         if branch_id:
-            note_q["branch_id"] = branch_id
+            note_q["branch_id"] = {"$in": [branch_id, ObjectId(branch_id)]}
         get_notes_collection().update_many(note_q, {"$addToSet": {"read_by": user_email}})
         
         # Update last view timestamp
@@ -54,7 +54,7 @@ def bulletin():
         # Clear persistent bulletin notifications for this user in this branch
         bn_q = {"type": "bulletin", "read_by": {"$ne": user_email}}
         if branch_id:
-            bn_q["branch_id"] = branch_id
+            bn_q["branch_id"] = {"$in": [branch_id, ObjectId(branch_id)]}
         get_notifications_collection().update_many(bn_q, {"$addToSet": {"read_by": user_email}})
         socketio.emit('dashboard_update')
     except: pass

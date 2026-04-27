@@ -4,6 +4,7 @@ from core.middleware import login_required, get_cashier_permissions, get_owner_p
 from core.db import get_users_collection, get_subscriptions_collection, get_system_log_collection, get_menus_collection, get_categories_collection, get_branches_collection
 from datetime import datetime, timedelta
 from extensions import socketio
+from bson.objectid import ObjectId
 import os
 from werkzeug.utils import secure_filename
 
@@ -154,7 +155,7 @@ def profile():
             branch_id = session.get('branch_id')
             admin_notif_q = {"type": {"$in": ["user_added", "user_updated", "user_deleted", "perms_update", "settings_update", "backup_import", "data_purge"]}, "read_by": {"$ne": email}}
             if branch_id:
-                admin_notif_q["branch_id"] = branch_id
+                admin_notif_q["branch_id"] = {"$in": [branch_id, ObjectId(branch_id)]}
                 
             get_notifications_collection().update_many(
                 admin_notif_q,
@@ -190,8 +191,8 @@ def profile():
 
         # FETCH CATEGORIES AND MENUS
         branch_id = session.get('branch_id')
-        cat_query = {"branch_id": branch_id} if branch_id else {}
-        menu_query = {"branch_id": branch_id} if branch_id else {}
+        cat_query = {"branch_id": {"$in": [branch_id, ObjectId(branch_id)]}} if branch_id else {}
+        menu_query = {"branch_id": {"$in": [branch_id, ObjectId(branch_id)]}} if branch_id else {}
         
         db_cats = list(categories_collection.find(cat_query).sort("name", 1))
         db_menus = list(menus_collection.find(menu_query).sort("order", 1))
@@ -218,7 +219,7 @@ def profile():
         for b in get_branches_collection().find({"active": True}):
             b_id = str(b['_id'])
             # Fetch ALL sold items for the branch and filter by date in Python
-            sales = list(get_purchase_collection().find({"branch_id": b_id, "status": "Sold"}))
+            sales = list(get_purchase_collection().find({"branch_id": {"$in": [b_id, ObjectId(b_id)]}, "status": "Sold"}))
             rev = 0.0
             for s in sales:
                 raw_d = s.get('date') or s.get('timestamp')

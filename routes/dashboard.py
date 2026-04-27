@@ -8,6 +8,7 @@ from extensions import socketio
 from core.utils import calculate_item_metrics, get_site_config
 from core.middleware import login_required
 from core.db import get_items_collection, get_dev_updates_collection, get_inventory_log_collection, get_purchase_collection, get_notes_collection, get_users_collection, get_notifications_collection
+from bson.objectid import ObjectId
 
 dashboard_bp = Blueprint('dashboard', __name__)
 
@@ -53,8 +54,11 @@ def dashboard():
     log_query = {"refunded": {"$ne": True}}
     
     if branch_id:
-        item_query["branch_id"] = branch_id
-        log_query["branch_id"] = branch_id
+        # Robust branch_id query (String or ObjectId)
+        branch_filter = {"$in": [branch_id, ObjectId(branch_id)]} if branch_id else None
+        if branch_filter:
+            item_query["branch_id"] = branch_filter
+            log_query["branch_id"] = branch_filter
 
     raw_items = list(items_collection.find(item_query))
     
@@ -169,11 +173,10 @@ def dashboard():
 
     # Mark as read for this user specifically for this branch
     user_email = session.get('email')
-    branch_id = session.get('branch_id')
     try:
         notif_read_q = {"type": {"$in": ["sale", "sale_refund", "sale_delete"]}, "read_by": {"$ne": user_email}}
         if branch_id:
-            notif_read_q["branch_id"] = branch_id
+            notif_read_q["branch_id"] = {"$in": [branch_id, ObjectId(branch_id)]}
             
         get_notifications_collection().update_many(
             notif_read_q,
@@ -223,7 +226,7 @@ def global_search():
     
     search_filter = {}
     if branch_id:
-        search_filter["branch_id"] = branch_id
+        search_filter["branch_id"] = {"$in": [branch_id, ObjectId(branch_id)]}
 
     # 1. Search Items
     items_col = get_items_collection()

@@ -34,7 +34,7 @@ def items():
     
     query = {"active": {"$ne": False}}
     if branch_id:
-        query["branch_id"] = branch_id
+        query["branch_id"] = {"$in": [branch_id, ObjectId(branch_id)]}
 
     # Map branch names for Global View
     branches_map = {}
@@ -56,8 +56,9 @@ def items():
     cat_query = {}
     menu_query = {}
     if branch_id:
-        cat_query["branch_id"] = branch_id
-        menu_query["branch_id"] = branch_id
+        branch_filter = {"$in": [branch_id, ObjectId(branch_id)]}
+        cat_query["branch_id"] = branch_filter
+        menu_query["branch_id"] = branch_filter
         
     categories = list(categories_collection.find(cat_query).sort("name", 1))
     menus = list(menus_collection.find(menu_query).sort("order", 1))
@@ -72,7 +73,7 @@ def items():
         # Clear persistent notifications for this section (branch-specific)
         item_notif_q = {"type": {"$in": ["item_added", "item_deleted", "item_edited", "item_reset"]}, "read_by": {"$ne": user_email}}
         if branch_id:
-            item_notif_q["branch_id"] = branch_id
+            item_notif_q["branch_id"] = {"$in": [branch_id, ObjectId(branch_id)]}
             
         get_notifications_collection().update_many(
             item_notif_q,
@@ -95,7 +96,7 @@ def legend():
     
     query = {"active": {"$ne": False}}
     if branch_id:
-        query["branch_id"] = branch_id
+        query["branch_id"] = {"$in": [branch_id, ObjectId(branch_id)]}
 
     raw_items = list(items_collection.find(query))
     processed_items = [calculate_item_metrics(item) for item in raw_items]
@@ -112,7 +113,7 @@ def legend():
         # Clear persistent notifications for stock alerts (branch-specific)
         stock_notif_q = {"type": "stock_alert", "read_by": {"$ne": user_email}}
         if branch_id:
-            stock_notif_q["branch_id"] = branch_id
+            stock_notif_q["branch_id"] = {"$in": [branch_id, ObjectId(branch_id)]}
             
         get_notifications_collection().update_many(
             stock_notif_q,
@@ -330,8 +331,9 @@ def restock():
     log_query = {"type": {"$in": ["IN", "DAMAGE"]}}
     
     if branch_id:
-        item_query["branch_id"] = branch_id
-        log_query["branch_id"] = branch_id
+        branch_filter = {"$in": [branch_id, ObjectId(branch_id)]}
+        item_query["branch_id"] = branch_filter
+        log_query["branch_id"] = branch_filter
 
     items_list = list(items_collection.find(item_query).sort("name", 1))
     PER_PAGE = 50; page = max(1, int(request.args.get('page', 1)))
@@ -343,8 +345,13 @@ def restock():
     user_email = session.get('email')
     try:
         get_users_collection().update_one({"email": user_email}, {"$set": {"last_views.restocks": datetime.now(timezone.utc)}})
+        # Branch-specific notification clear
+        notif_q = {"type": {"$in": ["stock_in", "stock_out"]}, "read_by": {"$ne": user_email}}
+        if branch_id:
+            notif_q["branch_id"] = {"$in": [branch_id, ObjectId(branch_id)]}
+            
         get_notifications_collection().update_many(
-            {"type": {"$in": ["stock_in", "stock_out"]}, "read_by": {"$ne": user_email}},
+            notif_q,
             {"$addToSet": {"read_by": user_email}}
         )
         socketio.emit('dashboard_update')
