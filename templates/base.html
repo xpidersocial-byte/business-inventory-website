@@ -20,6 +20,31 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
     
     <style>
+        /* Nexus Sidebar Dropdown Styles */
+        .sidebar-link-group { position: relative; }
+        .sidebar-dropdown { 
+            display: none; 
+            background: rgba(0,0,0,0.04); 
+            margin: 4px 8px; 
+            border-radius: 8px; 
+            overflow: hidden;
+            border-left: 2px solid #1877f2;
+        }
+        .sidebar-sublink { 
+            width: 100%;
+            display: block; 
+            padding: 8px 12px 8px 45px; 
+            font-size: 0.8rem; 
+            color: var(--text-theme-muted); 
+            text-decoration: none; 
+            transition: 0.2s;
+            border: none;
+            background: transparent;
+            text-align: left;
+            font-weight: 600;
+        }
+        .sidebar-sublink:hover { background: rgba(0,0,0,0.05); color: #1877f2; }
+        .sidebar-sublink.active { color: #1877f2; background: rgba(24, 119, 242, 0.05); }
         :root {
             --sidebar-width: 240px;
             --primary-gradient: linear-gradient(135deg, #1877f2 0%, #166fe5 100%);
@@ -499,6 +524,36 @@
                 <span class="s-label">Dashboard</span>
                 <span class="s-badge text-white d-none" id="badge-dashboard" style="background:#1877f2;">0</span>
             </a>
+            
+            <!-- Branches Dropdown (Nexus Architecture) -->
+            {% if available_branches %}
+            <div class="sidebar-link-group">
+                <a href="javascript:void(0)" class="sidebar-link" onclick="toggleSidebarDropdown('branchesDrop')">
+                    <i class="bi bi-list s-icon" style="color: #6c757d;"></i>
+                    <span class="s-label">Terminals</span>
+                    <i class="bi bi-chevron-down ms-auto small opacity-50" id="branchesDropIcon"></i>
+                </a>
+                <div id="branchesDrop" class="sidebar-dropdown">
+                    {% if session.get('role') == 'owner' %}
+                    <form action="{{ url_for('branches.set_branch') }}" method="POST">
+                        <input type="hidden" name="branch_id" value="">
+                        <button type="submit" class="sidebar-sublink {% if not session.get('branch_id') %}active{% endif %}">
+                            <i class="bi bi-globe me-2"></i> Global Fleet
+                        </button>
+                    </form>
+                    {% endif %}
+                    
+                    {% for b in available_branches %}
+                    <form action="{{ url_for('branches.set_branch') }}" method="POST">
+                        <input type="hidden" name="branch_id" value="{{ b._id }}">
+                        <button type="submit" class="sidebar-sublink {% if session.get('branch_id') == b._id|string %}active{% endif %}">
+                            <i class="bi bi-building me-2"></i> {{ b.name }}
+                        </button>
+                    </form>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
             {% endif %}
 
             {% if not is_admin and cashier_perms.get('pos') %}
@@ -569,10 +624,6 @@
             <a href="{{ url_for('branches.branch_list') }}" class="sidebar-link {% if request.endpoint == 'branches.branch_list' %}active{% endif %}">
                 <i class="bi bi-diagram-3-fill s-icon" style="color:#8e44ad;"></i>
                 <span class="s-label">Manage Branches</span>
-            </a>
-            <a href="{{ url_for('branches.select_branch') }}" class="sidebar-link {% if request.endpoint == 'branches.select_branch' %}active{% endif %}">
-                <i class="bi bi-arrow-left-right s-icon" style="color:#0084ff;"></i>
-                <span class="s-label">Switch Branch</span>
             </a>
             {% endif %}
 
@@ -1112,6 +1163,16 @@
                 }
             });
         });
+        function toggleSidebarDropdown(id) {
+            const drop = document.getElementById(id);
+            const icon = document.getElementById(id + 'Icon');
+            const isVisible = drop.style.display === 'block';
+            
+            drop.style.display = isVisible ? 'none' : 'block';
+            if (icon) {
+                icon.className = isVisible ? 'bi bi-chevron-down ms-auto small opacity-50' : 'bi bi-chevron-up ms-auto small opacity-50';
+            }
+        }
     </script>
     {% block scripts %}{% endblock %}
 </body>

@@ -148,6 +148,8 @@ def load_user_theme():
 def inject_globals():
     config = get_site_config()
     branch_name = "Global View"
+    available_branches = []
+    
     if session.get('branch_id'):
         from core.db import get_branches_collection
         from bson.objectid import ObjectId
@@ -156,11 +158,16 @@ def inject_globals():
             if b: branch_name = b.get('name', 'Unknown Branch')
         except: pass
 
+    if 'email' in session:
+        from core.db import get_branches_collection
+        available_branches = list(get_branches_collection().find({"active": True}).sort("name", 1))
+
     return {
         'site_config': config,
         'current_user': get_users_collection().find_one({"email": session.get('email')}) if 'email' in session else None,
         'cashier_perms': get_cashier_permissions() if 'email' in session else {},
         'owner_perms': get_owner_permissions(),
+        'available_branches': available_branches,
         'current_branch_name': branch_name,
         'vapid_public_key': os.getenv('VAPID_PUBLIC_KEY', '')
     }

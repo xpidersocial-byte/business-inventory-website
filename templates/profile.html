@@ -447,15 +447,16 @@
             <div class="col-md-3">
                 <div class="feed-card shadow-sm p-2 settings-sidebar">
                     <a href="javascript:void(0)" class="settings-link active" onclick="switchAdminSection('user-mgmt', this)" data-section="user-mgmt"><i class="bi bi-people-fill me-2"></i>Users & Roles</a>
+                    <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('activity-feed', this)" data-section="activity-feed"><i class="bi bi-activity me-2"></i>Activity Feed</a>
+                    <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('branch-ranking', this)" data-section="branch-ranking"><i class="bi bi-trophy-fill me-2"></i>Branch Rankings</a>
                     <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('perms-control', this)" data-section="perms-control"><i class="bi bi-shield-lock-fill me-2"></i>Permissions Control</a>
-                    <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('server-health', this)" data-section="server-health"><i class="bi bi-cpu-fill me-2"></i>Server Health</a>
-                    <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('db-mgmt', this)" data-section="db-mgmt"><i class="bi bi-database-fill-check me-2"></i>Database Info</a>
                     <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('biz-identity', this)" data-section="biz-identity"><i class="bi bi-building-fill me-2"></i>Business Identity</a>
-                    <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('command-center', this)" data-section="command-center"><i class="bi bi-display me-2"></i>Command Center UI</a>
                     <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('social-branding', this)" data-section="social-branding"><i class="bi bi-palette-fill me-2"></i>Social & Branding</a>
+                    <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('notifications-config', this)" data-section="notifications-config"><i class="bi bi-bell-fill me-2"></i>Notification Center</a>
+                    <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('server-health', this)" data-section="server-health"><i class="bi bi-cpu-fill me-2"></i>Server Health</a>
+                    <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('about-system', this)" data-section="about-system"><i class="bi bi-info-circle-fill me-2"></i>About System</a>
                     <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('smtp-config', this)" data-section="smtp-config"><i class="bi bi-envelope-paper-fill me-2"></i>SMTP Config</a>
                     <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('system-logs', this)" data-section="system-logs"><i class="bi bi-journal-text me-2"></i>System Audit Logs</a>
-                    <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('notifications-config', this)" data-section="notifications-config"><i class="bi bi-bell-fill me-2"></i>Notification Center</a>
                                         <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('cats-menus', this)" data-section="cats-menus" title="Manage inventory grouping and POS shortcut anchors"><i class="bi bi-tags-fill me-2"></i>Categories & Menus</a>
                                         <a href="javascript:void(0)" class="settings-link text-danger" onclick="switchAdminSection('maintenance', this)" data-section="maintenance"><i class="bi bi-tools me-2"></i>Maintenance</a>
                 </div>
@@ -520,6 +521,111 @@
                                     {% endfor %}
                                 </tbody>
                             </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Activity Feed (Nexus) -->
+                <div id="section-activity-feed" class="admin-section d-none">
+                    <div class="feed-card shadow-sm">
+                        <h5 class="fw-bold mb-4"><i class="bi bi-activity me-2"></i>Fleet Activity Feed</h5>
+                        <div class="activity-timeline">
+                            {% for event in admin_data.activity_feed %}
+                            <div class="d-flex gap-3 mb-4 border-bottom pb-3">
+                                <div class="icon-circle bg-light p-3 rounded-circle d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;">
+                                    <i class="bi {{ event.icon }} {{ event.color }}"></i>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <p class="mb-0 fw-bold">{{ event.message }}</p>
+                                        <span class="x-small text-muted">{{ event.time|format_datetime }}</span>
+                                    </div>
+                                    <p class="x-small text-muted mb-0">{{ event.type|capitalize }} Telemetry</p>
+                                </div>
+                            </div>
+                            {% endfor %}
+                            {% if not admin_data.activity_feed %}
+                            <div class="text-center py-5">
+                                <i class="bi bi-broadcast opacity-25" style="font-size: 3rem;"></i>
+                                <p class="text-muted mt-2">No fleet activity recorded yet.</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Branch Ranking (Relocated Elite Gamification) -->
+                <div id="section-branch-ranking" class="admin-section d-none">
+                    <div class="feed-card shadow-sm">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h5 class="fw-bold mb-0"><i class="bi bi-trophy-fill text-warning me-2"></i>Branch Leaderboard</h5>
+                            <span class="badge bg-primary">Weekly Reset Active</span>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead class="bg-light">
+                                    <tr>
+                                        <th class="ps-3">Rank</th>
+                                        <th>Terminal Name</th>
+                                        <th class="text-end">Weekly Revenue</th>
+                                        <th class="text-end">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for b in admin_data.branch_ranking %}
+                                    <tr>
+                                        <td class="ps-3">
+                                            {% if loop.index == 1 %}<span class="badge rounded-pill bg-warning text-dark">#1 CHAMPION</span>
+                                            {% elif loop.index == 2 %}<span class="badge rounded-pill bg-light text-dark">#2</span>
+                                            {% elif loop.index == 3 %}<span class="badge rounded-pill bg-light text-dark">#3</span>
+                                            {% else %}#{{ loop.index }}{% endif %}
+                                        </td>
+                                        <td class="fw-bold">{{ b.name }}</td>
+                                        <td class="text-end fw-bold text-success">₱{{ "{:,.2f}".format(b.weekly_revenue) }}</td>
+                                        <td class="text-end">
+                                            <span class="badge bg-success-soft text-success px-3">ACTIVE</span>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- About System (Nexus) -->
+                <div id="section-about-system" class="admin-section d-none">
+                    <div class="feed-card shadow-sm">
+                        <h5 class="fw-bold mb-4"><i class="bi bi-info-circle-fill text-primary me-2"></i>System Integrity Dashboard</h5>
+                        <div class="row g-4">
+                            <div class="col-md-6">
+                                <div class="info-box mb-3">
+                                    <span class="form-label">System Version</span>
+                                    <div class="fw-bold text-primary">{{ admin_data.system_stats.version }}</div>
+                                </div>
+                                <div class="info-box mb-3">
+                                    <span class="form-label">Fleet Status</span>
+                                    <div class="fw-bold">{{ admin_data.system_stats.total_branches }} Terminals Connected</div>
+                                </div>
+                                <div class="info-box">
+                                    <span class="form-label">Cloud Telemetry</span>
+                                    <div class="text-success fw-bold"><i class="bi bi-shield-check me-1"></i> ACTIVE & SECURE</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="info-box mb-3">
+                                    <span class="form-label">Total Authority</span>
+                                    <div class="fw-bold">{{ admin_data.system_stats.total_users }} Registered Personnel</div>
+                                </div>
+                                <div class="info-box mb-3">
+                                    <span class="form-label">Operational Uptime</span>
+                                    <div class="fw-bold">{{ admin_data.system_stats.uptime }}</div>
+                                </div>
+                                <div class="info-box">
+                                    <span class="form-label">Database Index</span>
+                                    <div class="x-small text-muted font-monospace">XPIDER_CLUSTER_v3_PROD</div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

@@ -104,8 +104,11 @@
             <div class="card-body">
                 <div class="text-center mb-4">
                     <img src="/static/images/login_hero.webp" alt="Logo" class="mb-3" style="width: 80px; height: 80px; object-fit: cover; border-radius: 12px;">
-                    <h2 class="fw-bold mb-1" style="color: #1c1e21; letter-spacing: -1px;">{{ site_config.business_name }}</h2>
-                    <p class="text-muted small">Sign in to your secure portal</p>
+                    <h2 class="fw-bold mb-1" style="color: #1c1e21; letter-spacing: -1px;">
+                        {% if login_type == 'owner' %}Owner Portal{% else %}Cashier Terminal{% endif %}
+                    </h2>
+                    <p class="text-muted small">Sign in to {{ site_config.business_name }}</p>
+                    <a href="{{ url_for('auth.index') }}" class="btn btn-link btn-sm text-decoration-none opacity-50"><i class="bi bi-arrow-left me-1"></i> Back to Gateway</a>
                 </div>
                 
                 {% with messages = get_flashed_messages(with_categories=true) %}
