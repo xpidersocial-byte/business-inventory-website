@@ -1,3 +1,22 @@
+self.addEventListener('install', function(event) {
+    self.skipWaiting();
+});
+
+self.addEventListener('activate', function(event) {
+    event.waitUntil(clients.claim());
+});
+
+self.addEventListener('fetch', function(event) {
+    // Required to satisfy PWA installability criteria
+    if (event.request.mode === 'navigate') {
+        event.respondWith(
+            fetch(event.request).catch(() => {
+                return caches.match('/');
+            })
+        );
+    }
+});
+
 self.addEventListener('push', function(event) {
     if (event.data) {
         const payload = event.data.json();

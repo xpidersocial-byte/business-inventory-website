@@ -77,3 +77,4 @@ flask-compress
 Pillow
 matplotlib
 numpy
+APScheduler

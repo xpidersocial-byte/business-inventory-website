@@ -1,0 +1,23 @@
+{
+  "name": "FBIHM Inventory Engine",
+  "short_name": "FBIHM",
+  "description": "Premium Business Inventory & POS System",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1877f2",
+  "theme_color": "#1877f2",
+  "icons": [
+    {
+      "src": "/static/images/pwa-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/static/images/pwa-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
