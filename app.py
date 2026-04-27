@@ -110,6 +110,7 @@ def create_app():
 
     return app
 
+app = create_app()
+
 if __name__ == '__main__':
-    app = create_app()
     socketio.run(app, debug=True, port=5000)
