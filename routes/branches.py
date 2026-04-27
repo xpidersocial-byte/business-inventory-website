@@ -49,16 +49,35 @@ def branch_list():
         
         # Sales Stats (Last 7 Days)
         revenue = 0
-        for sale in purchase_col.find({"branch_id": b_id, "status": "Sold"}):
+        # Robust query for branch_id (string or ObjectId)
+        for sale in purchase_col.find({"branch_id": {"$in": [b_id, ObjectId(b_id)]}, "status": "Sold"}):
             try:
-                ts = sale.get("timestamp") or sale.get("date")
-                dt = ts if isinstance(ts, datetime) else datetime.strptime(ts[:19], "%Y-%m-%d %H:%M:%S")
-                if dt >= week_ago: revenue += float(sale.get("total", 0))
-            except: continue
+                raw_ts = sale.get("timestamp") or sale.get("date")
+                if not raw_ts: continue
+                
+                if isinstance(raw_ts, datetime):
+                    log_date = raw_ts
+                else:
+                    ts_str = str(raw_ts)
+                    parsed_dt = None
+                    # Attempt robust parsing matching sales_summary logic
+                    for fmt in ['%Y-%m-%d %I:%M:%S %p', '%Y-%m-%d %H:%M:%S', '%Y-%m-%d %I:%M %p']:
+                        try:
+                            parsed_dt = datetime.strptime(ts_str, fmt)
+                            break
+                        except ValueError: continue
+                    if not parsed_dt: continue
+                    log_date = parsed_dt
+                
+                if log_date >= week_ago: 
+                    revenue += float(sale.get("total", 0))
+            except Exception as e:
+                print(f"Branch Revenue Error for {branch['name']}: {e}")
+                continue
         branch["weekly_revenue"] = revenue
         
         # Staff Count
-        branch["staff_count"] = users_col.count_documents({"branch_id": b_id})
+        branch["staff_count"] = users_col.count_documents({"branch_id": {"$in": [b_id, ObjectId(b_id)]}})
     return render_template('branches.html', branches=branches, site_config=get_site_config())
 
 @branches_bp.route('/branches/add', methods=['POST'])
@@ -181,6 +200,7 @@ def request_delete_code():
         return jsonify({"success": True, "message": f"Verification code sent to {recipient}"})
     else:
         return jsonify({"success": False, "message": "Failed to send verification email. Please check SMTP settings."})
+
 @branches_bp.route('/branches/leaderboard')
 @login_required
 def leaderboard():
@@ -200,16 +220,30 @@ def leaderboard():
         
         # 1. Revenue Score (Weight: 60%)
         revenue = 0
-        for sale in purchase_col.find({"branch_id": b_id, "status": "Sold"}):
+        for sale in purchase_col.find({"branch_id": {"$in": [b_id, ObjectId(b_id)]}, "status": "Sold"}):
             try:
-                ts = sale.get("timestamp") or sale.get("date")
-                dt = ts if isinstance(ts, datetime) else datetime.strptime(ts[:19], "%Y-%m-%d %H:%M:%S")
-                if dt >= week_ago: revenue += float(sale.get("total", 0))
+                raw_ts = sale.get("timestamp") or sale.get("date")
+                if not raw_ts: continue
+                
+                if isinstance(raw_ts, datetime):
+                    log_date = raw_ts
+                else:
+                    ts_str = str(raw_ts)
+                    parsed_dt = None
+                    for fmt in ['%Y-%m-%d %I:%M:%S %p', '%Y-%m-%d %H:%M:%S', '%Y-%m-%d %I:%M %p']:
+                        try:
+                            parsed_dt = datetime.strptime(ts_str, fmt)
+                            break
+                        except ValueError: continue
+                    if not parsed_dt: continue
+                    log_date = parsed_dt
+                
+                if log_date >= week_ago: revenue += float(sale.get("total", 0))
             except: continue
         
         # 2. Activity Score (Weight: 20%)
         item_count = items_col.count_documents({"branch_id": {"$in": [b_id, ObjectId(b_id)]}})
-        staff_count = users_col.count_documents({"branch_id": b_id})
+        staff_count = users_col.count_documents({"branch_id": {"$in": [b_id, ObjectId(b_id)]}})
         
         # 3. Final Rank Calculation
         # Simple formula: (Revenue / 100) + (Items * 2) + (Staff * 5)
