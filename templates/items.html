@@ -352,9 +352,23 @@
                             <label class="form-label small fw-bold text-theme-muted">Barcode / SKU</label>
                             <div class="input-group">
                                 <span class="input-group-text bg-light border-theme-soft text-theme-muted"><i class="bi bi-upc-scan"></i></span>
-                                <input type="text" id="addBarcode" name="barcode" class="form-control border-theme-soft font-monospace" placeholder="Scan or type barcode">
+                                <input type="text" id="addBarcode" name="barcode" class="form-control border-theme-soft font-monospace" placeholder="Scan or type barcode" oninput="generateQRCode('addBarcode', 'addQRCodeCanvas')">
                                 <button class="btn btn-primary" type="button" onclick="startScanner('addBarcode')">
                                     <i class="bi bi-camera"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- QR Code Preview Section -->
+                        <div class="col-md-12 d-flex flex-column align-items-center gap-2 py-2 border rounded-3 bg-light d-none" id="addQRSection">
+                            <label class="small fw-bold text-theme-muted">Generated QR Code</label>
+                            <canvas id="addQRCodeCanvas"></canvas>
+                            <div class="d-flex gap-2">
+                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="downloadQRCode('addQRCodeCanvas', 'addName')">
+                                    <i class="bi bi-download me-1"></i> Download
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-info" onclick="printQRCode('addQRCodeCanvas', 'addName')">
+                                    <i class="bi bi-printer me-1"></i> Print
                                 </button>
                             </div>
                         </div>
@@ -438,9 +452,23 @@
                             <label class="form-label small fw-bold text-theme-muted">Barcode / SKU</label>
                             <div class="input-group">
                                 <span class="input-group-text bg-light border-theme-soft text-theme-muted"><i class="bi bi-upc-scan"></i></span>
-                                <input type="text" id="editBarcode" name="barcode" class="form-control border-theme-soft font-monospace" placeholder="Scan or type barcode">
+                                <input type="text" id="editBarcode" name="barcode" class="form-control border-theme-soft font-monospace" placeholder="Scan or type barcode" oninput="generateQRCode('editBarcode', 'editQRCodeCanvas')">
                                 <button class="btn btn-primary" type="button" onclick="startScanner('editBarcode')">
                                     <i class="bi bi-camera"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Edit QR Code Preview Section -->
+                        <div class="col-md-12 d-flex flex-column align-items-center gap-2 py-2 border rounded-3 bg-light d-none" id="editQRSection">
+                            <label class="small fw-bold text-theme-muted">Generated QR Code</label>
+                            <canvas id="editQRCodeCanvas"></canvas>
+                            <div class="d-flex gap-2">
+                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="downloadQRCode('editQRCodeCanvas', 'editName')">
+                                    <i class="bi bi-download me-1"></i> Download
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-info" onclick="printQRCode('editQRCodeCanvas', 'editName')">
+                                    <i class="bi bi-printer me-1"></i> Print
                                 </button>
                             </div>
                         </div>
@@ -483,6 +511,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/html5-qrcode/html5-qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <script>
     let currentMenu = 'all';
     let currentStatusFilter = 'all';
@@ -636,6 +665,12 @@
         document.getElementById('editRetail').value = retail;
         selectEditModalCategory(category);
         selectEditModalMenu(menu);
+        
+        // Auto-generate QR code if barcode exists
+        setTimeout(() => {
+            generateQRCode('editBarcode', 'editQRCodeCanvas');
+        }, 300);
+
         new bootstrap.Modal(document.getElementById('editItemModal')).show();
     }
 
@@ -746,6 +781,64 @@
         btn.disabled = false;
         spinner.classList.add('d-none');
         text.innerText = 'CREATE ITEM';
+    }
+
+    // --- QR Code Logic ---
+    function generateQRCode(inputId, canvasId) {
+        const input = document.getElementById(inputId);
+        const canvas = document.getElementById(canvasId);
+        const sectionId = inputId === 'addBarcode' ? 'addQRSection' : 'editQRSection';
+        const section = document.getElementById(sectionId);
+
+        if (!input || !canvas) return;
+
+        const val = input.value.trim();
+        if (!val) {
+            section.classList.add('d-none');
+            return;
+        }
+
+        QRCode.toCanvas(canvas, val, {
+            width: 150,
+            margin: 2,
+            color: {
+                dark: '#000000',
+                light: '#ffffff'
+            }
+        }, function (error) {
+            if (error) {
+                console.error(error);
+                section.classList.add('d-none');
+            } else {
+                section.classList.remove('d-none');
+            }
+        });
+    }
+
+    function downloadQRCode(canvasId, nameId) {
+        const canvas = document.getElementById(canvasId);
+        const name = document.getElementById(nameId).value || 'qr_code';
+        const link = document.createElement('a');
+        link.download = `${name}_QR.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+    }
+
+    function printQRCode(canvasId, nameId) {
+        const canvas = document.getElementById(canvasId);
+        const name = document.getElementById(nameId).value || 'Item';
+        const win = window.open('', 'Print QR Code', 'height=400,width=400');
+        win.document.write('<html><head><title>Print QR Code</title>');
+        win.document.write('<style>body{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;} img{max-width:300px;}</style>');
+        win.document.write('</head><body>');
+        win.document.write(`<h3>${name}</h3>`);
+        win.document.write(`<img src="${canvas.toDataURL()}"/>`);
+        win.document.write('</body></html>');
+        win.document.close();
+        setTimeout(() => {
+            win.print();
+            win.close();
+        }, 500);
     }
 
     function validateEditItemForm() {
