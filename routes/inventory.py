@@ -29,19 +29,53 @@ def items():
     items_collection = get_items_collection()
     categories_collection = get_categories_collection()
     menus_collection = get_menus_collection()
-    raw_items = list(items_collection.find({"active": {"$ne": False}}))
-    processed = [calculate_item_metrics(item) for item in raw_items]
-    categories = list(categories_collection.find().sort("name", 1))
+    role = session.get('role', 'cashier')
+    branch_id = session.get('branch_id')
+    
+    query = {"active": {"$ne": False}}
+    if branch_id:
+        query["branch_id"] = branch_id
+
+    # Map branch names for Global View
+    branches_map = {}
+    if not branch_id:
+        from core.db import get_db
+        db = get_db()
+        branches_list = list(db.branches.find({}, {"name": 1}))
+        branches_map = {str(b['_id']): b['name'] for b in branches_list}
+
+    raw_items = list(items_collection.find(query))
+    processed = []
+    for item in raw_items:
+        m = calculate_item_metrics(item)
+        if not branch_id:
+            m['branch_name'] = branches_map.get(str(item.get('branch_id')), "Global")
+        processed.append(m)
+    
+    # Filter categories and menus by branch
+    cat_query = {}
+    menu_query = {}
+    if branch_id:
+        cat_query["branch_id"] = branch_id
+        menu_query["branch_id"] = branch_id
+        
+    categories = list(categories_collection.find(cat_query).sort("name", 1))
+    menus = list(menus_collection.find(menu_query).sort("order", 1))
+    
     site_config = get_site_config()
     threshold = site_config.get('low_stock_threshold', 5)
-    menus = list(menus_collection.find().sort("order", 1))
     
     # Update last view and clear persistent notifications for this section
     user_email = session.get('email')
     try:
         get_users_collection().update_one({"email": user_email}, {"$set": {"last_views.items": datetime.now(timezone.utc)}})
+        # Clear persistent notifications for this section (branch-specific)
+        item_notif_q = {"type": {"$in": ["item_added", "item_deleted", "item_edited", "item_reset"]}, "read_by": {"$ne": user_email}}
+        if branch_id:
+            item_notif_q["branch_id"] = branch_id
+            
         get_notifications_collection().update_many(
-            {"type": {"$in": ["item_added", "item_deleted", "item_edited", "item_reset"]}, "read_by": {"$ne": user_email}},
+            item_notif_q,
             {"$addToSet": {"read_by": user_email}}
         )
         socketio.emit('dashboard_update')
@@ -56,7 +90,14 @@ def items():
 @login_required
 def legend():
     items_collection = get_items_collection()
-    raw_items = list(items_collection.find({"active": {"$ne": False}}))
+    role = session.get('role', 'cashier')
+    branch_id = session.get('branch_id')
+    
+    query = {"active": {"$ne": False}}
+    if branch_id:
+        query["branch_id"] = branch_id
+
+    raw_items = list(items_collection.find(query))
     processed_items = [calculate_item_metrics(item) for item in raw_items]
     out_of_stock = [i for i in processed_items if i['status_label'] == 'Out of Stock']
     low_stock = [i for i in processed_items if i['status_label'] == 'Low Stock']
@@ -68,8 +109,13 @@ def legend():
             {"email": user_email},
             {"$set": {"last_views.legend": datetime.now(timezone.utc)}}
         )
+        # Clear persistent notifications for stock alerts (branch-specific)
+        stock_notif_q = {"type": "stock_alert", "read_by": {"$ne": user_email}}
+        if branch_id:
+            stock_notif_q["branch_id"] = branch_id
+            
         get_notifications_collection().update_many(
-            {"type": "stock_alert", "read_by": {"$ne": user_email}},
+            stock_notif_q,
             {"$addToSet": {"read_by": user_email}}
         )
         socketio.emit('dashboard_update')
@@ -90,11 +136,15 @@ def add_item():
     retail_price = float(data.get('retail_price', 0))
     stock = int(data.get('stock', 0))
     sold = int(data.get('sold', 0))
+    barcode = data.get('barcode')
+    low_threshold = data.get('low_threshold')
+    low_threshold = int(low_threshold) if low_threshold and str(low_threshold).strip() != "" else None
     if name:
         res = items_collection.insert_one({
-            "name": name, "category": category, "menu": menu, 
+            "name": name, "barcode": barcode, "category": category, "menu": menu, 
             "cost_price": cost_price, "retail_price": retail_price, 
-            "stock": stock, "sold": sold, "active": True, 
+            "stock": stock, "sold": sold, "low_threshold": low_threshold, "active": True, 
+            "branch_id": session.get('branch_id'),
             "created_at": datetime.now(timezone.utc),
             "updated_at": datetime.now(timezone.utc)
         })
@@ -115,7 +165,8 @@ def add_item():
             get_inventory_log_collection().insert_one({
                 "item_name": name, "type": "IN", "qty": stock,
                 "user": session.get('email', 'System'), "timestamp": ts,
-                "new_stock": stock, "details": "Initial stock upon item creation"
+                "new_stock": stock, "details": "Initial stock upon item creation",
+                "branch_id": session.get('branch_id')
             })
         send_email_notification("New Item Added", f"A new inventory item was added.\n\nItem: {name}\nCategory: {category}\nMenu: {menu}\nCost: ₱{cost_price:.2f} | Retail: ₱{retail_price:.2f}\nAdded by: {session.get('email')}\nTime: {datetime.now().strftime('%Y-%m-%d %I:%M %p')}", notif_type="inventory")
         socketio.emit('dashboard_update')
@@ -138,11 +189,16 @@ def edit_item(id):
     menu = data.get('menu')
     cost_price = float(data.get('cost_price', 0))
     retail_price = float(data.get('retail_price', 0))
+    barcode = data.get('barcode')
+    low_threshold = data.get('low_threshold')
+    low_threshold = int(low_threshold) if low_threshold and str(low_threshold).strip() != "" else None
+    active_status = data.get('active') == 'on'
+    
     if name:
         old_item = items_collection.find_one({'_id': ObjectId(id)})
         prev_state = {k: v for k, v in old_item.items() if k != '_id'}
         undo_id = save_undo_log("EDIT_ITEM", id, prev_state)
-        items_collection.update_one({'_id': ObjectId(id)}, {'$set': {"name": name, "category": category, "menu": menu, "cost_price": cost_price, "retail_price": retail_price, "updated_at": datetime.now(timezone.utc)}})
+        items_collection.update_one({'_id': ObjectId(id)}, {'$set': {"name": name, "barcode": barcode, "category": category, "menu": menu, "cost_price": cost_price, "retail_price": retail_price, "low_threshold": low_threshold, "active": active_status, "updated_at": datetime.now(timezone.utc)}})
         log_action("EDIT_ITEM", f"Updated: {name}")
         trigger_notification(
             "item_edited",
@@ -266,12 +322,22 @@ def undo_action(undo_id):
 def restock():
     inventory_log_collection = get_inventory_log_collection()
     items_collection = get_items_collection()
-    items_list = list(items_collection.find({"active": {"$ne": False}}).sort("name", 1))
+    role = session.get('role', 'cashier')
+    branch_id = session.get('branch_id')
+    
+    item_query = {"active": {"$ne": False}}
+    log_query = {"type": {"$in": ["IN", "DAMAGE"]}}
+    
+    if branch_id:
+        item_query["branch_id"] = branch_id
+        log_query["branch_id"] = branch_id
+
+    items_list = list(items_collection.find(item_query).sort("name", 1))
     PER_PAGE = 50; page = max(1, int(request.args.get('page', 1)))
-    total = inventory_log_collection.count_documents({"type": {"$in": ["IN", "DAMAGE"]}})
+    total = inventory_log_collection.count_documents(log_query)
     total_pages = max(1, (total + PER_PAGE - 1) // PER_PAGE)
     page = min(page, total_pages); skip = (page - 1) * PER_PAGE
-    logs = list(inventory_log_collection.find({"type": {"$in": ["IN", "DAMAGE"]}}).sort("timestamp", -1).skip(skip).limit(PER_PAGE))
+    logs = list(inventory_log_collection.find(log_query).sort("timestamp", -1).skip(skip).limit(PER_PAGE))
     
     user_email = session.get('email')
     try:
@@ -304,7 +370,7 @@ def stock_in():
                flash(f"Error: {msg}", "danger")
                return redirect(url_for('inventory.restock'))
 
-            inventory_log_collection.insert_one({"item_name": item['name'], "type": "IN", "qty": qty, "user": session['email'], "timestamp": ts, "new_stock": new_stock})
+            inventory_log_collection.insert_one({"item_name": item['name'], "type": "IN", "qty": qty, "user": session['email'], "timestamp": ts, "new_stock": new_stock, "branch_id": session.get('branch_id')})
             undo_id = save_undo_log("STOCK_IN", item_id, {"qty": qty, "item_name": item['name']})
             log_action("STOCK_IN", f"In: {qty} x {item['name']}")
             
@@ -340,7 +406,7 @@ def stock_out():
                 flash(f"Error: {msg}", "danger")
                 return redirect(url_for('inventory.restock'))
 
-            inventory_log_collection.insert_one({"item_name": item['name'], "type": "DAMAGE", "qty": qty, "user": session['email'], "timestamp": ts, "new_stock": new_stock, "details": reason})
+            inventory_log_collection.insert_one({"item_name": item['name'], "type": "DAMAGE", "qty": qty, "user": session['email'], "timestamp": ts, "new_stock": new_stock, "details": reason, "branch_id": session.get('branch_id')})
             undo_id = save_undo_log("STOCK_OUT", item_id, {"qty": qty, "item_name": item['name']})
             log_action("STOCK_OUT", f"Out: {qty} x {item['name']} ({reason})")
             

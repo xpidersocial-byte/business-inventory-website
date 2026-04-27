@@ -1,0 +1,271 @@
+{% extends "base.html" %}
+
+{% block title %}Branches - {{ site_config.business_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .branch-card {
+        transition: transform 0.2s, box-shadow 0.2s;
+        border: none;
+        border-radius: 12px;
+        background: var(--card-bg);
+    }
+    .branch-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important;
+    }
+    .branch-icon {
+        width: 50px;
+        height: 50px;
+        background: rgba(24, 119, 242, 0.1);
+        color: #1877f2;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+    .sticky-toolbar {
+        position: sticky;
+        top: calc(var(--navbar-height) - 1.5rem);
+        z-index: 1050;
+        background: #f0f2f5;
+        padding-top: 1.5rem;
+        padding-bottom: 1rem;
+        margin-top: -1.5rem;
+        margin-left: -1.5rem;
+        margin-right: -1.5rem;
+        padding-left: 1.5rem;
+        padding-right: 1.5rem;
+        border-bottom: 1px solid var(--border-soft);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="sticky-toolbar">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h2 class="fw-bold text-dark mb-0">Branch Management</h2>
+                <p class="text-muted small mb-0">Manage your business locations and branches.</p>
+            </div>
+            <button class="btn btn-primary d-flex align-items-center gap-2 px-4 shadow-sm" data-bs-toggle="modal" data-bs-target="#addBranchModal">
+                <i class="bi bi-plus-circle-fill"></i>
+                <span>Add New Branch</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="row g-4 mt-2">
+        {% if not branches %}
+        <div class="col-12 text-center py-5">
+            <div class="opacity-25 mb-3">
+                <i class="bi bi-diagram-3" style="font-size: 5rem;"></i>
+            </div>
+            <h4 class="text-muted">No branches found</h4>
+            <p class="text-muted">Create your first branch to start managing locations.</p>
+        </div>
+        {% endif %}
+
+        {% for branch in branches %}
+        <div class="col-md-6 col-lg-4">
+            <div class="card branch-card shadow-sm h-100">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div class="branch-icon">
+                            <i class="bi bi-building"></i>
+                        </div>
+                        <div class="dropdown">
+                            <button class="btn btn-link text-muted p-0" data-bs-toggle="dropdown">
+                                <i class="bi bi-three-dots-vertical fs-5"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end shadow border-0">
+                                <li>
+                                    <a class="dropdown-item py-2 edit-branch-btn" href="#" 
+                                       data-id="{{ branch._id }}" 
+                                       data-name="{{ branch.name|e }}" 
+                                       data-location="{{ (branch.location or '')|e }}" 
+                                       data-contact="{{ (branch.contact or '')|e }}">
+                                        <i class="bi bi-pencil me-2"></i>Edit Branch
+                                    </a>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <a class="dropdown-item py-2 text-danger delete-branch-btn" href="#" 
+                                       data-id="{{ branch._id }}" 
+                                       data-name="{{ branch.name|e }}">
+                                        <i class="bi bi-trash me-2"></i>Delete Branch
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <h5 class="fw-bold text-dark mb-1">{{ branch.name }}</h5>
+                    <p class="text-muted small mb-2"><i class="bi bi-geo-alt-fill me-1"></i>{{ branch.location or 'No location specified' }}</p><div class="row g-2 mb-3"><div class="col-6"><div class="p-2 rounded bg-light border-start border-success border-3"><div class="x-small text-muted fw-bold text-uppercase" style="font-size:0.55rem;">Weekly Revenue</div><div class="fw-bold text-success small">₱{{ "{:,.0f}".format(branch.weekly_revenue or 0) }}</div></div></div><div class="col-6"><div class="p-2 rounded bg-light border-start border-{{ 'danger' if branch.low_stock > 0 else 'primary' }} border-3"><div class="x-small text-muted fw-bold text-uppercase" style="font-size:0.55rem;">Stock Alerts</div><div class="fw-bold text-{{ 'danger' if branch.low_stock > 0 else 'primary' }} small">{{ branch.low_stock or 0 }}</div></div></div></div>
+                    
+                    <div class="pt-3 border-top d-flex align-items-center justify-content-between">
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="rounded-circle bg-success" style="width: 8px; height: 8px;"></div>
+                            <span class="small text-muted fw-bold">Active</span></div><div class="d-flex align-items-center gap-2"><i class="bi bi-people-fill text-muted" style="font-size:0.8rem;"></i><span class="small text-muted fw-bold">{{ branch.staff_count or 0 }} Staff</span>
+                        </div>
+                        <span class="small text-muted"><i class="bi bi-telephone-fill me-1"></i>{{ branch.contact or 'N/A' }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Add Branch Modal -->
+<div class="modal fade" id="addBranchModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 12px;">
+            <div class="modal-header border-0 p-4 pb-0">
+                <h5 class="fw-bold text-dark">Create New Branch</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ url_for('branches.add_branch') }}" method="POST">
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-muted">Branch Name</label>
+                        <input type="text" name="name" class="form-control" placeholder="e.g. Downtown Branch" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-muted">Location / Address</label>
+                        <textarea name="location" class="form-control" rows="2" placeholder="Street, City, Province"></textarea>
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label small fw-bold text-muted">Contact Information</label>
+                        <input type="text" name="contact" class="form-control" placeholder="Phone number or Email">
+                    </div>
+                </div>
+                <div class="modal-footer border-0 p-4 pt-0">
+                    <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary px-4 fw-bold">Create Branch</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Branch Modal -->
+<div class="modal fade" id="editBranchModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 12px;">
+            <div class="modal-header border-0 p-4 pb-0">
+                <h5 class="fw-bold text-dark">Edit Branch</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="editBranchForm" method="POST">
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-muted">Branch Name</label>
+                        <input type="text" name="name" id="editName" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-muted">Location / Address</label>
+                        <textarea name="location" id="editLocation" class="form-control" rows="2"></textarea>
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label small fw-bold text-muted">Contact Information</label>
+                        <input type="text" name="contact" id="editContact" class="form-control">
+                    </div>
+                </div>
+                <div class="modal-footer border-0 p-4 pt-0">
+                    <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary px-4 fw-bold">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Handle Edit Button Clicks
+        document.querySelectorAll('.edit-branch-btn').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                const id = this.getAttribute('data-id');
+                const name = this.getAttribute('data-name');
+                const location = this.getAttribute('data-location');
+                const contact = this.getAttribute('data-contact');
+                
+                document.getElementById('editBranchForm').action = "/branches/edit/" + id;
+                document.getElementById('editName').value = name;
+                document.getElementById('editLocation').value = location;
+                document.getElementById('editContact').value = contact;
+                
+                new bootstrap.Modal(document.getElementById('editBranchModal')).show();
+            });
+        });
+
+        // Handle Delete Button Clicks with SMTP Verification
+        document.querySelectorAll('.delete-branch-btn').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                const id = this.getAttribute('data-id');
+                const name = this.getAttribute('data-name');
+                
+                Swal.fire({
+                    title: 'Authorize Deletion',
+                    text: `Deleting '${name}' is a critical action. A security code will be sent to your email.`,
+                    icon: 'info',
+                    showCancelButton: true,
+                    confirmButtonText: 'Send Verification Code',
+                    confirmButtonColor: '#1877f2',
+                    showLoaderOnConfirm: true,
+                    preConfirm: () => {
+                        return fetch('/branches/request-delete-code', { method: 'POST' })
+                            .then(response => response.json())
+                            .then(data => {
+                                if (!data.success) throw new Error(data.message);
+                                return data;
+                            })
+                            .catch(error => {
+                                Swal.showValidationMessage(`Request failed: ${error}`);
+                            });
+                    }
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        Swal.fire({
+                            title: 'Enter 6-Digit Code',
+                            input: 'text',
+                            inputAttributes: { autocapitalize: 'off', maxlength: 6, style: 'text-align: center; font-size: 2rem; letter-spacing: 5px;' },
+                            showCancelButton: true,
+                            confirmButtonText: 'Verify & Delete',
+                            confirmButtonColor: '#d33',
+                            showLoaderOnConfirm: true,
+                            preConfirm: (code) => {
+                                if (!code || code.length !== 6) {
+                                    Swal.showValidationMessage('Please enter a valid 6-digit code');
+                                    return false;
+                                }
+                                return code;
+                            }
+                        }).then((codeResult) => {
+                            if (codeResult.isConfirmed) {
+                                const form = document.createElement('form');
+                                form.method = 'POST';
+                                form.action = '/branches/delete/' + id;
+                                
+                                const input = document.createElement('input');
+                                input.type = 'hidden';
+                                input.name = 'verification_code';
+                                input.value = codeResult.value;
+                                
+                                form.appendChild(input);
+                                document.body.appendChild(form);
+                                form.submit();
+                            }
+                        });
+                    }
+                });
+            });
+        });
+    });
+</script>
+{% endblock %}

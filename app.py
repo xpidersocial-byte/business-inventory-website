@@ -11,7 +11,8 @@ from datetime import datetime, timezone
 from dotenv import load_dotenv
 
 from extensions import mongo, socketio
-from core.utils import get_site_config, MongoJSONProvider, send_deployment_telemetry
+from apscheduler.schedulers.background import BackgroundScheduler
+from core.utils import get_site_config, MongoJSONProvider, send_deployment_telemetry, generate_sales_summary, reschedule_periodic_jobs
 from core.middleware import get_cashier_permissions, get_owner_permissions, login_required
 from core.db import get_users_collection, get_notes_collection, get_items_collection
 from core.sockets import init_socket_handlers
@@ -27,6 +28,8 @@ from routes.notes import bulletin_bp
 from routes.pos import pos_bp
 from routes.system import system_bp
 from routes.docs import docs_bp
+from routes.branches import branches_bp
+
 
 load_dotenv(override=True)
 
@@ -77,6 +80,14 @@ app.register_blueprint(bulletin_bp)
 app.register_blueprint(pos_bp)
 app.register_blueprint(docs_bp)
 app.register_blueprint(system_bp)
+app.register_blueprint(branches_bp)
+
+# Background Tasks setup
+app.scheduler = BackgroundScheduler(daemon=True)
+scheduler = app.scheduler
+scheduler.start()
+reschedule_periodic_jobs(scheduler)
+
 
 
 # Legacy URL redirect: /inventory -> /items
@@ -85,6 +96,10 @@ def inventory_redirect():
     return redirect(url_for("inventory.items"), 301)
 
 # SECTION: Global Handlers & Filters
+
+@app.route('/favicon.ico')
+def favicon():
+    return app.send_static_file('favicon.ico')
 
 @app.before_request
 def maintenance_mode_check():
@@ -132,11 +147,22 @@ def load_user_theme():
 @app.context_processor
 def inject_globals():
     config = get_site_config()
+    branch_name = "Global View"
+    if session.get('branch_id'):
+        from core.db import get_branches_collection
+        from bson.objectid import ObjectId
+        try:
+            b = get_branches_collection().find_one({"_id": ObjectId(session['branch_id'])})
+            if b: branch_name = b.get('name', 'Unknown Branch')
+        except: pass
+
     return {
         'site_config': config,
         'current_user': get_users_collection().find_one({"email": session.get('email')}) if 'email' in session else None,
         'cashier_perms': get_cashier_permissions() if 'email' in session else {},
-        'owner_perms': get_owner_permissions()
+        'owner_perms': get_owner_permissions(),
+        'current_branch_name': branch_name,
+        'vapid_public_key': os.getenv('VAPID_PUBLIC_KEY', '')
     }
 
 @app.route('/health')

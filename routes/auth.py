@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify, g, current_app
 from core.utils import get_site_config, log_action, send_email_notification, trigger_notification, verify_password, hash_password
 from core.middleware import login_required, get_cashier_permissions, get_owner_permissions
-from core.db import get_users_collection, get_subscriptions_collection, get_system_log_collection, get_menus_collection, get_categories_collection
+from core.db import get_users_collection, get_subscriptions_collection, get_system_log_collection, get_menus_collection, get_categories_collection, get_branches_collection
 from datetime import datetime, timedelta
 from extensions import socketio
 import os
@@ -34,13 +34,13 @@ def get_status_string(last_active):
 @auth_bp.route('/')
 def index():
     if 'email' in session:
-        return redirect(url_for('dashboard.dashboard'))
+        return redirect(url_for('branches.select_branch'))
     return redirect(url_for('auth.login_page'))
 
 @auth_bp.route('/login', methods=['GET'])
 def login_page():
     if 'email' in session:
-        return redirect(url_for('dashboard.dashboard'))
+        return redirect(url_for('branches.select_branch'))
     return render_template('login.html', site_config=get_site_config())
 
 @auth_bp.route('/login', methods=['POST'])
@@ -53,6 +53,9 @@ def login():
         session['email'] = email
         session['role'] = user.get('role', 'cashier')
         session['theme'] = user.get('theme', 'default')
+        # Logic update: Cashiers are now forced to pass through the select-branch page
+        # even if they have an assigned branch in their account.
+        # session['branch_id'] = user.get('branch_id')
         users_collection.update_one({"email": email}, {"$set": {"last_ip": request.remote_addr}})
         log_action("LOGIN", f"User '{email}' logged in.")
         send_email_notification(
@@ -60,7 +63,7 @@ def login():
             f"User '{email}' successfully logged in at {datetime.now().strftime('%Y-%m-%d %I:%M %p')}.",
             notif_type="login"
         )
-        return redirect(url_for('dashboard.dashboard'))
+        return redirect(url_for('branches.select_branch'))
     else:
         log_action("LOGIN_FAILED", f"Failed login attempt for email: {email}")
         send_email_notification(
@@ -117,15 +120,20 @@ def profile():
     if tab == 'settings':
         try:
             from core.db import get_notifications_collection
+            branch_id = session.get('branch_id')
+            admin_notif_q = {"type": {"$in": ["user_added", "user_updated", "user_deleted", "perms_update", "settings_update", "backup_import", "data_purge"]}, "read_by": {"$ne": email}}
+            if branch_id:
+                admin_notif_q["branch_id"] = branch_id
+                
             get_notifications_collection().update_many(
-                {"type": {"$in": ["user_added", "user_updated", "user_deleted", "perms_update", "settings_update", "backup_import", "data_purge"]}, "read_by": {"$ne": email}},
+                admin_notif_q,
                 {"$addToSet": {"read_by": email}}
             )
             socketio.emit('dashboard_update')
         except: pass
 
     # Get all users for messaging directory
-    raw_users = list(users_collection.find({}, {"email": 1, "role": 1, "profile_pic": 1, "first_name": 1, "last_name": 1, "last_active": 1}))
+    raw_users = list(users_collection.find({}, {"email": 1, "role": 1, "branch_id": 1, "profile_pic": 1, "first_name": 1, "last_name": 1, "last_active": 1, "last_ip": 1}))
     all_users = []
     for u in raw_users:
         u['status_text'] = get_status_string(u.get('last_active'))
@@ -150,16 +158,26 @@ def profile():
                 tech_files[filename.replace('.', '_')] = ""
 
         # FETCH CATEGORIES AND MENUS
-        db_cats = list(categories_collection.find().sort("name", 1))
-        db_menus = list(menus_collection.find().sort("order", 1))
+        branch_id = session.get('branch_id')
+        cat_query = {"branch_id": branch_id} if branch_id else {}
+        menu_query = {"branch_id": branch_id} if branch_id else {}
+        
+        db_cats = list(categories_collection.find(cat_query).sort("name", 1))
+        db_menus = list(menus_collection.find(menu_query).sort("order", 1))
 
         current_app.logger.info(f"Populating admin_data for OWNER. Cats: {len(db_cats)}, Menus: {len(db_menus)}")
+
+        db_branches = []
+        for b in get_branches_collection().find().sort("name", 1):
+            b['_id'] = str(b['_id'])
+            db_branches.append(b)
 
         admin_data = {
             "all_users": all_users,
             "all_logs": all_logs,
             "menus": db_menus,
             "categories": db_cats,
+            "branches": db_branches,
             "tech_files": tech_files,
             "cashier_perms": get_cashier_permissions(),
             "owner_perms": get_owner_permissions()
@@ -209,6 +227,15 @@ def update_profile():
         "location": request.form.get('location', ''),
         "bio": request.form.get('bio', '')
     }
+    
+    # Handle user-specific notification preferences if in the personal settings tab
+    if request.form.get('tab', 'about') == 'about':
+        update_data["notification_preferences"] = {
+            "daily_summary": request.form.get('pref_daily_summary') == 'on',
+            "weekly_summary": request.form.get('pref_weekly_summary') == 'on',
+            "monthly_summary": request.form.get('pref_monthly_summary') == 'on',
+            "yearly_summary": request.form.get('pref_yearly_summary') == 'on'
+        }
     
     if new_email and new_email != email:
         if users_collection.find_one({"email": new_email}):

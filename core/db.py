@@ -18,3 +18,4 @@ def get_menus_collection(): return mongo.db.menus
 def get_settings_collection(): return mongo.db.settings
 def get_undo_logs_collection(): return mongo.db.undo_logs
 def get_notifications_collection(): return mongo.db.notifications
+def get_branches_collection(): return mongo.db.branches

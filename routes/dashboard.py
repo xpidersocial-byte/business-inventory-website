@@ -46,15 +46,31 @@ def dashboard():
     inventory_log_collection = get_inventory_log_collection()
     
     view = request.args.get('view', 'weekly')
-    raw_items = list(items_collection.find())
+    role = session.get('role', 'cashier')
+    branch_id = session.get('branch_id')
+    
+    item_query = {}
+    log_query = {"refunded": {"$ne": True}}
+    
+    if branch_id:
+        item_query["branch_id"] = branch_id
+        log_query["branch_id"] = branch_id
+
+    raw_items = list(items_collection.find(item_query))
     
     processed_items = [calculate_item_metrics(item) for item in raw_items]
     item_details_map = {item['name']: item for item in processed_items}
     
     # INCLUDE 'DAMAGE' logs as losses in dashboard calculation
-    sales_logs = list(inventory_log_collection.find({"type": {"$in": ["OUT", "DAMAGE"]}, "refunded": {"$ne": True}}))
+    sales_logs_query = log_query.copy()
+    sales_logs_query["type"] = {"$in": ["OUT", "DAMAGE"]}
+    sales_logs = list(inventory_log_collection.find(sales_logs_query))
+    
     # EXCLUDE Refunds from Stock Added calculation
-    in_logs = list(inventory_log_collection.find({"type": "IN", "is_refund": {"$ne": True}}))
+    in_logs_query = log_query.copy()
+    in_logs_query["type"] = "IN"
+    in_logs_query["is_refund"] = {"$ne": True}
+    in_logs = list(inventory_log_collection.find(in_logs_query))
     
     now = datetime.now()
     if view == 'daily':
@@ -143,19 +159,24 @@ def dashboard():
     low_stock_items = [i for i in processed_items if i['status_label'] == 'Low Stock']
     warning_items = [i for i in processed_items if i['status_label'] == 'Warning']
     
-    cold_stock = sorted([i for i in processed_items if i['stock'] > 0 and i.get('days_dormant', 0) > 30], key=lambda x: x.get('days_dormant', 0), reverse=True)[:5]
-    sporadic_stock = sorted([i for i in processed_items if i['sold'] < 5], key=lambda x: x['sold'], reverse=True)[:5]
+    cold_stock = sorted([i for i in processed_items if i.get('stock', 0) > 0 and i.get('days_dormant', 0) > 30], key=lambda x: x.get('days_dormant', 0), reverse=True)[:5]
+    sporadic_stock = sorted([i for i in processed_items if i.get('sold', 0) < 5], key=lambda x: x.get('sold', 0), reverse=True)[:5]
 
     # Fetch recently added items
-    recent_items = list(items_collection.find({"active": {"$ne": False}})
+    recent_items = list(items_collection.find({**item_query, "active": {"$ne": False}})
                         .sort("created_at", -1).limit(5))
     processed_recent = [calculate_item_metrics(item) for item in recent_items]
 
-    # Mark as read for this user using UTC
+    # Mark as read for this user specifically for this branch
     user_email = session.get('email')
+    branch_id = session.get('branch_id')
     try:
+        notif_read_q = {"type": {"$in": ["sale", "sale_refund", "sale_delete"]}, "read_by": {"$ne": user_email}}
+        if branch_id:
+            notif_read_q["branch_id"] = branch_id
+            
         get_notifications_collection().update_many(
-            {"type": {"$in": ["sale", "sale_refund", "sale_delete"]}, "read_by": {"$ne": user_email}},
+            notif_read_q,
             {"$addToSet": {"read_by": user_email}}
         )
         socketio.emit('dashboard_update')
@@ -197,9 +218,16 @@ def global_search():
     results = []
     regex = re.compile(query, re.IGNORECASE)
 
+    role = session.get('role', 'cashier')
+    branch_id = session.get('branch_id')
+    
+    search_filter = {}
+    if branch_id:
+        search_filter["branch_id"] = branch_id
+
     # 1. Search Items
     items_col = get_items_collection()
-    found_items = items_col.find({"name": regex, "active": {"$ne": False}}).limit(5)
+    found_items = items_col.find({**search_filter, "name": regex, "active": {"$ne": False}}).limit(5)
     for item in found_items:
         results.append({
             "title": item['name'],
@@ -211,7 +239,7 @@ def global_search():
 
     # 2. Search Sales (by item name in purchases)
     purchase_col = get_purchase_collection()
-    found_sales = purchase_col.find({"item_name": regex}).sort("date", -1).limit(5)
+    found_sales = purchase_col.find({**search_filter, "item_name": regex}).sort("date", -1).limit(5)
     for sale in found_sales:
         results.append({
             "title": f"Sale: {sale['item_name']}",
@@ -223,7 +251,7 @@ def global_search():
 
     # 3. Search Bulletin Board (Notes)
     notes_col = get_notes_collection()
-    found_notes = notes_col.find({"$or": [{"title": regex}, {"content": regex}]}).limit(5)
+    found_notes = notes_col.find({**search_filter, "$or": [{"title": regex}, {"content": regex}]}).limit(5)
     for note in found_notes:
         results.append({
             "title": note.get('title', 'Untitled Note'),

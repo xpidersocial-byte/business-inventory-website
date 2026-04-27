@@ -311,10 +311,19 @@
             background: #1877f2;
             color: white;
             border: none;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
             align-items: center;
             justify-content: center;
             font-size: 1.5rem;
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .mobile-toggle:active { transform: scale(0.9); }
+
+        @media (max-width: 991.98px) {
+            .mobile-toggle { display: flex; }
+            .table-responsive { border: 0; }
+            .btn { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
+            .sidebar-link { padding: 0.75rem 1rem; }
         }
 
         .avatar {
@@ -430,6 +439,14 @@
         <a href="/dashboard" class="navbar-business-name">
             {{ site_config.business_name }}
         </a>
+        
+        {% if session.get('email') %}
+        <div class="d-flex align-items-center me-auto">
+            <span class="badge rounded-pill fw-bold border border-white border-opacity-50 text-white shadow-sm" style="font-size: 0.75rem; letter-spacing: 0.05em; padding: 5px 12px; background: rgba(255, 255, 255, 0.15);">
+                <i class="bi bi-geo-alt-fill me-1"></i>{{ current_branch_name }}
+            </span>
+        </div>
+        {% endif %}
         
         <div class="mx-auto d-none d-xl-flex align-items-center gap-1 fw-bold text-white" id="topbar-clock" style="font-size: 1.1rem; letter-spacing: 0.5px;">
             <!-- Real-time clock injected via JS -->
@@ -561,12 +578,23 @@
                 <span class="s-label">Business Settings</span>
                 <span class="s-badge text-white d-none" id="badge-settings" style="background:#1877f2;">0</span>
             </a>
+            <a href="{{ url_for('branches.branch_list') }}" class="sidebar-link {% if request.endpoint == 'branches.branch_list' %}active{% endif %}">
+                <i class="bi bi-diagram-3-fill s-icon" style="color:#8e44ad;"></i>
+                <span class="s-label">Manage Branches</span>
+            </a>
+            <a href="{{ url_for('branches.select_branch') }}" class="sidebar-link {% if request.endpoint == 'branches.select_branch' %}active{% endif %}">
+                <i class="bi bi-arrow-left-right s-icon" style="color:#0084ff;"></i>
+                <span class="s-label">Switch Branch</span>
+            </a>
             {% endif %}
+
 
         </div>
     </nav>
 
-    <button class="mobile-toggle" onclick="document.getElementById('sidebar').classList.toggle('active')">
+    <div id="sidebarOverlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+    <button class="mobile-toggle shadow-lg" onclick="toggleSidebar()">
         <i class="bi bi-list"></i>
     </button>
 
@@ -873,6 +901,232 @@
         document.addEventListener('click', function(e) {
             const anchor = e.target.closest('a');
             if (anchor && anchor.getAttribute('href') === '#') e.preventDefault();
+        });
+        
+        // --- Web Push Notifications API ---
+        const vapidPublicKey = "{{ vapid_public_key|safe }}";
+        
+        function urlB64ToUint8Array(base64String) {
+            const padding = '='.repeat((4 - base64String.length % 4) % 4);
+            const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+            const rawData = window.atob(base64);
+            const outputArray = new Uint8Array(rawData.length);
+            for (let i = 0; i < rawData.length; ++i) {
+                outputArray[i] = rawData.charCodeAt(i);
+            }
+            return outputArray;
+        }
+
+        if ('serviceWorker' in navigator && 'PushManager' in window) {
+            navigator.serviceWorker.register('/static/service-worker.js')
+            .then(function(swReg) {
+                window.swRegistration = swReg;
+                // Auto-subscribe if installed as PWA and previously granted
+                if (window.matchMedia('(display-mode: standalone)').matches && Notification.permission === 'granted') {
+                    subscribeUser();
+                }
+            })
+            .catch(function(error) {
+                console.error('Service Worker Registration Failed:', error);
+            });
+        }
+
+        function subscribeUser() {
+            if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+                Swal.fire('Not Supported', 'Push notifications are not supported by this browser.', 'error');
+                return;
+            }
+            if (!vapidPublicKey) {
+                Swal.fire('Config Error', 'VAPID public key is missing. Please contact your administrator.', 'error');
+                return;
+            }
+
+            // Handle service worker registration reliably without scope constraint
+            const getRegistration = () => {
+                if (window.swRegistration) return Promise.resolve(window.swRegistration);
+                return navigator.serviceWorker.getRegistration('/static/service-worker.js');
+            };
+
+            getRegistration().then(function(swReg) {
+                if (!swReg) throw new Error('Service Worker not registered.');
+                window.swRegistration = swReg;
+                const applicationServerKey = urlB64ToUint8Array(vapidPublicKey);
+                return swReg.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: applicationServerKey
+                });
+            })
+            .then(function(subscription) {
+                return fetch('/api/push-subscribe', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(subscription)
+                });
+            }).then(function(response) {
+                if(response.ok) {
+                    Swal.fire({
+                        title: 'Device Registered!',
+                        text: 'You will now receive native alerts on this device.',
+                        icon: 'success',
+                        toast: true,
+                        position: 'top-end',
+                        showConfirmButton: false,
+                        timer: 3000
+                    });
+                } else {
+                    throw new Error('Server returned ' + response.status);
+                }
+            }).catch(function(err) {
+                const toggle = document.getElementById('pushToggleSwitch');
+                if (toggle) toggle.checked = false;
+                Swal.fire('Subscription Failed', err.toString(), 'error');
+            });
+        }
+        
+        function unsubscribeUser() {
+            const toggle = document.getElementById('pushToggleSwitch');
+
+            if (!window.swRegistration) {
+                Swal.fire({
+                    title: 'Already Disabled',
+                    text: 'No active push subscription found on this device.',
+                    icon: 'info',
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 3000
+                });
+                return;
+            }
+
+            window.swRegistration.pushManager.getSubscription()
+            .then(function(subscription) {
+                if (!subscription) {
+                    Swal.fire({
+                        title: 'Already Disabled',
+                        text: 'This device has no active push subscription.',
+                        icon: 'info',
+                        toast: true,
+                        position: 'top-end',
+                        showConfirmButton: false,
+                        timer: 3000
+                    });
+                    return;
+                }
+
+                // Step 1: Cancel future push deliveries at the browser level
+                return subscription.unsubscribe().then(function(success) {
+                    if (!success) {
+                        throw new Error('Browser unsubscribe returned false.');
+                    }
+
+                    // Step 2: Remove the endpoint from our server
+                    return fetch('/api/push-unsubscribe', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({endpoint: subscription.endpoint})
+                    });
+                }).then(function() {
+                    Swal.fire({
+                        title: 'Push Alerts Paused',
+                        html: 'Device push notifications have been disabled.<br><span class="x-small text-muted">Note: Your browser\'s notification <b>permission</b> stays "Allowed" — this is normal and controlled by the browser, not the app. No messages will be sent to this device.</span>',
+                        icon: 'success',
+                        confirmButtonText: 'OK'
+                    });
+                });
+            }).catch(function(error) {
+                if (toggle) toggle.checked = true; // Revert toggle on failure
+                Swal.fire('Error', 'Could not disable push alerts: ' + error.message, 'error');
+            });
+        }
+        
+        window.requestDeviceNotifications = async function() {
+            const toggle = document.getElementById('pushToggleSwitch');
+
+            if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+                Swal.fire('Not Supported', 'Your browser does not support native push notifications.', 'error');
+                if (toggle) toggle.checked = false;
+                return false;
+            }
+
+            // Check current permission state FIRST — don't request if already decided
+            const currentPermission = Notification.permission;
+
+            if (currentPermission === 'granted') {
+                // Permission already exists — just resubscribe silently
+                subscribeUser();
+                if (toggle) toggle.checked = true;
+                return true;
+            }
+
+            if (currentPermission === 'denied') {
+                if (toggle) toggle.checked = false;
+                Swal.fire({
+                    title: 'Notifications Blocked',
+                    html: `Notifications for this site are blocked in your browser.<br><br>
+                        <b>To re-enable:</b><br>
+                        <ol class="text-start small mt-2">
+                            <li>Click the <b>padlock icon 🔒</b> in your browser's address bar</li>
+                            <li>Find <b>Notifications</b> and set it to <b>Allow</b></li>
+                            <li>Reload the page, then toggle ON again</li>
+                        </ol>`,
+                    icon: 'warning',
+                    confirmButtonText: 'Got it'
+                });
+                return false;
+            }
+
+            // Permission is 'default' — ask the user
+            try {
+                const permission = await Notification.requestPermission();
+                if (permission === 'granted') {
+                    subscribeUser();
+                    if (toggle) toggle.checked = true;
+                    return true;
+                } else if (permission === 'denied') {
+                    if (toggle) toggle.checked = false;
+                    Swal.fire('Permission Denied', 'You chose to block notifications. You can re-enable them from your browser\'s site settings (padlock icon in address bar).', 'warning');
+                } else {
+                    if (toggle) toggle.checked = false;
+                    Swal.fire('Dismissed', 'No changes were made to notification settings.', 'info');
+                }
+            } catch (err) {
+                if (toggle) toggle.checked = false;
+                Swal.fire('Error', 'Failed to request notification permissions: ' + err.message, 'error');
+            }
+            return false;
+        };
+        
+        // Initialize Toggle Switch State on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            const toggle = document.getElementById('pushToggleSwitch');
+            if (!toggle) return;
+
+            // Initialize toggle via getRegistration to bypass scope control rules
+            if ('serviceWorker' in navigator && 'PushManager' in window) {
+                navigator.serviceWorker.getRegistration('/static/service-worker.js')
+                .then(function(swReg) {
+                    if (swReg) {
+                        window.swRegistration = swReg;
+                        return swReg.pushManager.getSubscription();
+                    }
+                    return null;
+                }).then(function(sub) {
+                    // Reflect real subscription state in the toggle
+                    toggle.checked = !!sub;
+                }).catch(function() {
+                    toggle.checked = false;
+                });
+            }
+
+            // Add change event listener
+            toggle.addEventListener('change', function() {
+                if (this.checked) {
+                    requestDeviceNotifications();
+                } else {
+                    unsubscribeUser();
+                }
+            });
         });
     </script>
     {% block scripts %}{% endblock %}

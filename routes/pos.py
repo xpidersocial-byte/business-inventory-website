@@ -14,22 +14,31 @@ def pos_view():
     items_collection = get_items_collection()
     menus_collection = get_menus_collection()
     
-    # Only send active items with stock > 0 to POS
-    items_list = list(items_collection.find({"active": {"$ne": False}, "stock": {"$gt": 0}}).sort("name", 1))
+    role = session.get('role', 'cashier')
+    branch_id = session.get('branch_id')
     
-    # Get all menus that are actually used in the items
+    query = {"active": {"$ne": False}, "stock": {"$gt": 0}}
+    if branch_id:
+        query["branch_id"] = branch_id
+
+    # Only send active items with stock > 0 to POS
+    items_list = list(items_collection.find(query).sort("name", 1))
+    
+    # Get all distinct menus being used, or that are defined
     used_menus = set()
     for item in items_list:
         menu = item.get('menu')
         if menu:
             used_menus.add(menu)
-    
+            
     # Also fetch defined menus from the menus collection to be safe
-    defined_menus = [m['name'] for m in menus_collection.find()]
+    menu_query = {"branch_id": branch_id} if branch_id else {}
+    defined_menus = [m['name'] for m in menus_collection.find(menu_query) if 'name' in m]
     for m in defined_menus:
         used_menus.add(m)
         
-    final_menus = sorted(list(used_menus))
+    # Convert back to objects with 'name' property so the template loop {{ menu.name }} works
+    final_menus = [{"name": m} for m in sorted(list(used_menus))]
     
     # Extract unique categories from items
     categories = list(set(item.get('category', 'Uncategorized') for item in items_list))
@@ -91,7 +100,8 @@ def pos_checkout():
             "unit_cost": unit_price,
             "total": total,
             "status": "Sold",
-            "user": session.get('email')
+            "user": session.get('email'),
+            "branch_id": session.get('branch_id')
         })
         
         logs_to_insert.append({
@@ -101,7 +111,8 @@ def pos_checkout():
             "qty": qty,
             "user": session.get('email'),
             "timestamp": ts,
-            "new_stock": total_stock
+            "new_stock": total_stock,
+            "branch_id": session.get('branch_id')
         })
         
         # Deduct stock using centralized helper (handles notifications automatically)

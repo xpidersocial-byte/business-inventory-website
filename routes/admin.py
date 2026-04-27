@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify, Response, current_app
-from core.utils import get_site_config, log_action, send_email_notification, MongoJSONProvider, trigger_notification
+from core.utils import get_site_config, log_action, send_email_notification, MongoJSONProvider, trigger_notification, reschedule_periodic_jobs
 from core.middleware import login_required, role_required, get_cashier_permissions, get_owner_permissions
 from core.db import get_users_collection, get_settings_collection, get_items_collection, get_categories_collection, get_menus_collection, get_purchase_collection, get_sales_collection, get_inventory_log_collection, get_system_log_collection, get_notes_collection
 from bson.objectid import ObjectId
@@ -158,9 +158,20 @@ def update_login_bg():
 @login_required
 def add_category():
     name = request.form.get('name')
+    role = session.get('role', 'cashier')
+    branch_id = session.get('branch_id')
+    
     if name:
-        if not get_categories_collection().find_one({"name": name}):
-            get_categories_collection().insert_one({"name": name})
+        query = {"name": name}
+        # If not global, scope the name check to this branch
+        if role != 'owner' or branch_id:
+            query["branch_id"] = branch_id
+
+        if not get_categories_collection().find_one(query):
+            get_categories_collection().insert_one({
+                "name": name,
+                "branch_id": branch_id
+            })
             log_action("ADD_CATEGORY", f"Added category: {name}")
             trigger_notification("settings_update", "New Category Added", f"Category '{name}' was added to the system.", priority="INFO")
             flash(f"Category '{name}' added!", "success")
@@ -185,9 +196,16 @@ def add_user():
     email = request.form.get('email')
     password = request.form.get('password')
     role = request.form.get('role', 'cashier')
+    branch_id = request.form.get('branch_id')
     if email and password:
         if not get_users_collection().find_one({"email": email}):
-            get_users_collection().insert_one({"email": email, "password": password, "role": role})
+            from core.utils import hash_password
+            get_users_collection().insert_one({
+                "email": email, 
+                "password": hash_password(password), 
+                "role": role,
+                "branch_id": branch_id
+            })
             log_action("ADD_USER", f"Created user: {email} ({role})")
             trigger_notification("user_added", "Account Created", f"A new {role} account for {email} was created.", {"email": email}, priority="SUCCESS")
             flash(f"User '{email}' created successfully!", "success")
@@ -220,6 +238,7 @@ def edit_user(id):
     email = request.form.get('email')
     password = request.form.get('password')
     role = request.form.get('role')
+    branch_id = request.form.get('branch_id')
     verification_code = request.form.get('verification_code')
 
     is_protected = user.get('role') == 'owner' or user.get('email') == 'admin@inventory.com'
@@ -234,8 +253,11 @@ def edit_user(id):
 
     update_data = {}
     if email: update_data['email'] = email
-    if password: update_data['password'] = password
+    if password: 
+        from core.utils import hash_password
+        update_data['password'] = hash_password(password)
     if role: update_data['role'] = role
+    if branch_id: update_data['branch_id'] = branch_id
 
     if update_data:
         get_users_collection().update_one({"_id": ObjectId(id)}, {"$set": update_data})
@@ -248,17 +270,33 @@ def edit_user(id):
 @login_required
 @role_required('owner')
 def add_menu():
+    role = session.get('role', 'cashier')
+    branch_id = session.get('branch_id')
+    
     name = request.form.get('name')
     if name:
-        if not get_menus_collection().find_one({"name": name}):
-            # Set order to end of list
-            last_menu = get_menus_collection().find_one(sort=[("order", -1)])
+        query = {"name": name}
+        if role != 'owner' or branch_id:
+            query["branch_id"] = branch_id
+
+        if not get_menus_collection().find_one(query):
+            # Set order to end of list within this branch
+            order_query = {}
+            if role != 'owner' or branch_id:
+                order_query["branch_id"] = branch_id
+                
+            last_menu = get_menus_collection().find_one(order_query, sort=[("order", -1)])
             order = (last_menu.get('order', 0) + 1) if last_menu else 1
-            get_menus_collection().insert_one({"name": name, "order": order})
+            get_menus_collection().insert_one({
+                "name": name, 
+                "order": order,
+                "branch_id": branch_id
+            })
             log_action("ADD_MENU", f"Added menu: {name}")
             trigger_notification("settings_update", "New Menu Created", f"A new sales menu '{name}' was added.", priority="INFO")
             flash(f"Menu '{name}' created!", "success")
     return redirect(url_for('auth.profile', tab='settings'))
+
 
 @admin_bp.route('/settings/menu/reorder', methods=['POST'])
 @login_required
@@ -563,9 +601,16 @@ def update_settings():
             "email_notif_stock_in", "email_notif_stock_out", 
             "email_notif_low_stock", "email_notif_sales", 
             "email_notif_login", "email_notif_profile", 
-            "email_notif_inventory", "email_notif_bulletin"
+            "email_notif_inventory", "email_notif_bulletin",
+            "email_daily_summary", "email_weekly_summary", 
+            "email_monthly_summary", "email_yearly_summary"
         ],
-        "setup-smtp": ["smtp_use_tls", "smtp_use_ssl"]
+        "setup-smtp": ["smtp_use_tls", "smtp_use_ssl"],
+        "command-center": [
+            "cc_show_progress", "cc_show_velocity", "cc_show_growth", "cc_show_dormant",
+            "cc_show_txns", "cc_show_alerts", "cc_show_trending", 
+            "cc_show_fleet_ranking", "cc_show_elite_cashiers"
+        ]
     }
 
     # Handle explicit form fields
@@ -584,8 +629,78 @@ def update_settings():
             if key not in request.form:
                 upd[key] = False
 
+    # Push notification preferences are stored per-user, not globally
+    if section == 'push-notif-prefs':
+        def to_24h(hour, ampm):
+            """Convert 12h hour + AM/PM to 24h integer."""
+            h = int(hour)
+            if ampm == 'PM' and h != 12:
+                h += 12
+            elif ampm == 'AM' and h == 12:
+                h = 0
+            return h
+
+        prefs = {
+            "daily_summary": request.form.get('pref_daily_summary') == 'on',
+            "weekly_summary": request.form.get('pref_weekly_summary') == 'on',
+            "monthly_summary": request.form.get('pref_monthly_summary') == 'on',
+            "yearly_summary": request.form.get('pref_yearly_summary') == 'on',
+            "low_stock_alerts": request.form.get('pref_low_stock_alerts') == 'on',
+            "daily_hour": int(request.form.get('daily_hour', 11)),
+            "daily_ampm": request.form.get('daily_ampm', 'PM'),
+            "weekly_hour": int(request.form.get('weekly_hour', 11)),
+            "weekly_ampm": request.form.get('weekly_ampm', 'PM'),
+            "monthly_hour": int(request.form.get('monthly_hour', 11)),
+            "monthly_ampm": request.form.get('monthly_ampm', 'PM'),
+            "yearly_hour": int(request.form.get('yearly_hour', 11)),
+            "yearly_ampm": request.form.get('yearly_ampm', 'PM'),
+        }
+        get_users_collection().update_one(
+            {"email": session.get('email')},
+            {"$set": {"notification_preferences": prefs}}
+        )
+
+        # Dynamically reschedule APScheduler jobs with the new times
+        try:
+            from app import scheduler
+            from core.utils import generate_sales_summary
+
+            daily_24 = to_24h(prefs['daily_hour'], prefs['daily_ampm'])
+            weekly_24 = to_24h(prefs['weekly_hour'], prefs['weekly_ampm'])
+            monthly_24 = to_24h(prefs['monthly_hour'], prefs['monthly_ampm'])
+            yearly_24 = to_24h(prefs['yearly_hour'], prefs['yearly_ampm'])
+
+            for job_id, trigger_kwargs, label in [
+                ('daily_summary', {'hour': daily_24, 'minute': 0}, 'Daily'),
+                ('weekly_summary', {'day_of_week': 'sun', 'hour': weekly_24, 'minute': 0}, 'Weekly'),
+                ('monthly_summary', {'day': 'last', 'hour': monthly_24, 'minute': 0}, 'Monthly'),
+                ('yearly_summary', {'month': 12, 'day': 31, 'hour': yearly_24, 'minute': 0}, 'Yearly'),
+            ]:
+                try:
+                    scheduler.reschedule_job(job_id, trigger='cron', **trigger_kwargs)
+                except Exception:
+                    scheduler.add_job(
+                        lambda lbl=label: generate_sales_summary(lbl),
+                        'cron', id=job_id, replace_existing=True, **trigger_kwargs
+                    )
+        except Exception as e:
+            current_app.logger.warning(f"Could not reschedule jobs: {e}")
+
+        log_action("UPDATE_NOTIF_PREFS", "User updated notification schedule preferences.")
+        flash("Notification preferences saved!", "success")
+        return redirect(url_for('auth.profile', tab='settings', section='notifications-config'))
+
     upd['updated_at'] = datetime.now(timezone.utc)
-    get_settings_collection().update_one({"type": "general"}, {"$set": upd}, upsert=True)
-    trigger_notification("settings_update", "System Settings Updated", f"Global settings for '{section}' were modified by {session.get('email')}.", {"section": section}, priority="INFO")
-    flash(f"Settings for {section} updated.", "success")
+    settings_collection = get_settings_collection()
+    settings_collection.update_one({"type": "general"}, {"$set": upd})
+    
+    if section == 'notifications-config':
+        try:
+            from core.utils import reschedule_periodic_jobs
+            reschedule_periodic_jobs(current_app.scheduler)
+        except Exception as e:
+            current_app.logger.error(f"Scheduler Update Failed: {str(e)}")
+
+    log_action("UPDATE_SETTINGS", f"Section: {section}")
+    flash(f"Settings for {section} updated successfully.", "success")
     return redirect(url_for('auth.profile', tab='settings', section=section))

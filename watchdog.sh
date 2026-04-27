@@ -42,7 +42,7 @@ restart_app() {
     pkill -9 -f "python3 run.py" || true
     pkill -9 -f "$VENV_GUNICORN" || true
 
-    nohup "$VENV_GUNICORN" --worker-class eventlet -w 1 --bind 0.0.0.0:5000 wsgi:application > "$APP_LOG" 2>&1 < /dev/null &
+    nohup python3 run.py > "$APP_LOG" 2>&1 < /dev/null &
     sleep 3
 
     if pgrep -f "$VENV_GUNICORN" > /dev/null; then
@@ -60,7 +60,7 @@ while true; do
     # --- 1. MONGODB MONITORING (DOCKER) ---
     if ! docker ps --filter "name=mongodb" --format '{{.Names}}' | grep -w "mongodb" > /dev/null; then
         echo "$(date): MongoDB container is down. Attempting to start..." >> "$LOG_FILE"
-        docker start mongodb >> "$LOG_FILE" 2>&1
+        sudo docker start mongodb >> "$LOG_FILE" 2>&1
     fi
 
     # --- 2. NEW CODE DETECTION ---

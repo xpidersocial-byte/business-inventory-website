@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="{{ session.get('theme', 'facebook') }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XPIDER Command Center - {{ site_config.business_name }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <link rel="icon" type="image/webp" href="{{ url_for('static', filename='images/login_hero.webp') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --sidebar-bg: rgba(255, 255, 255, 0.95);
+            --content-bg: #f0f2f5;
+            --primary-gradient: linear-gradient(135deg, #1877f2 0%, #166fe5 100%);
+            --gold-gradient: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+            --silver-gradient: linear-gradient(135deg, #C0C0C0 0%, #808080 100%);
+            --bronze-gradient: linear-gradient(135deg, #CD7F32 0%, #8B4513 100%);
+            --text-main: #1c1e21;
+            --text-muted: #65676b;
+            --card-shadow: 0 1px 2px rgba(0,0,0,0.1), 0 8px 32px rgba(0,0,0,0.1);
+            --level-1: #6c757d;
+            --level-2: #198754;
+            --level-3: #0dcaf0;
+            --level-4: #1877f2;
+            --level-5: #6f42c1;
+        }
+
+        body { 
+            background: linear-gradient(rgba(240, 242, 245, 0.6), rgba(240, 242, 245, 0.6)), url("{{ url_for('static', filename=site_config.login_background) }}");
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            min-height: 100vh;
+            color: var(--text-main);
+            font-family: 'Outfit', sans-serif;
+            margin: 0;
+            overflow-x: hidden;
+        }
+
+        .main-layout {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            min-height: 100vh;
+        }
+
+        /* Profile Sidebar */
+        .profile-sidebar {
+            background: var(--sidebar-bg);
+            backdrop-filter: blur(15px);
+            border-right: 1px solid rgba(0,0,0,0.05);
+            padding: 2rem 1.5rem;
+            display: flex;
+            flex-direction: column;
+            position: sticky;
+            top: 0;
+            height: 100vh;
+        }
+
+        .user-avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 20px;
+            background: var(--primary-gradient);
+            margin: 0 auto 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 2rem;
+            font-weight: 800;
+            box-shadow: 0 10px 25px rgba(24, 119, 242, 0.2);
+            border: 3px solid white;
+        }
+
+        .user-info-section {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .user-name {
+            font-weight: 800;
+            font-size: 1.6rem;
+            margin-bottom: 4px;
+        }
+
+        .user-role {
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            letter-spacing: 1.5px;
+            color: #1877f2;
+            background: rgba(24, 119, 242, 0.1);
+            padding: 4px 12px;
+            border-radius: 20px;
+            display: inline-block;
+        }
+
+        .current-assignment {
+            background: #f0f2f5;
+            border-radius: 16px;
+            padding: 1rem;
+            margin-top: 1rem;
+            transition: all 0.2s;
+        }
+
+        .current-assignment:hover {
+            transform: scale(1.02);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
+        }
+
+        .current-assignment .label {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .current-assignment .branch-banner {
+            font-weight: 800;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .nav-links {
+            margin-top: auto;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 20px;
+            border-radius: 12px;
+            color: var(--text-muted);
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .nav-item:hover {
+            background: rgba(0,0,0,0.03);
+            color: var(--text-main);
+        }
+
+        .nav-item.logout {
+            color: #dc3545;
+        }
+
+        /* Leaderboard Content */
+        .content-area {
+            padding: 2rem 3rem;
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        .section-header {
+            margin-bottom: 2rem;
+        }
+
+        .section-header h2 {
+            font-weight: 800;
+            font-size: 2rem;
+            letter-spacing: -1px;
+            margin-bottom: 0.25rem;
+        }
+
+        .branch-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            padding-top: 1rem;
+        }
+
+        .branch-card {
+            background: white;
+            border-radius: 24px;
+            box-shadow: var(--card-shadow);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            cursor: pointer;
+            position: relative;
+            overflow: visible;
+        }
+
+        .branch-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 25px 50px rgba(0,0,0,0.1);
+        }
+
+        .branch-card.active {
+            border: 2px solid #1877f2;
+        }
+
+        .rank-badge {
+            position: absolute;
+            top: 50%;
+            left: -20px;
+            transform: translateY(-50%);
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            color: white;
+            font-size: 1.2rem;
+            z-index: 10;
+            border: 2px solid white;
+            box-shadow: var(--card-shadow);
+        }
+
+        .rank-1 { 
+            background: var(--gold-gradient); 
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.4); 
+            border: 2px solid #fff;
+        }
+        .rank-2 { 
+            background: var(--silver-gradient); 
+            border: 2px solid #fff;
+        }
+        .rank-3 { 
+            background: var(--bronze-gradient); 
+            border: 2px solid #fff;
+        }
+
+        .card-inner {
+            padding: 1.5rem;
+            text-align: left;
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1.5rem;
+            width: 100%;
+        }
+
+        .branch-title {
+            font-weight: 800;
+            font-size: 1.6rem;
+            margin-bottom: 0.2rem;
+            line-height: 1.2;
+        }
+
+        .branch-location {
+            font-size: 1rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        @media (max-width: 768px) {
+            .branch-title { font-size: 1.4rem; }
+            .user-name { font-size: 1.4rem; }
+            .metric-block .fw-bold.fs-5 { font-size: 1.2rem !important; }
+        }
+
+        .stats-box {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 1rem 1.5rem;
+            margin-bottom: 0;
+            min-width: 150px;
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            display: block;
+        }
+
+        .stat-value {
+            font-size: 1.6rem;
+            font-weight: 800;
+            color: #198754;
+        }
+        
+        .metric-block {
+            text-align: center;
+        }
+
+        /* Mobile Optimization */
+        @media (max-width: 991px) {
+            .card-inner {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 1rem;
+            }
+            
+            .stats-box {
+                display: flex;
+                flex-direction: row;
+                justify-content: space-between;
+                align-items: center;
+                text-align: left;
+                padding: 1rem;
+            }
+            .stats-box > div { margin-top: 0 !important; }
+
+            .metric-block {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                justify-content: space-between;
+                text-align: left !important;
+                border-bottom: 1px solid rgba(0,0,0,0.05);
+                padding-bottom: 0.75rem;
+                margin-bottom: 0.5rem;
+                max-width: 100% !important;
+            }
+            
+            .metric-block > .progress {
+                width: 100%;
+                margin-top: 0.5rem !important;
+            }
+            
+            .deploy-btn {
+                width: 100%;
+                margin-top: 1rem;
+                padding: 1rem;
+            }
+            
+            .d-none.d-xl-block, .d-none.d-md-block, .d-none.d-xxl-block {
+                display: block !important;
+                max-width: 100% !important;
+            }
+        }
+
+        .deploy-btn {
+            background: var(--primary-gradient);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            letter-spacing: 0.5px;
+            transition: 0.2s;
+            white-space: nowrap;
+        }
+
+        .branch-card:hover .deploy-btn {
+            opacity: 0.9;
+            transform: scale(1.02);
+        }
+
+        .global-fleet-card {
+            background: #1c1e21;
+            color: white;
+        }
+
+        .global-fleet-card .branch-title { color: white; }
+        .global-fleet-card .stats-box { background: rgba(255,255,255,0.1); }
+        .global-fleet-card .stat-value { color: #5cb85c; }
+
+        .level-badge {
+            font-size: 0.6rem;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+            margin-left: 5px;
+            vertical-align: middle;
+        }
+        .level-1 { background: rgba(108, 117, 125, 0.1); color: var(--level-1); border: 1px solid var(--level-1); }
+        .level-2 { background: rgba(25, 135, 84, 0.1); color: var(--level-2); border: 1px solid var(--level-2); }
+        .level-3 { background: rgba(13, 202, 240, 0.1); color: var(--level-3); border: 1px solid var(--level-3); }
+        .level-4 { background: rgba(24, 119, 242, 0.1); color: var(--level-4); border: 1px solid var(--level-4); }
+        .level-5 { background: rgba(111, 66, 193, 0.1); color: var(--level-5); border: 1px solid var(--level-5); box-shadow: 0 0 10px rgba(111, 66, 193, 0.3); }
+        
+        @keyframes telemetry-pulse {
+            0% { box-shadow: 0 0 0 0px rgba(24, 119, 242, 0.4); }
+            70% { box-shadow: 0 0 0 15px rgba(24, 119, 242, 0); }
+            100% { box-shadow: 0 0 0 0px rgba(24, 119, 242, 0); }
+        }
+        .pulse-top { animation: telemetry-pulse 2s infinite; }
+        
+        .achievement-icon {
+            font-size: 0.8rem;
+            margin-right: 4px;
+            cursor: help;
+        }
+        @media (max-width: 991px) {
+            .main-layout { grid-template-columns: 1fr; }
+            .profile-sidebar { height: auto; position: relative; border-right: none; border-bottom: 1px solid rgba(0,0,0,0.05); }
+        }
+    </style>
+</head>
+<body>
+    <div class="main-layout">
+        <!-- Sidebar Section -->
+        <aside class="profile-sidebar">
+            <div class="user-info-section">
+                <div class="user-avatar text-white position-relative">
+                    {{ user.email[0].upper() if user else 'X' }}
+                </div>
+                <h3 class="user-name">{{ user.email.split('@')[0] if user else 'Administrator' }}</h3>
+                <span class="user-role">{{ session.get('role', 'N/A') }}</span>
+            </div>
+
+            <div class="current-assignment shadow-sm p-0 overflow-hidden">
+                <form action="{{ url_for('branches.set_branch') }}" method="POST">
+                    <input type="hidden" name="branch_id" value="{{ current_branch._id if current_branch else '' }}">
+                    <button type="submit" class="w-100 border-0 text-start bg-transparent p-0">
+                        <div class="p-3">
+                            <span class="label">Primary Station</span>
+                            <div class="branch-banner">
+                                <i class="bi bi-building-fill text-primary"></i>
+                                {{ current_branch.name if current_branch else 'Internal Command (Global)' }}
+                            </div>
+                            <div class="small text-muted mt-1" style="font-size: 0.75rem;">
+                                <i class="bi bi-geo-alt-fill me-1"></i> {{ current_branch.location if current_branch else 'Cross-Branch Network' }}
+                            </div>
+                        </div>
+                        <div class="bg-primary text-white p-2 text-center small fw-bold" style="letter-spacing: 1px; font-size: 0.7rem;">
+                            LAUNCH TERMINAL <i class="bi bi-chevron-right ms-1"></i>
+                        </div>
+                    </button>
+                </form>
+            </div>
+
+            <!-- Mini Leaderboard for Quick Glance -->
+            {% if site_config.get('cc_show_fleet_ranking', True) %}
+            <div class="mt-4 p-3 rounded-4" style="background: rgba(0,0,0,0.03);">
+                <div class="small fw-bold text-muted text-uppercase mb-3" style="font-size: 0.65rem; letter-spacing: 1px;">Fleet Rankings ({{ site_config.get('cc_fleet_reset', 'weekly').title() }})</div>
+                {% set f_limit = site_config.get('cc_fleet_limit', '10')|int %}
+                {% for b in branches[:f_limit] %}
+                <div class="d-flex align-items-center justify-content-between mb-2 text-truncate">
+                    <div class="small fw-bold text-truncate" style="font-size: 0.7rem;">
+                        {% if loop.index == 1 %}🥇{% elif loop.index == 2 %}🥈{% elif loop.index == 3 %}🥉{% else %}<span class="me-1 opacity-50">{{ loop.index }}</span>{% endif %}
+                        {{ b.name }}
+                    </div>
+                    <div class="small text-success fw-bold" style="font-size: 0.7rem;">₱{{ "{:,.0f}".format(b.weekly_profit or 0) }}</div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Cashier Gamification Section -->
+            {% if site_config.get('cc_show_elite_cashiers', True) and top_cashiers %}
+            <div class="mt-4 p-3 rounded-4" style="background: linear-gradient(135deg, rgba(255, 215, 0, 0.05) 0%, rgba(255, 255, 255, 0) 100%); border: 1px solid rgba(255, 215, 0, 0.1);">
+                <div class="small fw-bold text-warning text-uppercase mb-3" style="font-size: 0.65rem; letter-spacing: 1px;">Elite Cashiers 🎖️ ({{ site_config.get('cc_cashier_reset', 'weekly').title() }})</div>
+                {% for cashier in top_cashiers[:10] %}
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <div class="bg-white rounded-circle shadow-sm d-flex align-items-center justify-content-center fw-bold text-primary" style="width: 22px; height: 22px; font-size: 0.6rem;">
+                        {{ loop.index }}
+                    </div>
+                    <div class="flex-grow-1 text-truncate">
+                        <div class="fw-bold text-truncate" style="font-size: 0.7rem; color: var(--text-main);">{{ cashier.name }}</div>
+                    </div>
+                    <div class="fw-bold text-success" style="font-size: 0.7rem;">₱{{ "{:,.0f}".format(cashier.sales_total) }}</div>
+                </div>
+                {% endfor %}
+                <div class="mt-2 text-center">
+                    <span class="badge bg-warning text-dark" style="font-size: 0.55rem; padding: 4px 8px;">TOP 10 ELITE STATUS</span>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="nav-links">
+                {% if session.get('role') == 'owner' %}
+                <div class="mb-4 small fw-bold text-muted text-uppercase tracking-wider">Administration</div>
+                {% endif %}
+                
+                <a href="{{ url_for('auth.profile') }}" class="nav-item">
+                    <i class="bi bi-person-circle"></i> View Profile
+                </a>
+                <a href="{{ url_for('auth.logout') }}" class="nav-item logout mt-4">
+                    <i class="bi bi-box-arrow-left"></i> Logout Securely
+                </a>
+            </div>
+        </aside>
+
+        <!-- Main Content Section -->
+        <main class="content-area">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+              {% if messages %}
+                {% for category, message in messages %}
+                  <div class="alert alert-{{ category }} rounded-4 border-0 shadow-sm mb-4">
+                    {{ message }}
+                  </div>
+                {% endfor %}
+              {% endif %}
+            {% endwith %}
+
+            <div class="branch-grid">
+                {% for branch in branches %}
+                {% set can_access = (session.get('role') == 'owner') or (user and user.branch_id == branch._id|string) %}
+                <form action="{{ url_for('branches.set_branch') }}" method="POST">
+                    <input type="hidden" name="branch_id" value="{{ branch._id }}">
+                    <button type="submit" class="border-0 bg-transparent p-0 w-100 text-start" {% if not can_access %}disabled{% endif %}>
+                        <div class="branch-card {% if current_branch_id == branch._id|string %}active{% endif %} {% if loop.index == 1 %}pulse-top{% endif %}">
+                            
+                            {% if loop.index <= 3 %}
+                                <div class="rank-badge rank-{{ loop.index }}">{{ loop.index }}</div>
+                            {% endif %}
+
+                            <div class="card-inner">
+                                <div style="flex: 1; min-width: 200px;">
+                                    <div class="branch-title text-start">{{ branch.name }} 
+                                        {% if loop.index == 1 %}<span class="badge bg-warning text-dark ms-2"><i class="bi bi-star-fill me-1"></i>Top Performer</span>{% endif %}
+                                    </div>
+                                    <div class="branch-location text-start"><i class="bi bi-geo-alt-fill text-primary me-1"></i>{{ branch.location or 'Default HQ' }}</div>
+                                    <div class="d-flex align-items-center text-start gap-2">
+                                        <span class="level-badge level-{{ branch.level }} m-0">{{ branch.level_name }}</span>
+                                        {% if branch.perfect_stock %}<i class="bi bi-shield-check achievement-icon text-success" title="Perfect Stock: 0 Alerts"></i>{% endif %}
+                                        {% if branch.is_efficient %}<i class="bi bi-lightning-charge-fill achievement-icon text-warning" title="High Efficiency: High Sale Value"></i>{% endif %}
+                                    </div>
+                                </div>
+
+                                <div class="stats-box">
+                                    <span class="stat-label">Weekly Profit</span>
+                                    <div class="stat-value">₱{{ "{:,.2f}".format(branch.weekly_profit or 0) }}</div>
+                                    {% if branch.weekly_profit and branch.weekly_profit > 10000 %}
+                                    <div class="small text-success fw-bold mt-1" style="font-size: 0.65rem;">🔥 Great week!</div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="metric-block text-start" style="min-width: 120px;">
+                                    <div class="small text-muted fw-bold d-flex align-items-center">Revenue
+                                        {% if site_config.get('cc_show_growth', True) %}
+                                            {% set growth = 0 %}
+                                            {% if branch.prev_weekly_revenue > 0 %}
+                                                {% set growth = ((branch.weekly_revenue - branch.prev_weekly_revenue) / branch.prev_weekly_revenue) * 100 %}
+                                                <span class="badge {% if growth > 0 %}bg-success{% else %}bg-danger{% endif %} ms-2 px-1 py-0 pb-1" style="font-size: 0.55rem;">
+                                                    {% if growth > 0 %}<i class="bi bi-arrow-up"></i>{% else %}<i class="bi bi-arrow-down"></i>{% endif %} {{ "{:,.1f}".format(growth|abs) }}%
+                                                </span>
+                                            {% endif %}
+                                        {% endif %}
+                                    </div>
+                                    <div class="fw-bold fs-5">₱{{ "{:,.0f}".format(branch.weekly_revenue or 0) }}</div>
+                                    {% if site_config.get('cc_show_progress', True) %}
+                                        {% set target = site_config.get('cc_weekly_target', 50000)|int %}
+                                        {% set pct = (branch.weekly_revenue / target * 100) if target > 0 else 0 %}
+                                        <div class="progress mt-1" style="height: 4px; background: rgba(0,0,0,0.05);">
+                                            {% set bar_width = [pct, 100]|min %}
+                                            <div class="progress-bar {% if pct >= 100 %}bg-success{% else %}bg-primary{% endif %}" role="progressbar" style="width: {{ bar_width }}%;"></div>
+                                        </div>
+                                    {% endif %}
+                                </div>
+
+                                {% if site_config.get('cc_show_txns', True) %}
+                                <div class="metric-block text-start">
+                                    <div class="small text-muted fw-bold text-uppercase">TXNs</div>
+                                    <div class="fw-bold fs-5">{{ branch.weekly_transactions or 0 }}</div>
+                                </div>
+                                {% endif %}
+                                
+                                {% if site_config.get('cc_show_velocity', True) %}
+                                <div class="metric-block text-start d-none d-md-block">
+                                    <div class="small text-muted fw-bold text-uppercase">Avg Value</div>
+                                    {% set aov = (branch.weekly_revenue / branch.weekly_transactions) if branch.weekly_transactions > 0 else 0 %}
+                                    <div class="fw-bold fs-5 text-primary">₱{{ "{:,.0f}".format(aov) }}</div>
+                                </div>
+                                {% endif %}
+
+                                {% if site_config.get('cc_show_alerts', True) %}
+                                <div class="metric-block">
+                                    <div class="small text-muted fw-bold text-uppercase">Alerts</div>
+                                    <div class="fw-bold fs-5 {% if branch.low_stock_count > 0 %}text-danger{% else %}text-success{% endif %}">
+                                        {{ branch.low_stock_count or 0 }} <i class="bi bi-exclamation-triangle-fill ms-1" style="font-size: 0.8rem;"></i>
+                                    </div>
+                                </div>
+                                {% endif %}
+                                
+                                {% if site_config.get('cc_show_trending', True) and branch.top_items %}
+                                <div class="metric-block text-start d-none d-xl-block" style="max-width: 150px;">
+                                    <div class="small text-muted fw-bold text-uppercase mb-1" style="font-size: 0.55rem;">Trending 🔥</div>
+                                    {% for item in branch.top_items[:2] %}
+                                    <div class="text-truncate small fw-bold" style="font-size: 0.70rem;" title="{{ item.name }}">{{ item.name }} ({{ item.qty|int }})</div>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+
+                                {% if site_config.get('cc_show_dormant', True) and branch.dormant_item %}
+                                <div class="metric-block text-start d-none d-xxl-block" style="max-width: 130px; background: rgba(220,53,69,0.05); padding: 5px 8px; border-radius: 8px; border-left: 2px solid var(--bs-danger);">
+                                    <div class="small text-danger fw-bold text-uppercase" style="font-size: 0.55rem;">⚠️ Dormant Item</div>
+                                    <div class="text-truncate small fw-bold mt-1" style="font-size: 0.70rem;" title="{{ branch.dormant_item }}">{{ branch.dormant_item }}</div>
+                                    <div class="x-small text-muted lh-1 mt-1" style="font-size: 0.6rem;">0 Sales this week. Push!</div>
+                                </div>
+                                {% endif %}
+
+                                <div style="min-width: max-content;">
+                                    <div class="deploy-btn {% if not can_access %}bg-secondary opacity-50{% endif %}">
+                                        {% if can_access %}
+                                            Terminal <i class="bi bi-arrow-right ms-1"></i>
+                                        {% else %}
+                                            <i class="bi bi-lock-fill me-1"></i> Restricted
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </button>
+                </form>
+                {% endfor %}
+
+                {% if session.get('role') == 'owner' %}
+                <form action="{{ url_for('branches.set_branch') }}" method="POST">
+                    <input type="hidden" name="branch_id" value="">
+                    <button type="submit" class="border-0 bg-transparent p-0 w-100 text-start">
+                        <div class="branch-card global-fleet-card {% if not current_branch_id %}active{% endif %}">
+                            <div class="card-inner">
+                                <div style="flex: 1; min-width: 200px;" class="text-start">
+                                    <div class="branch-title">Global View</div>
+                                    <div class="branch-location"><i class="bi bi-globe me-1 text-primary"></i>All Terminal Telemetry</div>
+                                </div>
+
+                                <div class="stats-box mx-4">
+                                    <span class="stat-label">Total Authority</span>
+                                    <div class="stat-value" style="color: #fff;">UNRESTRICTED</div>
+                                </div>
+
+                                <div class="text-start mx-3 d-none d-md-block" style="flex: 2;">
+                                    <p class="small opacity-75 mb-0 fw-bold"><i class="bi bi-info-circle me-1"></i> Master View across all branch operations.</p>
+                                </div>
+
+                                <div style="min-width: max-content;">
+                                    <div class="deploy-btn" style="background: rgba(255,255,255,0.2);">Command Center <i class="bi bi-arrow-right ms-1"></i></div>
+                                </div>
+                            </div>
+                        </div>
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+        </main>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.querySelectorAll(".branch-card").forEach(card => {
+            card.addEventListener("mouseenter", () => {
+                const audio = new Audio("{{ url_for('static', filename='sounds/notification.mp3') }}");
+                audio.volume = 0.05;
+                audio.play().catch(() => {});
+            });
+        });
+    </script>
+</body>
+</html>

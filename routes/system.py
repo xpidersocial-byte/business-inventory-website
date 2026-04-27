@@ -22,9 +22,15 @@ system_bp = Blueprint('system', __name__)
 def get_notifications():
     user_email = session.get('email')
     
-    # 1. Persistent Notifications (Item Added, Sales, Restocks)
+    branch_id = session.get('branch_id')
+    
+    # 1. Persistent Notifications (Item Added, Sales, Restocks) - filtered by branch
     notifs_col = get_notifications_collection()
-    unread_notifs = list(notifs_col.find({"read_by": {"$ne": user_email}}).sort("created_at", -1))
+    notif_query = {"read_by": {"$ne": user_email}}
+    if branch_id:
+        notif_query["branch_id"] = branch_id
+    
+    unread_notifs = list(notifs_col.find(notif_query).sort("created_at", -1))
     
     # Dynamic Counts for Sidebar
     new_items_count = sum(1 for n in unread_notifs if n['type'] in ['item_added', 'item_deleted', 'item_edited', 'item_reset'])
@@ -32,8 +38,11 @@ def get_notifications():
     new_restocks_count = sum(1 for n in unread_notifs if n['type'] in ['stock_in', 'stock_out'])
     new_admin_count = sum(1 for n in unread_notifs if n['type'] in ['user_added', 'user_updated', 'user_deleted', 'perms_update', 'settings_update', 'backup_import', 'data_purge'])
     
-    # 2. Bulletins
-    unread_bulletins = get_notes_collection().count_documents({"read_by": {"$ne": user_email}})
+    # 2. Bulletins - filtered by branch
+    bulletin_query = {"read_by": {"$ne": user_email}}
+    if branch_id:
+        bulletin_query["branch_id"] = branch_id
+    unread_bulletins = get_notes_collection().count_documents(bulletin_query)
     
     # 3. Legend (Low Stock) - Keep logic but maybe user wants this persistent too? 
     # For now, keeping it based on last_views.legend
@@ -53,7 +62,11 @@ def get_notifications():
 
     lv_legend = parse_aware_dt(lv_legend_str)
     
-    items = list(get_items_collection().find({"active": {"$ne": False}}))
+    item_query = {"active": {"$ne": False}}
+    if branch_id:
+        item_query["branch_id"] = branch_id
+        
+    items = list(get_items_collection().find(item_query))
     total_low_stock = 0
     new_low_stock_count = 0
     for item in items:
@@ -94,12 +107,19 @@ def get_notifications():
 def mark_all_notifications_read():
     user_email = session.get('email')
     now = datetime.now(timezone.utc)
+    branch_id = session.get('branch_id')
     
     # 1. Mark Bulletins
-    get_notes_collection().update_many({"read_by": {"$ne": user_email}}, {"$addToSet": {"read_by": user_email}})
+    bulletin_q = {"read_by": {"$ne": user_email}}
+    if branch_id:
+        bulletin_q["branch_id"] = branch_id
+    get_notes_collection().update_many(bulletin_q, {"$addToSet": {"read_by": user_email}})
     
     # 2. Mark Persistent Notifications
-    get_notifications_collection().update_many({"read_by": {"$ne": user_email}}, {"$addToSet": {"read_by": user_email}})
+    notif_q = {"read_by": {"$ne": user_email}}
+    if branch_id:
+        notif_q["branch_id"] = branch_id
+    get_notifications_collection().update_many(notif_q, {"$addToSet": {"read_by": user_email}})
     
     # 3. Reset Legend Timestamp
     get_users_collection().update_one({"email": user_email}, {"$set": {"last_views.legend": now}})
@@ -125,6 +145,36 @@ def mark_one_notification_read():
     from extensions import socketio
     socketio.emit('dashboard_update')
         
+    return jsonify({"success": True})
+
+@system_bp.route('/api/push-subscribe', methods=['POST'])
+@login_required
+def push_subscribe():
+    subscription_info = request.get_json()
+    if not subscription_info:
+        return jsonify({"success": False, "error": "No subscription data"}), 400
+        
+    user_email = session.get('email')
+    get_users_collection().update_one(
+        {"email": user_email},
+        {"$addToSet": {"push_subscriptions": subscription_info}}
+    )
+    return jsonify({"success": True})
+
+@system_bp.route('/api/push-unsubscribe', methods=['POST'])
+@login_required
+def push_unsubscribe():
+    data = request.get_json()
+    endpoint = data.get('endpoint')
+    if not endpoint:
+        return jsonify({"success": False, "error": "No endpoint"}), 400
+        
+    user_email = session.get('email')
+    # Remove the subscription matching this endpoint
+    get_users_collection().update_one(
+        {"email": user_email},
+        {"$pull": {"push_subscriptions": {"endpoint": endpoint}}}
+    )
     return jsonify({"success": True})
 
 # --- System Info & Stats (Keeping existing boilerplate) ---

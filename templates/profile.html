@@ -451,11 +451,12 @@
                     <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('server-health', this)" data-section="server-health"><i class="bi bi-cpu-fill me-2"></i>Server Health</a>
                     <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('db-mgmt', this)" data-section="db-mgmt"><i class="bi bi-database-fill-check me-2"></i>Database Info</a>
                     <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('biz-identity', this)" data-section="biz-identity"><i class="bi bi-building-fill me-2"></i>Business Identity</a>
+                    <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('command-center', this)" data-section="command-center"><i class="bi bi-display me-2"></i>Command Center UI</a>
                     <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('social-branding', this)" data-section="social-branding"><i class="bi bi-palette-fill me-2"></i>Social & Branding</a>
                     <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('smtp-config', this)" data-section="smtp-config"><i class="bi bi-envelope-paper-fill me-2"></i>SMTP Config</a>
                     <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('system-logs', this)" data-section="system-logs"><i class="bi bi-journal-text me-2"></i>System Audit Logs</a>
                     <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('notifications-config', this)" data-section="notifications-config"><i class="bi bi-bell-fill me-2"></i>Notification Center</a>
-                                        <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('cats-menus', this)" data-section="cats-menus"><i class="bi bi-tags-fill me-2"></i>Categories & Menus</a>
+                                        <a href="javascript:void(0)" class="settings-link" onclick="switchAdminSection('cats-menus', this)" data-section="cats-menus" title="Manage inventory grouping and POS shortcut anchors"><i class="bi bi-tags-fill me-2"></i>Categories & Menus</a>
                                         <a href="javascript:void(0)" class="settings-link text-danger" onclick="switchAdminSection('maintenance', this)" data-section="maintenance"><i class="bi bi-tools me-2"></i>Maintenance</a>
                 </div>
             </div>
@@ -464,12 +465,12 @@
                 <div id="section-user-mgmt" class="admin-section">
                     <div class="feed-card shadow-sm">
                         <div class="d-flex justify-content-between align-items-center mb-4">
-                            <h5 class="fw-bold mb-0">System User Accounts</h5>
+                            <h5 class="fw-bold mb-0">System User Accounts</h5><p class="small text-muted mb-4">Manage system access for staff members, define roles, and assign users to specific branches to control data visibility.</p>
                             <button class="btn btn-success btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#addUserModal">Add User</button>
                         </div>
                         <div class="table-responsive">
                             <table class="table table-hover align-middle">
-                                <thead><tr class="bg-light small"><th>User</th><th>Role</th><th class="text-end">Action</th></tr></thead>
+                                <thead><tr class="bg-light small"><th>User</th><th>Role</th><th>Branch</th><th class="text-end">Action</th></tr></thead>
                                 <tbody>
                                     {% for u in admin_data.all_users %}
                                     <tr>
@@ -492,9 +493,20 @@
                                             </div>
                                         </td>
                                         <td><span class="badge {{ 'bg-danger' if u.role == 'owner' else 'bg-info' }}">{{ u.role|upper }}</span></td>
+                                        <td>
+                                            {% if u.branch_id %}
+                                                {% for b in admin_data['branches'] %}
+                                                    {% if b._id|string == u.branch_id|string %}
+                                                        <span class="badge bg-secondary">{{ b.name }}</span>
+                                                    {% endif %}
+                                                {% endfor %}
+                                            {% else %}
+                                                <span class="text-muted small">Global</span>
+                                            {% endif %}
+                                        </td>
                                         <td class="text-end">
                                             <div class="btn-group">
-                                                <button class="btn btn-link text-primary p-0 me-3" onclick="openEditUserModal(this.dataset.id, this.dataset.email, this.dataset.role)" data-id="{{ u._id }}" data-email="{{ u.email }}" data-role="{{ u.role }}"><i class="bi bi-pencil-square"></i></button>
+                                                <button class="btn btn-link text-primary p-0 me-3" onclick="openEditUserModal(this.dataset.id, this.dataset.email, this.dataset.role, this.dataset.branch)" data-id="{{ u._id }}" data-email="{{ u.email }}" data-role="{{ u.role }}" data-branch="{{ u.branch_id or '' }}"><i class="bi bi-pencil-square"></i></button>
                                                 {% if u.email != 'admin@inventory.com' and u.email != session['email'] %}
                                                 <button class="btn btn-link text-danger p-0" onclick="confirmAction(this.dataset.url, 'Delete user?')" data-url="{{ url_for('admin.delete_user', id=u._id) }}"><i class="bi bi-trash"></i></button>
                                                 {% endif %}
@@ -511,7 +523,7 @@
                 <!-- Permissions Control -->
                 <div id="section-perms-control" class="admin-section d-none">
                     <div class="feed-card shadow-sm">
-                        <h5 class="fw-bold mb-4">Access Control Levels</h5>
+                        <h5 class="fw-bold mb-0">Access Control Levels</h5><p class="small text-muted mb-4">Define granular feature permissions for Cashiers and Owners to maintain system security and operational focus.</p>
                         <form action="{{ url_for('admin.update_permissions') }}" method="POST" class="mb-5 pb-4 border-bottom">
                             <h6 class="fw-bold text-primary mb-3">Cashier Permissions</h6>
                             <div class="row">
@@ -560,7 +572,7 @@
                 <!-- Server Health -->
                 <div id="section-server-health" class="admin-section d-none">
                     <div class="feed-card shadow-sm">
-                        <h5 class="fw-bold mb-4"><i class="bi bi-cpu me-2"></i>Real-time Server Resources</h5>
+                        <h5 class="fw-bold mb-4"><i class="bi bi-cpu me-2"></i>Real-time Server Resources</h5><p class="small text-muted mb-4">Monitor the physical performance of the hosting server, including CPU load, memory usage, and available disk space.</p>
                         <div class="row g-4">
                             <div class="col-md-4">
                                 <div class="p-3 bg-light rounded-3 border h-100">
@@ -639,7 +651,7 @@
                 <!-- Database Info -->
                 <div id="section-db-mgmt" class="admin-section d-none">
                     <div class="feed-card shadow-sm">
-                        <h5 class="fw-bold mb-4"><i class="bi bi-database-fill me-2 text-primary"></i>MongoDB Cluster Information</h5>
+                        <h5 class="fw-bold mb-4"><i class="bi bi-database-fill me-2 text-primary"></i>MongoDB Cluster Information</h5><p class="small text-muted mb-4">View technical details about the database storage, document counts, and connectivity status of the MongoDB cluster.</p>
                         
                         <div class="row g-4 mb-5">
                             <div class="col-md-4">
@@ -732,7 +744,7 @@
                 <!-- Business Identity -->
                 <div id="section-biz-identity" class="admin-section d-none">
                     <div class="feed-card shadow-sm">
-                        <h5 class="fw-bold mb-4">Business Profile</h5>
+                        <h5 class="fw-bold mb-0">Business Profile</h5><p class="small text-muted mb-4">Update your organizational identity, contact details, and system-wide branding assets.</p>
                         <form action="{{ url_for('admin.update_settings') }}" method="POST">
                             <input type="hidden" name="section" value="biz-identity">
                             <div class="row g-3">
@@ -747,10 +759,106 @@
                     </div>
                 </div>
 
+                <!-- Command Center UI Config -->
+                <div id="section-command-center" class="admin-section d-none">
+                    <div class="feed-card shadow-sm">
+                        <h5 class="fw-bold mb-0">Command Center Layout</h5><p class="small text-muted mb-4">Toggle visible gamification and motivational metrics shown on the primary Branch Terminal overview screen.</p>
+                        <form action="{{ url_for('admin.update_settings') }}" method="POST">
+                            <input type="hidden" name="section" value="command-center">
+                            
+                            <div class="row g-4 mb-4">
+                                <div class="col-md-6">
+                                    <h6 class="fw-bold text-primary">Gamification Targets</h6>
+                                    <div class="perm-toggle border rounded-3 p-3 mb-2">
+                                        <div><span class="d-block fw-bold mb-1">Weekly Branch Revenue Goal</span><small class="x-small text-muted">A realistic standard revenue target for all branches.</small></div>
+                                        <div class="input-group input-group-sm w-50">
+                                            <span class="input-group-text">₱</span>
+                                            <input type="number" name="cc_weekly_target" class="form-control" value="{{ site_config.get('cc_weekly_target', 50000)|int }}">
+                                        </div>
+                                    </div>
+                                    <div class="perm-toggle border rounded-3 p-3 mb-2">
+                                        <div><span class="d-block fw-bold mb-1">Target Progress Bar</span><small class="x-small text-muted">Show dynamic progress toward the Weekly Goal on branch cards.</small></div>
+                                        <div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="cc_show_progress" {{ 'checked' if site_config.get('cc_show_progress', True) }}></div>
+                                    </div>
+                                    <div class="perm-toggle border rounded-3 p-3 mb-4">
+                                        <div><span class="d-block fw-bold mb-1">Growth vs Last Week</span><small class="x-small text-muted">Compare current revenue with last week to show up/down percentages.</small></div>
+                                        <div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="cc_show_growth" {{ 'checked' if site_config.get('cc_show_growth', True) }}></div>
+                                    </div>
+
+                                    <h6 class="fw-bold text-info">Sidebar Elements</h6>
+                                    <div class="perm-toggle flex-wrap border rounded-3 p-3 mb-2 gap-2">
+                                        <div class="d-flex justify-content-between align-items-center w-100 mb-2">
+                                            <div><span class="d-block fw-bold mb-1">Fleet Rankings Data</span><small class="x-small text-muted d-block">Toggle the leaderboard and its metrics limit.</small></div>
+                                            <div class="form-check form-switch m-0"><input class="form-check-input" type="checkbox" name="cc_show_fleet_ranking" {{ 'checked' if site_config.get('cc_show_fleet_ranking', True) }}></div>
+                                        </div>
+                                        <div class="d-flex gap-2 w-100 mt-2">
+                                            <select name="cc_fleet_limit" class="form-select form-select-sm" style="max-width: 120px;">
+                                                {% set flim = site_config.get('cc_fleet_limit', '10')|string %}
+                                                <option value="3" {% if flim == '3' %}selected{% endif %}>Top 3</option>
+                                                <option value="5" {% if flim == '5' %}selected{% endif %}>Top 5</option>
+                                                <option value="10" {% if flim == '10' %}selected{% endif %}>Top 10</option>
+                                            </select>
+                                            <select name="cc_fleet_reset" class="form-select form-select-sm" style="max-width: 120px;">
+                                                {% set frst = site_config.get('cc_fleet_reset', 'weekly') %}
+                                                <option value="weekly" {% if frst == 'weekly' %}selected{% endif %}>Weekly</option>
+                                                <option value="monthly" {% if frst == 'monthly' %}selected{% endif %}>Monthly</option>
+                                                <option value="yearly" {% if frst == 'yearly' %}selected{% endif %}>Yearly</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="perm-toggle flex-wrap border rounded-3 p-3">
+                                        <div class="d-flex justify-content-between align-items-center w-100 mb-2">
+                                            <div><span class="d-block fw-bold mb-1">Elite Cashiers Gamification</span><small class="x-small text-muted d-block">Show the top cashiers leaderboard sidebar.</small></div>
+                                            <div class="form-check form-switch m-0"><input class="form-check-input" type="checkbox" name="cc_show_elite_cashiers" {{ 'checked' if site_config.get('cc_show_elite_cashiers', True) }}></div>
+                                        </div>
+                                        <div class="w-100 mt-2">
+                                            <select name="cc_cashier_reset" class="form-select form-select-sm w-auto">
+                                                {% set crst = site_config.get('cc_cashier_reset', 'weekly') %}
+                                                <option value="daily" {% if crst == 'daily' %}selected{% endif %}>Reset: Daily</option>
+                                                <option value="weekly" {% if crst == 'weekly' %}selected{% endif %}>Reset: Weekly</option>
+                                                <option value="monthly" {% if crst == 'monthly' %}selected{% endif %}>Reset: Monthly</option>
+                                                <option value="yearly" {% if crst == 'yearly' %}selected{% endif %}>Reset: Yearly</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6 class="fw-bold text-success">Sales Velocity & Alerts</h6>
+                                    <div class="perm-toggle border rounded-3 p-3 mb-2">
+                                        <div><span class="d-block fw-bold mb-1">Average Order Value (AOV)</span><small class="x-small text-muted">Divide total revenue by total TXNs to show average checkout size.</small></div>
+                                        <div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="cc_show_velocity" {{ 'checked' if site_config.get('cc_show_velocity', True) }}></div>
+                                    </div>
+                                    <div class="perm-toggle border rounded-3 p-3 mb-4">
+                                        <div><span class="d-block fw-bold mb-1">Dormant Stock Highlight</span><small class="x-small text-muted">Pick one random unsold item to highlight on the card to push sales.</small></div>
+                                        <div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="cc_show_dormant" {{ 'checked' if site_config.get('cc_show_dormant', True) }}></div>
+                                    </div>
+
+                                    <h6 class="fw-bold text-warning">Base Card Metrics</h6>
+                                    <div class="perm-toggle border rounded-3 p-3 mb-2">
+                                        <div><span class="d-block fw-bold mb-1">Total Transactions (TXNs)</span><small class="x-small text-muted">Show total checkout operations made.</small></div>
+                                        <div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="cc_show_txns" {{ 'checked' if site_config.get('cc_show_txns', True) }}></div>
+                                    </div>
+                                    <div class="perm-toggle border rounded-3 p-3 mb-2">
+                                        <div><span class="d-block fw-bold mb-1">Stock Alerts Component</span><small class="x-small text-muted">Show badge for items dropping below threshold.</small></div>
+                                        <div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="cc_show_alerts" {{ 'checked' if site_config.get('cc_show_alerts', True) }}></div>
+                                    </div>
+                                    <div class="perm-toggle border rounded-3 p-3">
+                                        <div><span class="d-block fw-bold mb-1">Top Trending Items</span><small class="x-small text-muted">List the best selling items per branch inline.</small></div>
+                                        <div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="cc_show_trending" {{ 'checked' if site_config.get('cc_show_trending', True) }}></div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="text-end"><button type="submit" class="btn btn-primary fw-bold">Save Configuration</button></div>
+                        </form>
+                    </div>
+                </div>
+
                 <!-- Social & Branding -->
                 <div id="section-social-branding" class="admin-section d-none">
                     <div class="feed-card shadow-sm">
-                        <h5 class="fw-bold mb-4">Social Media & Public Branding</h5>
+                        <h5 class="fw-bold mb-0">Social Media & Public Branding</h5><p class="small text-muted mb-4">Link your social media profiles and customize the public-facing footer text for the application.</p>
                         <form action="{{ url_for('admin.update_settings') }}" method="POST">
                             <input type="hidden" name="section" value="social-branding">
                             <div class="row g-3">
@@ -788,7 +896,7 @@
                 <!-- SMTP Config -->
                 <div id="section-smtp-config" class="admin-section d-none">
                     <div class="feed-card shadow-sm">
-                        <h5 class="fw-bold mb-4">SMTP Configuration</h5>
+                        <h5 class="fw-bold mb-0">SMTP Configuration</h5><p class="small text-muted mb-4">Configure the mail server settings used by the system to dispatch automated security codes and alerts.</p>
                         <form action="{{ url_for('admin.update_settings') }}" method="POST">
                             <input type="hidden" name="section" value="smtp-config">
                             <div class="row g-3">
@@ -825,8 +933,145 @@
 
                 <!-- Logic & Localization -->
                 <div id="section-notifications-config" class="admin-section d-none">
+                    <div class="feed-card shadow-sm mb-4 border border-primary border-opacity-25">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div>
+                                <h5 class="fw-bold text-primary mb-1"><i class="bi bi-phone-vibrate me-2"></i>Device Push Notifications</h5>
+                                <p class="small text-muted mb-0">Allow alerts for low stock and sales directly on this device (requires browser permission).</p>
+                            </div>
+                            <div class="form-check form-switch fs-4 border p-1 rounded-pill bg-light d-flex align-items-center justify-content-center shadow-sm" style="width: 60px; height: 35px; cursor: pointer;">
+                                <input class="form-check-input m-0" type="checkbox" id="pushToggleSwitch" style="cursor: pointer; transform: scale(1.1); margin-top: -2px !important;">
+                            </div>
+                        </div>
+                        <!-- Sales Summary Frequency -->
+                        <form action="{{ url_for('admin.update_settings') }}" method="POST">
+                            <input type="hidden" name="section" value="push-notif-prefs">
+                            <div class="border-top pt-3">
+                                <label class="small fw-bold mb-3 text-dark d-block"><i class="bi bi-calendar-check me-2 text-success"></i>Sales Summary Alerts — Choose When to Get Notified</label>
+                                <div class="row g-3">
+                                    {% set np = current_user.get('notification_preferences', {}) if current_user else {} %}
+
+                                    <!-- Daily -->
+                                    <div class="col-md-6">
+                                        <div class="p-3 bg-white border rounded shadow-sm h-100">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <label class="small fw-bold mb-0"><i class="bi bi-sun me-1 text-warning"></i>Daily</label>
+                                                <div class="form-check form-switch m-0">
+                                                    <input class="form-check-input" type="checkbox" name="pref_daily_summary" id="pref_daily" {{ 'checked' if np.get('daily_summary', True) }}>
+                                                </div>
+                                            </div>
+                                            <div class="d-flex gap-2 align-items-center">
+                                                <select name="daily_hour" class="form-select form-select-sm" style="width:80px;">
+                                                    {% for h in range(1, 13) %}
+                                                    <option value="{{ h }}" {{ 'selected' if np.get('daily_hour', 11)|int == h }}>{{ '%02d'|format(h) }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                                <select name="daily_ampm" class="form-select form-select-sm" style="width:80px;">
+                                                    <option value="PM" {{ 'selected' if np.get('daily_ampm', 'PM') == 'PM' }}>PM</option>
+                                                    <option value="AM" {{ 'selected' if np.get('daily_ampm', 'PM') == 'AM' }}>AM</option>
+                                                </select>
+                                                <span class="x-small text-muted">Every day</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Weekly -->
+                                    <div class="col-md-6">
+                                        <div class="p-3 bg-white border rounded shadow-sm h-100">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <label class="small fw-bold mb-0"><i class="bi bi-calendar-week me-1 text-primary"></i>Weekly</label>
+                                                <div class="form-check form-switch m-0">
+                                                    <input class="form-check-input" type="checkbox" name="pref_weekly_summary" id="pref_weekly" {{ 'checked' if np.get('weekly_summary', True) }}>
+                                                </div>
+                                            </div>
+                                            <div class="d-flex gap-2 align-items-center">
+                                                <select name="weekly_hour" class="form-select form-select-sm" style="width:80px;">
+                                                    {% for h in range(1, 13) %}
+                                                    <option value="{{ h }}" {{ 'selected' if np.get('weekly_hour', 11)|int == h }}>{{ '%02d'|format(h) }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                                <select name="weekly_ampm" class="form-select form-select-sm" style="width:80px;">
+                                                    <option value="PM" {{ 'selected' if np.get('weekly_ampm', 'PM') == 'PM' }}>PM</option>
+                                                    <option value="AM" {{ 'selected' if np.get('weekly_ampm', 'PM') == 'AM' }}>AM</option>
+                                                </select>
+                                                <span class="x-small text-muted">Every Sunday</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Monthly -->
+                                    <div class="col-md-6">
+                                        <div class="p-3 bg-white border rounded shadow-sm h-100">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <label class="small fw-bold mb-0"><i class="bi bi-calendar-month me-1 text-success"></i>Monthly</label>
+                                                <div class="form-check form-switch m-0">
+                                                    <input class="form-check-input" type="checkbox" name="pref_monthly_summary" id="pref_monthly" {{ 'checked' if np.get('monthly_summary', True) }}>
+                                                </div>
+                                            </div>
+                                            <div class="d-flex gap-2 align-items-center">
+                                                <select name="monthly_hour" class="form-select form-select-sm" style="width:80px;">
+                                                    {% for h in range(1, 13) %}
+                                                    <option value="{{ h }}" {{ 'selected' if np.get('monthly_hour', 11)|int == h }}>{{ '%02d'|format(h) }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                                <select name="monthly_ampm" class="form-select form-select-sm" style="width:80px;">
+                                                    <option value="PM" {{ 'selected' if np.get('monthly_ampm', 'PM') == 'PM' }}>PM</option>
+                                                    <option value="AM" {{ 'selected' if np.get('monthly_ampm', 'PM') == 'AM' }}>AM</option>
+                                                </select>
+                                                <span class="x-small text-muted">Last day of month</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Yearly -->
+                                    <div class="col-md-6">
+                                        <div class="p-3 bg-white border rounded shadow-sm h-100">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <label class="small fw-bold mb-0"><i class="bi bi-calendar-range me-1 text-danger"></i>Yearly</label>
+                                                <div class="form-check form-switch m-0">
+                                                    <input class="form-check-input" type="checkbox" name="pref_yearly_summary" id="pref_yearly" {{ 'checked' if np.get('yearly_summary', True) }}>
+                                                </div>
+                                            </div>
+                                            <div class="d-flex gap-2 align-items-center">
+                                                <select name="yearly_hour" class="form-select form-select-sm" style="width:80px;">
+                                                    {% for h in range(1, 13) %}
+                                                    <option value="{{ h }}" {{ 'selected' if np.get('yearly_hour', 11)|int == h }}>{{ '%02d'|format(h) }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                                <select name="yearly_ampm" class="form-select form-select-sm" style="width:80px;">
+                                                    <option value="PM" {{ 'selected' if np.get('yearly_ampm', 'PM') == 'PM' }}>PM</option>
+                                                    <option value="AM" {{ 'selected' if np.get('yearly_ampm', 'PM') == 'AM' }}>AM</option>
+                                                </select>
+                                                <span class="x-small text-muted">December 31st</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                </div>
+                            </div>
+
+                            <div class="border-top pt-3 mt-3">
+                                <label class="small fw-bold mb-2 text-dark d-block"><i class="bi bi-exclamation-triangle-fill me-2 text-warning"></i>Real-Time Alerts — Triggered by Inventory Events</label>
+                                <div class="d-flex justify-content-between align-items-center p-3 bg-white border rounded shadow-sm">
+                                    <div>
+                                        <div class="fw-bold small"><i class="bi bi-box-seam me-2 text-danger"></i>Low Stock Push Alerts</div>
+                                        <div class="x-small text-muted">Get a device notification when any item falls below its low stock threshold.</div>
+                                    </div>
+                                    <div class="form-check form-switch fs-5 m-0">
+                                        <input class="form-check-input" type="checkbox" name="pref_low_stock_alerts" id="pref_low_stock" role="switch"
+                                            {{ 'checked' if current_user and current_user.get('notification_preferences', {}).get('low_stock_alerts', True) }}>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="text-end mt-3">
+                                <button type="submit" class="btn btn-primary fw-bold px-4"><i class="bi bi-save me-1"></i>Save Preferences</button>
+                            </div>
+                        </form>
+                    </div>
+
                     <div class="feed-card shadow-sm">
-                        <h5 class="fw-bold mb-4">Notification Settings</h5>
+                        <h5 class="fw-bold mb-0">Email Notification Logic</h5><p class="small text-muted mb-4">Choose which system events should trigger automated email notifications to your configured recipient list.</p>
                         <form action="{{ url_for('admin.update_settings') }}" method="POST">
                             <input type="hidden" name="section" value="notifications-config">
                             <div class="row g-3">
@@ -862,12 +1107,110 @@
                                         <label class="form-check-label small fw-bold">Inventory Modification Alerts</label>
                                     </div>
                                     <div class="form-check form-switch mb-2">
-                                        <input class="form-check-input" type="checkbox" name="email_notif_bulletin" {{ 'checked' if site_config.email_notif_bulletin }}>
-                                        <label class="form-check-label small fw-bold">Bulletin Board Alerts</label>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-12 text-end mt-4"><button type="submit" class="btn btn-primary fw-bold">Update Notifications</button></div>
+                                         <input class="form-check-input" type="checkbox" name="email_notif_bulletin" {{ 'checked' if site_config.email_notif_bulletin }}>
+                                         <label class="form-check-label small fw-bold">Bulletin Board Alerts</label>
+                                     </div>
+                                 </div>
+                             </div>
+
+                             <div class="border-top pt-4 mt-4">
+                                 <label class="small fw-bold mb-3 text-dark d-block"><i class="bi bi-calendar-check me-2 text-primary"></i>Periodic Sales Summaries (Email)</label>
+                                 <div class="row g-3">
+                                     <!-- Daily Email -->
+                                     <div class="col-md-6 col-lg-3">
+                                         <div class="p-3 bg-light border rounded shadow-sm h-100">
+                                             <div class="d-flex justify-content-between align-items-center mb-2">
+                                                 <label class="x-small fw-bold mb-0 text-uppercase">Daily</label>
+                                                 <div class="form-check form-switch m-0">
+                                                     <input class="form-check-input" type="checkbox" name="email_daily_summary" {{ 'checked' if site_config.get('email_daily_summary', False) }}>
+                                                 </div>
+                                             </div>
+                                             <div class="d-flex gap-1 align-items-center">
+                                                 <select name="email_daily_hour" class="form-select form-select-sm" style="font-size: 0.7rem; padding: 0.2rem 0.5rem;">
+                                                     {% for h in range(1, 13) %}
+                                                     <option value="{{ h }}" {{ 'selected' if site_config.get('email_daily_hour', 11)|int == h }}>{{ '%02d'|format(h) }}</option>
+                                                     {% endfor %}
+                                                 </select>
+                                                 <select name="email_daily_ampm" class="form-select form-select-sm" style="font-size: 0.7rem; padding: 0.2rem 0.5rem;">
+                                                     <option value="PM" {{ 'selected' if site_config.get('email_daily_ampm', 'PM') == 'PM' }}>PM</option>
+                                                     <option value="AM" {{ 'selected' if site_config.get('email_daily_ampm', 'PM') == 'AM' }}>AM</option>
+                                                 </select>
+                                             </div>
+                                         </div>
+                                     </div>
+
+                                     <!-- Weekly Email -->
+                                     <div class="col-md-6 col-lg-3">
+                                         <div class="p-3 bg-light border rounded shadow-sm h-100">
+                                             <div class="d-flex justify-content-between align-items-center mb-2">
+                                                 <label class="x-small fw-bold mb-0 text-uppercase">Weekly</label>
+                                                 <div class="form-check form-switch m-0">
+                                                     <input class="form-check-input" type="checkbox" name="email_weekly_summary" {{ 'checked' if site_config.get('email_weekly_summary', False) }}>
+                                                 </div>
+                                             </div>
+                                             <div class="d-flex gap-1 align-items-center">
+                                                 <select name="email_weekly_hour" class="form-select form-select-sm" style="font-size: 0.7rem; padding: 0.2rem 0.5rem;">
+                                                     {% for h in range(1, 13) %}
+                                                     <option value="{{ h }}" {{ 'selected' if site_config.get('email_weekly_hour', 11)|int == h }}>{{ '%02d'|format(h) }}</option>
+                                                     {% endfor %}
+                                                 </select>
+                                                 <select name="email_weekly_ampm" class="form-select form-select-sm" style="font-size: 0.7rem; padding: 0.2rem 0.5rem;">
+                                                     <option value="PM" {{ 'selected' if site_config.get('email_weekly_ampm', 'PM') == 'PM' }}>PM</option>
+                                                     <option value="AM" {{ 'selected' if site_config.get('email_weekly_ampm', 'PM') == 'AM' }}>AM</option>
+                                                 </select>
+                                             </div>
+                                         </div>
+                                     </div>
+
+                                     <!-- Monthly Email -->
+                                     <div class="col-md-6 col-lg-3">
+                                         <div class="p-3 bg-light border rounded shadow-sm h-100">
+                                             <div class="d-flex justify-content-between align-items-center mb-2">
+                                                 <label class="x-small fw-bold mb-0 text-uppercase">Monthly</label>
+                                                 <div class="form-check form-switch m-0">
+                                                     <input class="form-check-input" type="checkbox" name="email_monthly_summary" {{ 'checked' if site_config.get('email_monthly_summary', False) }}>
+                                                 </div>
+                                             </div>
+                                             <div class="d-flex gap-1 align-items-center">
+                                                 <select name="email_monthly_hour" class="form-select form-select-sm" style="font-size: 0.7rem; padding: 0.2rem 0.5rem;">
+                                                     {% for h in range(1, 13) %}
+                                                     <option value="{{ h }}" {{ 'selected' if site_config.get('email_monthly_hour', 11)|int == h }}>{{ '%02d'|format(h) }}</option>
+                                                     {% endfor %}
+                                                 </select>
+                                                 <select name="email_monthly_ampm" class="form-select form-select-sm" style="font-size: 0.7rem; padding: 0.2rem 0.5rem;">
+                                                     <option value="PM" {{ 'selected' if site_config.get('email_monthly_ampm', 'PM') == 'PM' }}>PM</option>
+                                                     <option value="AM" {{ 'selected' if site_config.get('email_monthly_ampm', 'PM') == 'AM' }}>AM</option>
+                                                 </select>
+                                             </div>
+                                         </div>
+                                     </div>
+
+                                     <!-- Yearly Email -->
+                                     <div class="col-md-6 col-lg-3">
+                                         <div class="p-3 bg-light border rounded shadow-sm h-100">
+                                             <div class="d-flex justify-content-between align-items-center mb-2">
+                                                 <label class="x-small fw-bold mb-0 text-uppercase">Yearly</label>
+                                                 <div class="form-check form-switch m-0">
+                                                     <input class="form-check-input" type="checkbox" name="email_yearly_summary" {{ 'checked' if site_config.get('email_yearly_summary', False) }}>
+                                                 </div>
+                                             </div>
+                                             <div class="d-flex gap-1 align-items-center">
+                                                 <select name="email_yearly_hour" class="form-select form-select-sm" style="font-size: 0.7rem; padding: 0.2rem 0.5rem;">
+                                                     {% for h in range(1, 13) %}
+                                                     <option value="{{ h }}" {{ 'selected' if site_config.get('email_yearly_hour', 11)|int == h }}>{{ '%02d'|format(h) }}</option>
+                                                     {% endfor %}
+                                                 </select>
+                                                 <select name="email_yearly_ampm" class="form-select form-select-sm" style="font-size: 0.7rem; padding: 0.2rem 0.5rem;">
+                                                     <option value="PM" {{ 'selected' if site_config.get('email_yearly_ampm', 'PM') == 'PM' }}>PM</option>
+                                                     <option value="AM" {{ 'selected' if site_config.get('email_yearly_ampm', 'PM') == 'AM' }}>AM</option>
+                                                 </select>
+                                             </div>
+                                         </div>
+                                     </div>
+                                 </div>
+                             </div>
+
+                             <div class="col-12 text-end mt-4"><button type="submit" class="btn btn-primary fw-bold">Update Notifications</button></div>
                         </form>
                     </div>
                 </div>
@@ -876,7 +1219,7 @@
                 <div id="section-system-logs" class="admin-section d-none">
                     <div class="feed-card shadow-sm">
                         <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
-                            <h5 class="fw-bold mb-0"><i class="bi bi-shield-check me-2 text-primary"></i>System Audit Logs</h5>
+                            <h5 class="fw-bold mb-0"><i class="bi bi-shield-check me-2 text-primary"></i>System Audit Logs</h5><p class="small text-muted mb-4">Track all critical system events, including user logins, sales transactions, and administrative changes for security compliance.</p>
                             <div class="d-flex gap-2 flex-grow-1 justify-content-end">
                                 <div class="input-group input-group-sm" style="width: 220px;">
                                     <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
@@ -941,7 +1284,7 @@
                     <div class="row">
                         <div class="col-md-6">
                             <div class="feed-card shadow-sm">
-                                <h6 class="fw-bold mb-3">Categories</h6>
+                                <h6 class="fw-bold mb-0">Categories</h6><p class="x-small text-muted mb-3">Create labels to group and filter your inventory items.</p>
                                 <div class="list-group list-group-flush mb-3">
                                     {% for cat in admin_data.categories %}
                                     <div class="list-group-item d-flex justify-content-between align-items-center px-0">
@@ -961,7 +1304,7 @@
                         <div class="col-md-6">
                             <div class="feed-card shadow-sm">
                                 <div class="d-flex justify-content-between align-items-center mb-3">
-                                    <h6 class="fw-bold mb-0">Menu Anchors</h6>
+                                    <h6 class="fw-bold mb-0">Menu Anchors</h6><p class="x-small text-muted mb-3">Define the tab layout for the POS screen to quickly access specific item groups.</p>
                                     <button class="btn btn-primary btn-sm fw-bold" onclick="saveMenuOrder()">Save Order</button>
                                 </div>
                                 <div id="menuOrderList" class="list-group list-group-flush mb-3">
@@ -991,7 +1334,7 @@
                     <div class="row">
                         <div class="col-md-5">
                             <div class="feed-card shadow-sm border-danger border-opacity-10 mb-4" style="background: #fffafa;">
-                                <h5 class="fw-bold text-danger mb-4"><i class="bi bi-tools me-2"></i>Danger Zone</h5>
+                                <h5 class="fw-bold text-danger mb-0"><i class="bi bi-tools me-2"></i>Danger Zone</h5><p class="small text-muted mb-4 mt-1">Perform critical system operations like full data wipes or exporting full system backups.</p>
                                 <div class="d-grid gap-3">
                                     <a href="{{ url_for('developer.developer_backup') }}" class="btn btn-outline-dark fw-bold py-2"><i class="bi bi-download me-2"></i>Export System Backup</a>
                                     <hr class="my-2 border-danger opacity-25">
@@ -1074,6 +1417,15 @@
                     <div class="mb-3"><label class="form-label">Email</label><input type="email" name="email" class="form-control" required autocomplete="email"></div>
                     <div class="mb-3"><label class="form-label">Password</label><input type="password" name="password" class="form-control" required autocomplete="new-password"></div>
                     <div class="mb-3"><label class="form-label">Role</label><select name="role" class="form-select"><option value="cashier">Cashier</option><option value="owner">Owner / Admin</option></select></div>
+                    <div class="mb-3">
+                        <label class="form-label">Assigned Branch</label>
+                        <select name="branch_id" class="form-select">
+                            <option value="">No Specific Branch (Global)</option>
+                            {% for b in admin_data['branches'] %}
+                                <option value="{{ b._id }}">{{ b.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
                 </div>
                 <div class="modal-footer border-top-0 p-4 pt-0"><button type="submit" class="btn btn-success fw-bold w-100">Add Account</button></div>
             </form>
@@ -1101,6 +1453,15 @@
                         <select name="role" id="editRole" class="form-select">
                             <option value="cashier">Cashier</option>
                             <option value="owner">Owner / Admin</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Assigned Branch</label>
+                        <select name="branch_id" id="editBranch" class="form-select">
+                            <option value="">No Specific Branch (Global)</option>
+                            {% for b in admin_data['branches'] %}
+                                <option value="{{ b._id }}">{{ b.name }}</option>
+                            {% endfor %}
                         </select>
                     </div>
                     
@@ -1372,11 +1733,12 @@
         }
     }
 
-    function openEditUserModal(id, email, role) {
+    function openEditUserModal(id, email, role, branch) {
         const form = document.getElementById('editUserForm');
         form.action = `/settings/user/edit/${id}`;
         document.getElementById('editEmail').value = email;
         document.getElementById('editRole').value = role;
+        document.getElementById('editBranch').value = branch;
         if (role === 'owner' || email === 'admin@inventory.com') {
             document.getElementById('authSection').classList.remove('d-none');
         } else {

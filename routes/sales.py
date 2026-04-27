@@ -36,16 +36,26 @@ def save_undo_log(action_type, item_id, previous_state=None):
 def sales_list():
     purchase_collection = get_purchase_collection()
     items_collection = get_items_collection()
-    items_list = list(items_collection.find({"active": {"$ne": False}}).sort("name", 1))
+    role = session.get('role', 'cashier')
+    branch_id = session.get('branch_id')
+    
+    purchase_query = {}
+    item_query = {"active": {"$ne": False}}
+    
+    if branch_id:
+        purchase_query["branch_id"] = branch_id
+        item_query["branch_id"] = branch_id
+
+    items_list = list(items_collection.find(item_query).sort("name", 1))
 
     PER_PAGE = 50
     page = max(1, int(request.args.get('page', 1)))
-    total = purchase_collection.count_documents({})
+    total = purchase_collection.count_documents(purchase_query)
     total_pages = max(1, (total + PER_PAGE - 1) // PER_PAGE)
     page = min(page, total_pages)
     skip = (page - 1) * PER_PAGE
 
-    purchases = list(purchase_collection.find().sort("date", -1).skip(skip).limit(PER_PAGE))
+    purchases = list(purchase_collection.find(purchase_query).sort("date", -1).skip(skip).limit(PER_PAGE))
     
     # Mark as read for this user
     try:
@@ -53,8 +63,13 @@ def sales_list():
             {"email": session.get("email")},
             {"$set": {"last_views.sales": datetime.now(timezone.utc)}}
         )
+        # Mark as read for this branch specifically
+        sales_notif_q = {"type": {"$in": ["sale", "sale_refund", "sale_delete"]}, "read_by": {"$ne": session.get("email")}}
+        if branch_id:
+            sales_notif_q["branch_id"] = branch_id
+            
         get_notifications_collection().update_many(
-            {"type": {"$in": ["sale", "sale_refund", "sale_delete"]}, "read_by": {"$ne": session.get("email")}},
+            sales_notif_q,
             {"$addToSet": {"read_by": session.get("email")}}
         )
         socketio.emit('dashboard_update')
@@ -92,7 +107,8 @@ def add_sale():
                     "unit_cost": unit_price,
                     "total": total,
                     "status": "Sold",
-                    "user": session.get("email")
+                    "user": session.get("email"),
+                    "branch_id": session.get("branch_id")
                 }
                 res = purchase_collection.insert_one(purchase_doc)
                 purchase_id = res.inserted_id
@@ -104,7 +120,8 @@ def add_sale():
                     "qty": qty,
                     "user": session['email'],
                     "timestamp": ts,
-                    "new_stock": total_stock
+                    "new_stock": total_stock,
+                    "branch_id": session.get("branch_id")
                 })
 
                 log_action("SALE", f"Sold {qty} x {item['name']}")
@@ -135,7 +152,7 @@ def refund_sale(purchase_id):
         qty = purchase['qty']
 
         # Update item stock
-        items_collection.update_one({"name": item_name}, {"$inc": {"stock": qty, "sold": -qty, "inventory_out": -qty}})
+        items_collection.update_one({"name": item_name}, {"$inc": {"stock": qty, "sold": -qty, "inventory_out": -qty, "sold": -qty}})
         
         # Mark purchase as refunded
         purchase_collection.update_one({"_id": ObjectId(purchase_id)}, {"$set": {"status": "Refunded"}})
@@ -148,7 +165,8 @@ def refund_sale(purchase_id):
             "qty": qty,
             "user": session['email'],
             "timestamp": ts,
-            "details": f"Refund for purchase {purchase_id}"
+            "details": f"Refund for purchase {purchase_id}",
+            "branch_id": session.get("branch_id")
         })
 
         log_action("REFUND", f"Refunded {qty} x {item_name}")
@@ -173,9 +191,19 @@ def sales_summary():
     items_collection = get_items_collection()
     now = datetime.now()
 
+    role = session.get('role', 'cashier')
+    branch_id = session.get('branch_id')
+    
+    log_query = {"type": "OUT", "refunded": {"$ne": True}}
+    item_query = {}
+    
+    if branch_id:
+        log_query["branch_id"] = branch_id
+        item_query["branch_id"] = branch_id
+
     # Get all sales logs
-    all_logs = list(inventory_log_collection.find({"type": "OUT", "refunded": {"$ne": True}}))
-    items_by_name = {item['name']: item for item in items_collection.find()}
+    all_logs = list(inventory_log_collection.find(log_query))
+    items_by_name = {item['name']: item for item in items_collection.find(item_query)}
 
     # Data structures for different views
     months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
@@ -291,10 +319,20 @@ def get_report_data():
     view_type = request.args.get('view', 'monthly')
     now = datetime.now()
     
+    role = session.get('role', 'cashier')
+    branch_id = session.get('branch_id')
+    
+    log_query = {"type": "OUT", "refunded": {"$ne": True}}
+    item_query = {}
+    
+    if branch_id:
+        log_query["branch_id"] = branch_id
+        item_query["branch_id"] = branch_id
+
     inventory_log_collection = get_inventory_log_collection()
     items_collection = get_items_collection()
-    all_logs = list(inventory_log_collection.find({"type": "OUT", "refunded": {"$ne": True}}))
-    items_by_name = {item['name']: item for item in items_collection.find()}
+    all_logs = list(inventory_log_collection.find(log_query))
+    items_by_name = {item['name']: item for item in items_collection.find(item_query)}
     
     data = []
     total_revenue = 0
@@ -354,10 +392,20 @@ def generate_report():
     format_type = request.args.get('format', 'pdf')
     now = datetime.now()
     
+    role = session.get('role', 'cashier')
+    branch_id = session.get('branch_id')
+    
+    log_query = {"type": "OUT", "refunded": {"$ne": True}}
+    item_query = {}
+    
+    if branch_id:
+        log_query["branch_id"] = branch_id
+        item_query["branch_id"] = branch_id
+
     inventory_log_collection = get_inventory_log_collection()
     items_collection = get_items_collection()
-    all_logs = list(inventory_log_collection.find({"type": "OUT", "refunded": {"$ne": True}}))
-    items_by_name = {item['name']: item for item in items_collection.find()}
+    all_logs = list(inventory_log_collection.find(log_query))
+    items_by_name = {item['name']: item for item in items_collection.find(item_query)}
     
     report_data = []
     
@@ -468,8 +516,8 @@ def generate_report():
         daily_profit_vals = []
         daily_labels_list = []
 
-        items_by_name2 = {item['name']: item for item in get_items_collection().find()}
-        all_out_logs = list(get_inventory_log_collection().find({"type": "OUT"}))
+        items_by_name2 = {item['name']: item for item in get_items_collection().find(item_query)}
+        all_out_logs = list(get_inventory_log_collection().find(log_query))
 
         # Monthly
         for log in all_out_logs:

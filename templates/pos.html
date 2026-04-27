@@ -40,25 +40,85 @@
 
     .receipt-print { width: 300px; font-family: 'Courier New', Courier, monospace; background: #fff; color: #000; padding: 20px; }
 
+    /* Mobile Optimized CSS */
     @media (max-width: 991.98px) {
-        .pos-grid { grid-template-columns: 1fr; height: auto; }
-        .cart-panel { position: fixed; bottom: 0; left: 0; right: 0; height: 60px; z-index: 1050; border-radius: 0; }
-        .cart-items { display: none; }
-        .checkout-footer { padding: 10px; }
-        .mobile-cart-expand { display: flex !important; }
+        .pos-grid { 
+            grid-template-columns: 1fr; 
+            height: calc(100vh - 60px); 
+            gap: 0; 
+            margin-bottom: 60px;
+        }
+        
+        .items-panel { 
+            border-radius: 0; 
+            border: none;
+            padding-bottom: 80px;
+        }
+
+        .cart-panel { 
+            position: fixed; 
+            bottom: 0; 
+            left: 0; 
+            right: 0; 
+            height: auto; 
+            max-height: 80vh;
+            z-index: 1050; 
+            border-radius: 20px 20px 0 0; 
+            transform: translateY(calc(100% - 60px));
+            transition: transform 0.3s ease-in-out;
+            box-shadow: 0 -5px 25px rgba(0,0,0,0.15);
+        }
+        
+        .cart-panel.expanded {
+            transform: translateY(0);
+        }
+
+        .cart-items { 
+            display: block; 
+            max-height: 50vh;
+        }
+        
+        .checkout-footer { 
+            padding: 1rem; 
+            background: var(--card-bg);
+        }
+
+        .mobile-cart-toggle {
+            display: flex !important;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 1.5rem;
+            height: 60px;
+            background: #1877f2;
+            color: white;
+            cursor: pointer;
+        }
+
+        .desktop-cart-header { display: none !important; }
+        
+        #itemSearchContainer { width: 100% !important; margin-bottom: 0.5rem; }
+        .products-header { flex-direction: column; align-items: start !important; gap: 0.5rem; }
     }
+
+    .mobile-cart-toggle { display: none; }
+    #itemSearchContainer { width: 300px; transition: all 0.3s; }
+    #reader { width: 100%; max-width: 500px; margin: 0 auto; }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/html5-qrcode/html5-qrcode.min.js"></script>
 {% endblock %}
 
 {% block content %}
 <div class="pos-grid">
     <!-- Panel 1: Items Discovery -->
     <div class="items-panel">
-        <div class="d-flex justify-content-between align-items-center mb-3">
+        <div class="d-flex justify-content-between align-items-center mb-3 products-header">
             <h5 class="fw-bold text-theme-main mb-0">Products</h5>
-            <div class="position-relative" style="width: 250px;">
-                <i class="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-theme-muted"></i>
-                <input type="text" id="itemSearch" class="form-control form-control-sm ps-5 bg-light border-0 rounded-pill" placeholder="Search items..." onkeyup="filterItems()">
+            <div class="d-flex gap-2" id="itemSearchContainer">
+                <div class="position-relative flex-grow-1">
+                    <i class="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-theme-muted"></i>
+                    <input type="text" id="itemSearch" class="form-control form-control-sm ps-5 bg-light border-0 rounded-pill" placeholder="Search or scan..." onkeyup="filterItems()">
+                </div>
+                <button class="btn btn-sm btn-primary rounded-circle" onclick="startScanner()" title="Scan Barcode"><i class="bi bi-camera"></i></button>
             </div>
         </div>
 
@@ -71,9 +131,10 @@
 
         <div class="row g-3" id="itemsGrid">
             {% for item in items %}
-            <div class="col-6 col-sm-4 col-md-3 item-wrapper" data-name="{{ item.name|lower }}" data-menu="{{ item.menu or 'None' }}">
-                <div class="item-card h-100 {{ 'out-of-stock' if item.stock <= 0 }}" onclick="addToCart('{{ item._id }}', '{{ item.name|e }}', {{ item.retail_price }}, {{ item.stock }})">
-                    <div class="fw-bold text-theme-main small text-truncate mb-1">{{ item.name }}</div>
+            <div class="col-6 col-sm-4 col-md-3 item-wrapper" data-id="{{ item._id }}" data-name="{{ item.name|e }}" data-barcode="{{ item.barcode or '' }}" data-menu="{{ item.menu or 'None' }}" data-price="{{ item.retail_price }}" data-stock="{{ item.stock }}">
+                <div class="item-card h-100 {{ 'out-of-stock' if item.stock <= 0 }}" onclick="addToCartFromCard(this)">
+                    <div class="fw-bold text-theme-main small text-truncate mb-0">{{ item.name }}</div>
+                    <div class="x-small text-theme-muted font-monospace mb-2" style="font-size: 0.65rem;"><i class="bi bi-upc"></i> {{ item.barcode or 'No Barcode' }}</div>
                     <div class="d-flex justify-content-between align-items-center">
                         <span class="text-primary fw-bold">₱{{ "{:,.2f}".format(item.retail_price) }}</span>
                         <span class="badge {{ 'bg-danger' if item.stock <= 5 else 'bg-success bg-opacity-10 text-success' }} x-small">
@@ -92,8 +153,20 @@
     </div>
 
     <!-- Panel 2: Cart & Checkout -->
-    <div class="cart-panel shadow-sm">
-        <div class="p-3 border-bottom border-theme-soft d-flex justify-content-between align-items-center bg-light">
+    <div class="cart-panel shadow-sm" id="cartPanel">
+        <!-- Mobile Toggle Bar -->
+        <div class="mobile-cart-toggle" onclick="toggleMobileCart()">
+            <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-cart3"></i>
+                <span class="fw-bold">Cart (<span id="mobileCartCount">0</span>)</span>
+            </div>
+            <div class="d-flex align-items-center gap-3">
+                <span class="fw-bold" id="mobileCartTotal">₱0.00</span>
+                <i class="bi bi-chevron-up" id="cartChevron"></i>
+            </div>
+        </div>
+
+        <div class="p-3 border-bottom border-theme-soft d-flex justify-content-between align-items-center bg-light desktop-cart-header">
             <h6 class="fw-bold mb-0 text-theme-main"><i class="bi bi-cart3 me-2"></i>Current Order</h6>
             <button class="btn btn-sm btn-outline-danger border-0" onclick="clearCart()">Clear</button>
         </div>
@@ -153,15 +226,30 @@
 </div>
 
 <!-- Modal: Receipt -->
-<div class="modal fade" id="receiptModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered modal-sm">
-        <div class="modal-content">
-            <div class="modal-body p-0 d-flex flex-column align-items-center">
-                <div id="receiptContent" class="receipt-print"></div>
-                <div class="p-3 w-100 d-flex gap-2">
-                    <button class="btn btn-outline-dark w-100 fw-bold" onclick="window.print()"><i class="bi bi-printer me-2"></i>Print</button>
-                    <button class="btn btn-primary w-100 fw-bold" onclick="resetPOS()">Done</button>
-                </div>
+<div class="modal fade" id="receiptModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content bg-white p-0">
+            <div class="modal-body p-0" id="receiptContent">
+                <!-- Injected via generateReceipt -->
+            </div>
+            <div class="modal-footer border-0 p-3 bg-light">
+                <button type="button" class="btn btn-outline-dark btn-sm w-100" onclick="window.print()"><i class="bi bi-printer me-2"></i>PRINT</button>
+                <button type="button" class="btn btn-success btn-sm w-100" onclick="resetPOS()">NEW TRANSACTION</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Scanner -->
+<div class="modal fade" id="scannerModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark border-0">
+            <div class="modal-header border-0 pb-0">
+                <h6 class="modal-title text-white small text-uppercase ls-1">Scanner Active</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" onclick="stopScanner()"></button>
+            </div>
+            <div class="modal-body p-0 overflow-hidden rounded-bottom">
+                <div id="reader"></div>
             </div>
         </div>
     </div>
@@ -174,8 +262,37 @@
         const q = document.getElementById('itemSearch').value.toLowerCase();
         document.querySelectorAll('.item-wrapper').forEach(el => {
             const name = el.dataset.name;
-            el.style.display = name.includes(q) ? '' : 'none';
+            const barcode = el.dataset.barcode || "";
+            el.style.display = (name.includes(q) || barcode.includes(q)) ? '' : 'none';
         });
+    }
+
+    let html5QrCode = null;
+    function startScanner() {
+        new bootstrap.Modal(document.getElementById('scannerModal')).show();
+        html5QrCode = new Html5Qrcode("reader");
+        const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+        html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess);
+    }
+
+    function onScanSuccess(decodedText) {
+        document.getElementById('itemSearch').value = decodedText;
+        filterItems();
+        stopScanner();
+        bootstrap.Modal.getInstance(document.getElementById('scannerModal')).hide();
+        
+        // Auto-add if exact barcode match
+        const exactMatch = Array.from(document.querySelectorAll('.item-wrapper')).find(el => el.dataset.barcode === decodedText.toLowerCase());
+        if (exactMatch) {
+            const card = exactMatch.querySelector('.item-card');
+            if (card) card.click();
+        }
+    }
+
+    function stopScanner() {
+        if (html5QrCode) {
+            html5QrCode.stop().then(() => html5QrCode.clear()).catch(err => console.error(err));
+        }
     }
 
     function filterCategory(cat, btn) {
@@ -186,6 +303,12 @@
             if (cat === 'All') el.style.display = '';
             else el.style.display = el.dataset.menu === cat ? '' : 'none';
         });
+    }
+
+    function addToCartFromCard(card) {
+        const wrapper = card.closest('.item-wrapper');
+        const d = wrapper.dataset;
+        addToCart(d.id, d.name, parseFloat(d.price), parseInt(d.stock));
     }
 
     function addToCart(id, name, price, stock) {
@@ -244,8 +367,22 @@
             container.appendChild(div);
         });
         document.getElementById('totalAmount').innerText = '{{ site_config.currency_symbol }}' + total.toFixed(2);
+        document.getElementById('mobileCartTotal').innerText = '{{ site_config.currency_symbol }}' + total.toFixed(2);
+        document.getElementById('mobileCartCount').innerText = cart.reduce((acc, i) => acc + i.qty, 0);
         document.getElementById('modalTotal').innerText = total.toFixed(2);
         document.getElementById('checkoutBtn').disabled = false;
+    }
+
+    function toggleMobileCart() {
+        const panel = document.getElementById('cartPanel');
+        const chevron = document.getElementById('cartChevron');
+        panel.classList.toggle('expanded');
+        
+        if (panel.classList.contains('expanded')) {
+            chevron.classList.replace('bi-chevron-up', 'bi-chevron-down');
+        } else {
+            chevron.classList.replace('bi-chevron-down', 'bi-chevron-up');
+        }
     }
 
     function calculateChange() {

@@ -74,6 +74,18 @@ def get_site_config():
         "email_notif_inventory": True,
         "email_notif_bulletin": True,
         "email_recipient_list": "",
+        "email_daily_summary": False,
+        "email_weekly_summary": False,
+        "email_monthly_summary": False,
+        "email_yearly_summary": False,
+        "email_daily_hour": 11,
+        "email_daily_ampm": "PM",
+        "email_weekly_hour": 11,
+        "email_weekly_ampm": "PM",
+        "email_monthly_hour": 11,
+        "email_monthly_ampm": "PM",
+        "email_yearly_hour": 11,
+        "email_yearly_ampm": "PM",
         "updated_at": datetime.now()
     }
     try:
@@ -125,34 +137,52 @@ def send_deployment_telemetry():
     except Exception as e:
         print(f"DEBUG: Telemetry failed: {str(e)}")
 
-def send_push_notification(title, body):
-    subscriptions_collection = get_subscriptions_collection()
-    subscriptions = list(subscriptions_collection.find())
+def send_push_notification(title, body, target_emails=None):
+    from core.db import get_users_collection
+    users_collection = get_users_collection()
     
-    # Check for VAPID keys in environment or site_config
+    query = {"push_subscriptions": {"$exists": True, "$not": {"$size": 0}}}
+    if target_emails:
+        query["email"] = {"$in": target_emails}
+        
+    users = list(users_collection.find(query))
+    
     config = get_site_config()
     vapid_private = os.getenv("VAPID_PRIVATE_KEY") or config.get('vapid_private_key')
     vapid_email = os.getenv("VAPID_CLAIM_EMAIL") or config.get('vapid_claim_email', 'admin@inventory.com')
     
     if not vapid_private:
-        # Silently fail if push not configured
         return
 
     vapid_claims = {"sub": f"mailto:{vapid_email}"}
     
-    for sub in subscriptions:
-        try:
-            webpush(
-                subscription_info=sub['subscription_json'],
-                data=json.dumps({"title": title, "body": body}),
-                vapid_private_key=vapid_private,
-                vapid_claims=vapid_claims
-            )
-        except WebPushException as ex:
-            if ex.response and ex.response.status_code == 410:
-                subscriptions_collection.delete_one({"_id": sub['_id']})
-        except Exception:
-            pass
+    for user in users:
+        # Check user notification preferences if needed
+        preferences = user.get('notification_preferences', {})
+        if title.startswith('FBIHM Alert:') and not preferences.get('device_notifications_enabled', True):
+            continue
+            
+        subscriptions = user.get('push_subscriptions', [])
+        valid_subscriptions = []
+        for sub in subscriptions:
+            try:
+                webpush(
+                    subscription_info=sub,
+                    data=json.dumps({"title": title, "body": body, "url": "/"}),
+                    vapid_private_key=vapid_private,
+                    vapid_claims=vapid_claims
+                )
+                valid_subscriptions.append(sub)
+            except WebPushException as ex:
+                if ex.response and ex.response.status_code == 410:
+                    pass # Skip adding to valid_subscriptions to drop this endpoint
+                else:
+                    valid_subscriptions.append(sub)
+            except Exception:
+                valid_subscriptions.append(sub)
+                
+        if len(valid_subscriptions) != len(subscriptions):
+            users_collection.update_one({"_id": user['_id']}, {"$set": {"push_subscriptions": valid_subscriptions}})
 
 def send_email_notification(subject, body, notif_type=None, override_recipient=None):
     config = get_site_config()
@@ -198,7 +228,7 @@ def send_email_notification(subject, body, notif_type=None, override_recipient=N
             print(f"[SMTP-ERROR] {str(e)}")
             return False
 
-def log_action(action_type, details, send_push=True):
+def log_action(action_type, details, send_push=False):
     system_log_collection = get_system_log_collection()
     timestamp = datetime.now().strftime('%Y-%m-%d %I:%M:%S %p')
     
@@ -214,6 +244,7 @@ def log_action(action_type, details, send_push=True):
     system_log_collection.insert_one({
         "email": session.get('email', 'System'),
         "role": session.get('role', 'N/A'),
+        "branch_id": session.get('branch_id'),
         "action": action_type,
         "details": details,
         "timestamp": timestamp,
@@ -244,6 +275,7 @@ def trigger_notification(notif_type, title, message, data=None, priority='INFO')
         "message": message,
         "priority": priority,
         "author": session.get('email', 'System'),
+        "branch_id": session.get('branch_id'),
         "created_at": now,
         "read_by": [],
         "metadata": data or {}
@@ -338,6 +370,8 @@ def calculate_item_metrics(item):
 
     return {
         **item,
+        "sold": sold,
+        "stock": stock,
         "profit": profit,
         "margin": round(margin, 2),
         "total_profit": total_profit,
@@ -396,24 +430,177 @@ def update_item_stock(item_id, qty_change, action_type="OUT", reason="Sale"):
         low_threshold = site_config.get('low_stock_threshold', 5)
 
     if action_type == "OUT":
-        if new_stock == 0:
-            trigger_notification(
-                "stock_alert",
-                "Out of Stock!",
-                f"Item '{item['name']}' is now OUT OF STOCK.",
-                {"item_id": str(item_id), "stock": 0},
-                priority="CRITICAL"
-            )
-            send_email_notification("Out of Stock Alert", f"Item '{item['name']}' is now out of stock.", notif_type="low_stock")
-        elif new_stock <= low_threshold:
-            trigger_notification(
-                "stock_alert",
-                "Low Stock Warning",
-                f"Item '{item['name']}' is running low ({new_stock} left).",
-                {"item_id": str(item_id), "stock": new_stock},
-                priority="WARNING"
-            )
-            send_email_notification("Low Stock Alert", f"Item '{item['name']}' is low ({new_stock} left).", notif_type="low_stock")
+        if new_stock == 0 or new_stock <= low_threshold:
+            # Determine targets: Owners + Cashiers of the branch
+            from core.db import get_users_collection
+            u_col = get_users_collection()
+            branch_id_str = str(item.get('branch_id', ''))
+            
+            targets = list(u_col.find({
+                "$or": [
+                    {"role": "owner"},
+                    {"role": "cashier", "branch_id": branch_id_str}
+                ]
+            }))
+            
+            # Only send push to users who have low_stock_alerts enabled (default: True)
+            target_emails = [
+                u['email'] for u in targets
+                if 'email' in u and u.get('notification_preferences', {}).get('low_stock_alerts', True)
+            ]
+            
+            if new_stock == 0:
+                trigger_notification(
+                    "stock_alert",
+                    "Out of Stock!",
+                    f"Item '{item['name']}' is now OUT OF STOCK.",
+                    {"item_id": str(item_id), "stock": 0},
+                    priority="CRITICAL"
+                )
+                if target_emails:
+                    send_push_notification("FBIHM Alert: Out of Stock!", f"Item '{item['name']}' is now OUT OF STOCK.", target_emails)
+                send_email_notification("Out of Stock Alert", f"Item '{item['name']}' is now out of stock.", notif_type="low_stock")
+            elif new_stock <= low_threshold:
+                trigger_notification(
+                    "stock_alert",
+                    "Low Stock Warning",
+                    f"Item '{item['name']}' is running low ({new_stock} left).",
+                    {"item_id": str(item_id), "stock": new_stock},
+                    priority="WARNING"
+                )
+                if target_emails:
+                    send_push_notification("FBIHM Alert: Low Stock", f"Item '{item['name']}' is running low ({new_stock} left).", target_emails)
+                send_email_notification("Low Stock Alert", f"Item '{item['name']}' is low ({new_stock} left).", notif_type="low_stock")
 
     socketio.emit('dashboard_update')
     return True, "Stock updated"
+
+def generate_sales_summary(period="Daily"):
+    """
+    Generates a periodic sales summary and pushes it to all system operators who opted in.
+    """
+    from core.db import get_users_collection, get_items_collection
+    from flask import current_app
+    from datetime import datetime, timezone, timedelta
+    
+    # Calculate time ranges
+    now = datetime.now(timezone.utc)
+    if period == "Daily":
+        start_date = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    elif period == "Weekly":
+        start_date = now - timedelta(days=7)
+    elif period == "Monthly":
+        start_date = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    elif period == "Yearly":
+        start_date = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+    else:
+        start_date = now - timedelta(days=1)
+        
+    items_col = get_items_collection()
+    
+    # We simulate reading from sales by evaluating sold metrics 
+    # (Since FBIHM currently aggregates directly on items, we'll fetch high sold items updated recently)
+    # A complete query would use the `sales` ledger collection for exact timeframes.
+    try:
+        from core.db import get_sales_collection
+        sales = list(get_sales_collection().find({"created_at": {"$gte": start_date}}))
+        total_revenue = sum([s.get('total', 0) for s in sales])
+        total_items = sum([sum([i.get('quantity', 0) for i in s.get('items', [])]) for s in sales])
+        
+        # Determine top item
+        item_counts = {}
+        for s in sales:
+            for item in s.get('items', []):
+                item_counts[item.get('name', 'Unknown')] = item_counts.get(item.get('name', 'Unknown'), 0) + item.get('quantity', 0)
+        top_item = max(item_counts, key=item_counts.get) if item_counts else "None"
+        
+        body = f"₱{total_revenue:,.2f} Revenue | {total_items} items sold. Top Item: {top_item}."
+    except Exception as e:
+        body = f"Your {period.lower()} sales and inventory performance summary is ready to be viewed."
+        
+    title = f"FBIHM Alert: {period} Sales Summary"
+    
+    # Get users who should receive this
+    # Owners generally, but we consult their personal preferences
+    users = list(get_users_collection().find({"role": "owner"}))
+    target_emails = []
+    
+    pref_key = f"{period.lower()}_summary"
+    for u in users:
+        prefs = u.get("notification_preferences", {})
+        # Default True if they haven't explicitly set it to false
+        if prefs.get(pref_key, True):
+            if 'email' in u:
+                target_emails.append(u['email'])
+    
+    # Check global config for site-wide summary
+    config = get_site_config()
+    global_pref_key = f"email_{period.lower()}_summary"
+    if config.get(global_pref_key, False):
+        recipient_list = config.get('email_recipient_list', '')
+        if recipient_list:
+            for r in recipient_list.split(','):
+                r = r.strip()
+                if r and r not in target_emails:
+                    target_emails.append(r)
+
+    if target_emails:
+        send_push_notification(title, body, target_emails)
+        send_email_notification(f"{period} Sales Summary", body, override_recipient=",".join(target_emails))
+
+def reschedule_periodic_jobs(scheduler):
+    """
+    Reads the latest site_config and updates the BackgroundScheduler jobs.
+    """
+    config = get_site_config()
+    
+    def to_24h(hour, ampm):
+        h = int(hour)
+        if ampm == 'PM' and h != 12: h += 12
+        elif ampm == 'AM' and h == 12: h = 0
+        return h
+
+    mapping = {
+        'Daily': {
+            'id': 'daily_summary',
+            'enabled': config.get('email_daily_summary', False),
+            'hour': to_24h(config.get('email_daily_hour', 11), config.get('email_daily_ampm', 'PM')),
+            'cron_params': {}
+        },
+        'Weekly': {
+            'id': 'weekly_summary',
+            'enabled': config.get('email_weekly_summary', False),
+            'hour': to_24h(config.get('email_weekly_hour', 11), config.get('email_weekly_ampm', 'PM')),
+            'cron_params': {'day_of_week': 'sun'}
+        },
+        'Monthly': {
+            'id': 'monthly_summary',
+            'enabled': config.get('email_monthly_summary', False),
+            'hour': to_24h(config.get('email_monthly_hour', 11), config.get('email_monthly_ampm', 'PM')),
+            'cron_params': {'day': 'last'}
+        },
+        'Yearly': {
+            'id': 'yearly_summary',
+            'enabled': config.get('email_yearly_summary', False),
+            'hour': to_24h(config.get('email_yearly_hour', 11), config.get('email_yearly_ampm', 'PM')),
+            'cron_params': {'month': 12, 'day': 31}
+        }
+    }
+
+    for period, data in mapping.items():
+        # Remove existing if any
+        try:
+            scheduler.remove_job(data['id'])
+        except:
+            pass
+            
+        if data['enabled']:
+            scheduler.add_job(
+                lambda p=period: generate_sales_summary(p),
+                'cron',
+                id=data['id'],
+                hour=data['hour'],
+                minute=0,
+                **data['cron_params']
+            )
+            print(f"DEBUG: Rescheduled {period} summary for hour {data['hour']} (enabled: {data['enabled']})")

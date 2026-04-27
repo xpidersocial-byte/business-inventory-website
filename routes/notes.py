@@ -21,7 +21,14 @@ def bulletin():
     })
 
     user_email = session.get('email', '')
-    all_notes = list(notes_collection.find().sort([
+    role = session.get('role', 'cashier')
+    branch_id = session.get('branch_id')
+    
+    query = {}
+    if branch_id:
+        query["branch_id"] = branch_id
+
+    all_notes = list(notes_collection.find(query).sort([
         ("status", -1), 
         ("pinned", -1), 
         ("timestamp", -1)
@@ -31,20 +38,24 @@ def bulletin():
     for note in all_notes:
         note['unread'] = user_email not in note.get('read_by', [])
 
-    # Mark as read for this user
+    # Mark as read for this user (branch-specific)
     try:
-        # Mark all notes as read by this user
-        get_notes_collection().update_many({"read_by": {"$ne": user_email}}, {"$addToSet": {"read_by": user_email}})
+        # Mark all notes in this branch as read by this user
+        note_q = {"read_by": {"$ne": user_email}}
+        if branch_id:
+            note_q["branch_id"] = branch_id
+        get_notes_collection().update_many(note_q, {"$addToSet": {"read_by": user_email}})
+        
         # Update last view timestamp
         get_users_collection().update_one(
             {"email": user_email},
             {"$set": {"last_views.bulletins": datetime.now(timezone.utc)}}
         )
-        # Clear persistent bulletin notifications for this user
-        get_notifications_collection().update_many(
-            {"type": "bulletin", "read_by": {"$ne": user_email}},
-            {"$addToSet": {"read_by": user_email}}
-        )
+        # Clear persistent bulletin notifications for this user in this branch
+        bn_q = {"type": "bulletin", "read_by": {"$ne": user_email}}
+        if branch_id:
+            bn_q["branch_id"] = branch_id
+        get_notifications_collection().update_many(bn_q, {"$addToSet": {"read_by": user_email}})
         socketio.emit('dashboard_update')
     except: pass
         
@@ -65,6 +76,7 @@ def add_bulletin():
             "color": color,
             "tag": tag,
             "author": session.get('email'),
+            "branch_id": session.get('branch_id'),
             "created_at": datetime.now(timezone.utc),
             "timestamp": datetime.now().strftime('%Y-%m-%d %I:%M:%S %p'),
             "pinned": False,
