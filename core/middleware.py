@@ -57,6 +57,18 @@ def role_required(role):
             user_role = session.get('role', 'cashier')
             user_email = session.get('email')
             endpoint = request.endpoint
+
+            # Enforce Branch Restriction for Cashiers
+            if user_role == 'cashier' and user_email:
+                from core.db import get_users_collection
+                user = get_users_collection().find_one({'email': user_email})
+                if user and user.get('branch_id'):
+                    # Force session branch_id to match user assigned branch
+                    session['branch_id'] = str(user.get('branch_id'))
+                else:
+                    # If cashier has no branch_id, they shouldn't be accessing these routes
+                    flash('Account Error: No branch assigned to this cashier.', 'danger')
+                    return redirect(url_for('auth.logout'))
             
             # Map endpoints to permission keys
             mapping = {

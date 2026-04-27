@@ -35,42 +35,76 @@ def get_status_string(last_active):
 def index():
     if 'email' in session:
         return redirect(url_for('dashboard.dashboard'))
-    return render_template('nexus_choice.html', site_config=get_site_config())
+    return redirect(url_for('auth.login_page'))
 
 @auth_bp.route('/login', methods=['GET'])
 def login_page():
     if 'email' in session:
         return redirect(url_for('dashboard.dashboard'))
-    login_type = request.args.get('type', 'owner')
-    return render_template('login.html', site_config=get_site_config(), login_type=login_type)
+    return render_template('login.html', site_config=get_site_config(), available_branches=list(get_branches_collection().find({"active": True})) )
 
 @auth_bp.route('/login', methods=['POST'])
 def login():
     users_collection = get_users_collection()
     email = request.form.get('email', '').strip().lower()
     password = request.form.get('password', '')
+    login_type = request.form.get('login_type')
+    branch_id = request.form.get('branch_id')
+    
     user = users_collection.find_one({"email": email})
     
     if user and verify_password(user.get('password'), password):
+        role = user.get('role', 'cashier')
+        
+        # Enforce strict portal restrictions
+        if login_type == 'owner' and role not in ['owner', 'admin']:
+            log_action("LOGIN_REJECTED", f"User {email} (role: {role}) tried to login via Owner portal.")
+            flash("Unauthorized access. Owner portal is restricted to administrators.", "danger")
+            return redirect(url_for('auth.login_page'))
+            
+        if login_type == 'cashier' and role != 'cashier':
+            log_action("LOGIN_REJECTED", f"User {email} (role: {role}) tried to login via Cashier portal.")
+            flash("Unauthorized access. Cashier portal is restricted to cashiers.", "danger")
+            return redirect(url_for('auth.login_page'))
+        
+        # Branch validation for cashiers
+        if role == 'cashier':
+            user_branch_id = user.get('branch_id')
+            if user_branch_id:
+                branch_id = str(user_branch_id)
+            elif not branch_id:
+                flash("Please contact admin to assign a branch to your account.", "warning")
+                return redirect(url_for('auth.login_page'))
+        
+        # Check if owner is trying to login as cashier or vice-versa if necessary
+        # Usually owners can login globally, but we respect the login_type from form
+        
         session['email'] = email
-        session['role'] = user.get('role', 'cashier')
+        session['role'] = role
         session['theme'] = user.get('theme', 'default')
         
-        # Nexus Logic: Owners start at Global View, Cashiers at their terminal
-        if session['role'] == 'owner':
-            session['branch_id'] = None
-        else:
-            session['branch_id'] = user.get('branch_id')
-            
+        if branch_id:
+            session['branch_id'] = branch_id
+        elif role == 'cashier' and user.get('branch_id'):
+            session['branch_id'] = str(user.get('branch_id'))
+
         users_collection.update_one({"email": email}, {"$set": {"last_ip": request.remote_addr}})
-        log_action("LOGIN", f"User '{email}' logged in (Nexus Entrance).")
-        
+        log_action("LOGIN", f"User '{email}' logged in.")
+        send_email_notification(
+            "User Login",
+            f"User '{email}' successfully logged in at {datetime.now().strftime('%Y-%m-%d %I:%M %p')}.",
+            notif_type="login"
+        )
         return redirect(url_for('dashboard.dashboard'))
     else:
-        log_action("LOGIN_FAILED", f"Failed attempt: {email}")
+        log_action("LOGIN_FAILED", f"Failed login attempt for email: {email}")
+        send_email_notification(
+            "⚠️ Failed Login Attempt",
+            f"A failed login attempt was made for the account: {email}\nTime: {datetime.now().strftime('%Y-%m-%d %I:%M %p')}\nIP: {request.remote_addr}\n\nIf this was not you, your system may be under attack.",
+            notif_type="login"
+        )
         flash("Invalid email or password!", "danger")
         return redirect(url_for('auth.login_page'))
-
 @auth_bp.route('/logout')
 def logout():
     log_action("LOGOUT", f"User '{session.get('email')}' logged out.")
@@ -104,7 +138,7 @@ def profile():
         # User in session but not in DB (common after DB migration/clear)
         session.clear()
         flash("Your session has expired or your account was not found in the new database.", "warning")
-        return redirect(url_for('auth.index'))
+        return redirect(url_for('auth.login_page'))
     
     # Process current user status
     user['status_text'] = get_status_string(user.get('last_active'))
@@ -166,7 +200,6 @@ def profile():
 
         # LEGACY GAMIFICATION UPGRADE (Nexus): 
         # Calculate branch rankings and activity feed for Business Settings
-        from routes.branches import calculate_branch_metrics # I should check if this exists or copy logic
         
         # For now, I'll implement a simplified version or reuse logic if available
         # Actually, let's copy the robust logic from branches select_branch here
@@ -183,10 +216,29 @@ def profile():
         
         ranked_branches = []
         for b in get_branches_collection().find({"active": True}):
-            # Simplified revenue fetch for ranking
             b_id = str(b['_id'])
-            sales = list(get_purchase_collection().find({"branch_id": b_id, "status": "Sold", "timestamp": {"$gte": fleet_ago}}))
-            rev = sum(float(s.get('total', 0)) for s in sales)
+            # Fetch ALL sold items for the branch and filter by date in Python
+            sales = list(get_purchase_collection().find({"branch_id": b_id, "status": "Sold"}))
+            rev = 0.0
+            for s in sales:
+                raw_d = s.get('date') or s.get('timestamp')
+                d_str = str(raw_d)
+                try:
+                    # Attempt robust parsing of the string
+                    try:
+                        sale_date = datetime.strptime(d_str, '%Y-%m-%d %I:%M:%S %p')
+                    except ValueError:
+                        try:
+                            sale_date = datetime.strptime(d_str, '%Y-%m-%d %I:%M %p')
+                        except ValueError:
+                            # Fallback if it's 24hr format '2026-03-22 06:57:40'
+                            sale_date = datetime.strptime(d_str, '%Y-%m-%d %H:%M:%S')
+                            
+                    if sale_date >= fleet_ago:
+                        rev += float(s.get('total', 0))
+                except Exception:
+                    continue
+                    
             b['weekly_revenue'] = rev
             b['_id'] = b_id
             ranked_branches.append(b)

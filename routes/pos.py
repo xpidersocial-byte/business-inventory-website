@@ -27,7 +27,7 @@ def pos_view():
     # Get all distinct menus being used, or that are defined
     used_menus = set()
     for item in items_list:
-        menu = item.get('menu')
+        menu = item.get('menu') or item.get('category')
         if menu:
             used_menus.add(menu)
             

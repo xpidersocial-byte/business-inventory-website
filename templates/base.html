@@ -1,11 +1,12 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="facebook">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}{% endblock %} | {{ site_config.business_name }}</title>
     <link rel="icon" type="image/webp" href="{{ url_for('static', filename='images/login_hero.webp') }}">
-    
+
     <!-- PWA Meta Tags -->
     <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
     <meta name="theme-color" content="#1877f2">
@@ -14,413 +15,15 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="FBIHM">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/pwa-icon-192.png') }}">
-    
+
     <!-- UI Frameworks -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
-    
-    <style>
-        /* Nexus Sidebar Dropdown Styles */
-        .sidebar-link-group { position: relative; }
-        .sidebar-dropdown { 
-            display: none; 
-            background: rgba(0,0,0,0.04); 
-            margin: 4px 8px; 
-            border-radius: 8px; 
-            overflow: hidden;
-            border-left: 2px solid #1877f2;
-        }
-        .sidebar-sublink { 
-            width: 100%;
-            display: block; 
-            padding: 8px 12px 8px 45px; 
-            font-size: 0.8rem; 
-            color: var(--text-theme-muted); 
-            text-decoration: none; 
-            transition: 0.2s;
-            border: none;
-            background: transparent;
-            text-align: left;
-            font-weight: 600;
-        }
-        .sidebar-sublink:hover { background: rgba(0,0,0,0.05); color: #1877f2; }
-        .sidebar-sublink.active { color: #1877f2; background: rgba(24, 119, 242, 0.05); }
-        :root {
-            --sidebar-width: 240px;
-            --primary-gradient: linear-gradient(135deg, #1877f2 0%, #166fe5 100%);
-            --glass-bg: rgba(0, 0, 0, 0.05);
-            --card-bg: #ffffff;
-            --sidebar-bg: #f5f6f7;
-            --content-bg: #f0f2f5;
-            --text-main: #1c1e21;
-            --text-theme-muted: #65676b;
-            --primary-soft: #1877f2;
-            --border-soft: #ced0d4;
-            --scrollbar-thumb: rgba(0, 0, 0, 0.2);
-            --navbar-height: 56px;
-            --navbar-bg: #1877f2;
-            --navbar-text: #ffffff;
-        }
 
-        /* Smooth UI Transitions */
-        .btn, .card, .form-control, .form-select, .dropdown-item, .alert-summary-card, .category-tile {
-            transition: all 0.3s ease;
-        }
-        .btn:hover {
-            transform: translateY(-1px);
-        }
-        
-        tbody tr {
-            transition: background-color 0.2s ease;
-        }
-        tbody tr:hover {
-            background-color: var(--glass-bg) !important;
-            cursor: pointer;
-        }
-
-        /* Generic Theme Classes */
-        .text-theme-main { color: var(--text-main) !important; }
-        .text-theme-muted { color: var(--text-theme-muted) !important; }
-        .bg-theme-card { background-color: var(--card-bg) !important; }
-        .bg-theme-sidebar { background-color: var(--sidebar-bg) !important; }
-        .border-theme-soft { border-color: var(--border-soft) !important; }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: var(--content-bg);
-            color: var(--text-main);
-            overflow-x: hidden;
-            margin: 0;
-            padding: 0;
-        }
-
-        /* Facebook Style Top Navbar - FIXED/STICKY & GUARANTEED BLUE */
-        .fb-navbar {
-            height: var(--navbar-height);
-            background-color: #1877f2 !important; /* Force Blue */
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            z-index: 1100;
-            align-items: center;
-            padding: 0 1rem;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            border-bottom: 1px solid rgba(0,0,0,0.1);
-            display: flex;
-        }
-        
-        .fb-navbar-brand {
-            color: white !important;
-            font-weight: 800;
-            font-size: 1.5rem;
-            text-decoration: none;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        
-        .navbar-business-name {
-            color: white;
-            font-weight: 800;
-            font-size: 1.25rem;
-            letter-spacing: -1px;
-            text-decoration: none;
-            margin-right: 1.5rem;
-        }
-
-        .fb-search-container {
-            position: relative;
-            width: 220px;
-        }
-        .fb-search-bar-nav {
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 50px;
-            padding: 0.5rem 1rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            width: 100%;
-        }
-        .fb-search-bar-nav input {
-            background: transparent;
-            border: none;
-            outline: none;
-            width: 100%;
-            font-size: 0.9rem;
-            color: white !important;
-        }
-        .fb-search-bar-nav input::placeholder {
-            color: rgba(255, 255, 255, 0.7);
-        }
-
-        #sidebar {
-            width: var(--sidebar-width);
-            height: calc(100vh - var(--navbar-height));
-            position: fixed;
-            left: 0;
-            top: var(--navbar-height);
-            background: var(--sidebar-bg);
-            border-right: 1px solid var(--border-soft);
-            z-index: 1000;
-            transition: all 0.3s ease;
-            overflow-y: auto;
-            overflow-x: hidden;
-            padding: 0.5rem 0.5rem 1rem;
-        }
-        [data-theme="facebook"] #sidebar {
-            border-right: none;
-            background: var(--content-bg);
-        }
-        #sidebar::-webkit-scrollbar { width: 3px; }
-        #sidebar::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12); border-radius: 4px; }
-
-        .sidebar-section-label {
-            font-size: 0.68rem;
-            font-weight: 700;
-            letter-spacing: 0.07em;
-            text-transform: uppercase;
-            color: var(--text-theme-muted);
-            padding: 0.65rem 0.75rem 0.2rem;
-            margin: 0;
-            display: block;
-        }
-
-        .sidebar-link {
-            display: flex;
-            align-items: center;
-            padding: 0.5rem 0.85rem;
-            color: var(--text-main);
-            text-decoration: none;
-            font-weight: 600;
-            font-size: 1rem;
-            border-radius: 8px;
-            margin-bottom: 2px;
-            transition: background 0.15s ease, color 0.15s ease;
-            white-space: nowrap;
-            overflow: hidden;
-        }
-        .sidebar-link .s-icon {
-            font-size: 1.25rem;
-            margin-right: 0.7rem;
-            width: 20px;
-            text-align: center;
-            flex-shrink: 0;
-            line-height: 1;
-        }
-        .sidebar-link .s-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-        .sidebar-link        .s-badge {
-            font-size: 0.7rem;
-            font-weight: 700;
-            background: #f02849;
-            color: #fff;
-            border-radius: 10px;
-            padding: 2px 6px;
-            margin-left: auto;
-            flex-shrink: 0;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .s-badge.bg-success { background-color: #2ecc71 !important; }
-        .s-badge.bg-warning { background-color: #f1c40f !important; color: #000; }
-        .sidebar-link:hover { background: rgba(0,0,0,0.06); color: var(--text-main); }
-        .sidebar-link.active {
-            background: rgba(24, 119, 242, 0.12);
-            color: #1877f2;
-            font-weight: 600;
-        }
-        .sidebar-link.active .s-icon { color: #1877f2; }
-
-        /* Notification Bell */
-        .notif-bell-wrap { position: relative; }
-        .notif-bell-badge {
-            position: absolute; top: -4px; right: -4px;
-            background: #f02849; color: #fff;
-            font-size: 0.6rem; font-weight: 700;
-            min-width: 16px; height: 16px;
-            border-radius: 8px; padding: 0 3px;
-            display: flex; align-items: center; justify-content: center;
-            border: 2px solid #1877f2;
-            pointer-events: none;
-        }
-
-        #main-content {
-            margin-left: var(--sidebar-width);
-            margin-top: var(--navbar-height);
-            padding: 1.5rem;
-            min-height: calc(100vh - var(--navbar-height));
-            background: var(--content-bg);
-            transition: all 0.3s ease;
-        }
-
-        .card {
-            background: var(--card-bg);
-            border: 1px solid var(--border-soft);
-            border-radius: 12px;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-            overflow: hidden;
-            margin-bottom: 1.5rem;
-        }
-
-        [data-theme="facebook"] .card {
-            border-radius: 8px;
-            border: none;
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-        }
-
-        .btn-primary {
-            background-color: var(--primary-soft);
-            border: none;
-            border-radius: 6px;
-            padding: 0.5rem 1.25rem;
-            font-weight: 600;
-        }
-
-        /* Responsive Mobile Sidebar */
-        @media (max-width: 991.98px) {
-            #sidebar {
-                left: calc(-1 * var(--sidebar-width));
-                top: 0;
-                height: 100vh;
-                z-index: 2100;
-                box-shadow: 10px 0 20px rgba(0,0,0,0.15);
-            }
-            #sidebar.active {
-                left: 0;
-            }
-            #main-content {
-                margin-left: 0;
-                padding: 1rem;
-            }
-            .navbar-business-name {
-                display: none;
-            }
-            .fb-search-container {
-                display: none;
-            }
-        }
-
-        .sidebar-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(255, 255, 255, 0.8);
-            z-index: 2050;
-            backdrop-filter: blur(4px);
-        }
-        .sidebar-overlay.active {
-            display: block;
-        }
-
-        .navbar-toggler-custom {
-            display: none;
-            color: white;
-            font-size: 1.5rem;
-            background: transparent;
-            border: none;
-            margin-right: 0.5rem;
-            padding: 4px 8px;
-            border-radius: 8px;
-        }
-        .navbar-toggler-custom:hover {
-            background: rgba(255,255,255,0.1);
-        }
-        @media (max-width: 991.98px) {
-            .navbar-toggler-custom {
-                display: block;
-            }
-        }
-
-        @media (max-width: 991.98px) {
-            .table-responsive { border: 0; }
-            .btn { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
-            .sidebar-link { padding: 0.75rem 1rem; }
-        }
-
-        .avatar {
-            width: 40px;
-            height: 40px;
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            color: white;
-            overflow: hidden;
-        }
-        
-        .nav-icon-link {
-            color: rgba(255, 255, 255, 0.7);
-            font-size: 1.4rem;
-            padding: 0.5rem 1.2rem;
-            border-radius: 8px;
-            transition: all 0.2s;
-            position: relative;
-        }
-        .nav-icon-link:hover {
-            background: rgba(255, 255, 255, 0.1);
-            color: #ffffff;
-        }
-        .nav-icon-link.active {
-            color: #ffffff;
-            border-bottom: 3px solid #ffffff;
-            border-radius: 0;
-        }
-        
-        /* Legend Styles */
-        .legend-section {
-            padding: 1rem;
-            margin: 0.5rem;
-            background: var(--glass-bg);
-            border-radius: 12px;
-            border: 1px solid var(--border-soft);
-        }
-        .legend-item {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 8px;
-            font-size: 0.8rem;
-            font-weight: 600;
-        }
-        .legend-dot {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-        }
-
-        /* Global Search Results Dropdown */
-        #globalSearchResults {
-            display: none;
-            position: absolute;
-            top: 100%;
-            left: 0;
-            width: 400px;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 12px 28px rgba(0,0,0,0.2);
-            z-index: 2000;
-            margin-top: 8px;
-            max-height: 500px;
-            overflow-y: auto;
-            color: #1c1e21;
-        }
-        .search-result-item {
-            padding: 12px 16px;
-            border-bottom: 1px solid #f0f2f5;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-        .search-result-item:hover { background: #f0f2f5; }
-        .search-result-item:last-child { border-bottom: none; }
-    </style>
-    <style>
-        /* Extra CSS from child templates */
-        {% block extra_css %}{% endblock %}
-    </style>
+    <!-- Custom Modern Nexus Design System -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/modern_nexus.css') }}">
+    <!-- Extra head content from child templates -->
+    {% block extra_css %}{% endblock %}
     <script>
         // Pre-declare updateSidebarBadge to avoid early call errors
         function updateSidebarBadge(badgeId, count) {
@@ -433,8 +36,15 @@
     </script>
     {{ site_config.custom_head_scripts | safe }}
 </head>
+
 <body>
     {{ site_config.custom_body_scripts | safe }}
+
+    <!-- Global Loading Overlay -->
+    <div id="loading-overlay">
+        <div class="loader-spinner"></div>
+        <div class="loading-text">Synchronizing...</div>
+    </div>
 
     {% set is_admin = session.get('role') == 'owner' %}
     {% set user_role = session.get('role', 'cashier') %}
@@ -442,73 +52,94 @@
     <!-- Facebook Top Bar -->
     <nav class="fb-navbar">
         <button class="navbar-toggler-custom" onclick="toggleSidebar()">
-            <i class="bi bi-list"></i>
+            <i class="bi bi-list fs-4 text-dark"></i>
         </button>
 
-        <a class="fb-navbar-brand me-3" href="/dashboard">
-            <img src="/static/images/login_hero.webp" alt="Logo" style="height: 32px; width: 32px; object-fit: cover; border-radius: 6px;">
+        <a class="fb-navbar-brand d-flex align-items-center me-3" href="/dashboard" style="text-decoration: none;">
+            <img src="{{ url_for('static', filename='images/login_hero.webp') }}" alt="Logo"
+                style="height: 36px; min-width: 36px; width: 36px; border-radius: 8px; border: 2px solid rgba(255,255,255,0.3);">
         </a>
-        
-        <a href="/dashboard" class="navbar-business-name">
+
+        <a href="/dashboard" class="navbar-business-name d-none d-md-block">
             {{ site_config.business_name }}
         </a>
-        
+        <a href="/dashboard" class="navbar-business-name d-md-none" style="font-size: 1.2rem;">
+            XPIDER
+        </a>
+
         {% if session.get('email') %}
         <div class="d-flex align-items-center me-auto">
-            <span class="badge rounded-pill fw-bold border border-white border-opacity-50 text-white shadow-sm" style="font-size: 0.75rem; letter-spacing: 0.05em; padding: 5px 12px; background: rgba(255, 255, 255, 0.15);">
+            <span class="badge rounded-pill fw-bold border border-white border-opacity-50 text-dark shadow-sm"
+                style="font-size: 0.75rem; letter-spacing: 0.05em; padding: 5px 12px; background: rgba(255,255,255,0.15);">
                 <i class="bi bi-geo-alt-fill me-1"></i>{{ current_branch_name }}
             </span>
         </div>
         {% endif %}
-        
-        <div class="mx-auto d-none d-xl-flex align-items-center gap-1 fw-bold text-white" id="topbar-clock" style="font-size: 1.1rem; letter-spacing: 0.5px;">
+
+        <div class="mx-auto d-none d-xl-flex align-items-center gap-1 fw-bold text-dark opacity-90" id="topbar-clock"
+            style="font-size: 1rem; letter-spacing: 0.5px;">
             <!-- Real-time clock injected via JS -->
         </div>
 
         <div class="ms-auto d-flex align-items-center gap-2">
 
-            <div class="d-none d-sm-flex align-items-center me-2 py-1 px-2 rounded-pill hover-bg-nav" style="cursor: pointer; color: white;" onclick="window.location.href='/profile';">
-                <div class="avatar me-2" style="width: 28px; height: 28px; font-size: 0.8rem; overflow: hidden; padding: 0;">
+            <div class="d-none d-sm-flex align-items-center me-2 py-1 px-3 rounded-pill avatar-hover"
+                style="cursor: pointer; color: black; background: rgba(255,255,255,0.1);" onclick="window.location.href='/profile';">
+                <div class="avatar me-2" style="border: 2px solid white;">
                     {% if current_user and current_user.profile_pic %}
-                        <img src="{{ url_for('static', filename=current_user.profile_pic) }}" style="width: 100%; height: 100%; object-fit: cover;">
+                    <img src="{{ url_for('static', filename=current_user.profile_pic) }}" alt="P">
                     {% else %}
-                        {{ session.get('email')[0]|upper if session.get('email') else 'U' }}
+                    <span class="fw-bold">{{ session.get('email')[0]|upper if session.get('email') else 'U' }}</span>
                     {% endif %}
                 </div>
-                <span class="fw-bold small">{{ session.get('email').split('@')[0] if session.get('email') else 'User' }}</span>
+                <span class="fw-bold d-none d-lg-inline" style="font-size: 0.9rem;">{{ session.get('email').split('@')[0] if session.get('email') else 'User'
+                    }}</span>
             </div>
-            
+
             <!-- Theme toggle removed as Facebook theme is now enforced globally -->
-            
+
 
             <!-- Notification Center Dropdown removed as per user request -->
-            
+
             <div class="dropdown">
-                <button class="btn rounded-circle p-0 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; background: rgba(255,255,255,0.1); color: white;" data-bs-toggle="dropdown">
+                <button class="btn btn-icon bg-white bg-opacity-20 text-dark border-0 shadow-none"
+                    data-bs-toggle="dropdown">
                     <i class="bi bi-caret-down-fill"></i>
                 </button>
-                <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2 p-2" style="width: 300px; border-radius: 8px;">
-                    <li class="p-2 mb-2 rounded hover-bg" style="cursor: pointer;" onclick="window.location.href='/profile';">
+                <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2 p-2"
+                    style="width: 300px; border-radius: 8px;">
+                    <li class="p-2 mb-2 rounded hover-bg" style="cursor: pointer;"
+                        onclick="window.location.href='/profile';">
                         <div class="d-flex align-items-center gap-3">
-                            <div class="avatar" style="width: 60px; height: 60px; font-size: 1.5rem; background: #e4e6eb; color: #1c1e21; overflow: hidden; padding: 0;">
+                            <div class="avatar"
+                                style="width: 60px; height: 60px; font-size: 1.5rem; background: #e4e6eb; color: #1c1e21; overflow: hidden; padding: 0;">
                                 {% if current_user and current_user.profile_pic %}
-                                    <img src="{{ url_for('static', filename=current_user.profile_pic) }}" style="width: 100%; height: 100%; object-fit: cover;">
+                                <img src="{{ url_for('static', filename=current_user.profile_pic) }}"
+                                    style="width: 100%; height: 100%; object-fit: cover;">
                                 {% else %}
-                                    {{ session.get('email')[0]|upper if session.get('email') else 'U' }}
+                                {{ session.get('email')[0]|upper if session.get('email') else 'U' }}
                                 {% endif %}
                             </div>
                             <div>
-                                <div class="fw-bold fs-5 text-dark">{{ session.get('email').split('@')[0] if session.get('email') else 'User' }}</div>
+                                <div class="fw-bold fs-5 text-dark">{{ session.get('email').split('@')[0] if
+                                    session.get('email') else 'User' }}</div>
                                 <div class="text-muted small">See your profile</div>
                             </div>
                         </div>
                     </li>
-                    <li><hr class="dropdown-divider"></li>
-                    <li><a class="dropdown-item p-2 rounded d-flex align-items-center" href="{{ url_for('auth.profile') }}"><i class="bi bi-person-circle me-3 fs-4"></i>Your Profile</a></li>
+                    <li>
+                        <hr class="dropdown-divider">
+                    </li>
+                    <li><a class="dropdown-item p-2 rounded d-flex align-items-center"
+                            href="{{ url_for('auth.profile') }}"><i class="bi bi-person-circle me-3 fs-4"></i>Your
+                            Profile</a></li>
                     {% if is_admin %}
-                    <li><a class="dropdown-item p-2 rounded d-flex align-items-center" href="/profile?tab=settings"><i class="bi bi-gear-fill me-3 fs-4"></i>Business Settings</a></li>
+                    <li><a class="dropdown-item p-2 rounded d-flex align-items-center" href="/profile?tab=settings"><i
+                                class="bi bi-gear-fill me-3 fs-4"></i>Business Settings</a></li>
                     {% endif %}
-                    <li><a class="dropdown-item p-2 rounded d-flex align-items-center text-danger" href="{{ url_for('auth.logout') }}"><i class="bi bi-box-arrow-right me-3 fs-4"></i>Log Out</a></li>
+                    <li><a class="dropdown-item p-2 rounded d-flex align-items-center text-danger"
+                            href="{{ url_for('auth.logout') }}"><i class="bi bi-box-arrow-right me-3 fs-4"></i>Log
+                            Out</a></li>
                 </ul>
             </div>
         </div>
@@ -519,34 +150,27 @@
 
             <span class="sidebar-section-label">Main</span>
             {% if is_admin or cashier_perms.get('dashboard') %}
-            <a href="{{ url_for('dashboard.dashboard') }}" class="sidebar-link {% if request.endpoint == 'dashboard.dashboard' %}active{% endif %}">
+            <a href="{{ url_for('dashboard.dashboard') }}"
+                class="sidebar-link {% if request.endpoint == 'dashboard.dashboard' %}active{% endif %}">
                 <i class="bi bi-grid-1x2-fill s-icon" style="color:#1877f2;"></i>
                 <span class="s-label">Dashboard</span>
                 <span class="s-badge text-white d-none" id="badge-dashboard" style="background:#1877f2;">0</span>
             </a>
-            
-            <!-- Branches Dropdown (Nexus Architecture) -->
-            {% if available_branches %}
+
+            <!-- Branch List (Updated Icon & Simplified) - OWNER ONLY -->
+            {% if is_admin and available_branches %}
             <div class="sidebar-link-group">
                 <a href="javascript:void(0)" class="sidebar-link" onclick="toggleSidebarDropdown('branchesDrop')">
-                    <i class="bi bi-list s-icon" style="color: #6c757d;"></i>
-                    <span class="s-label">Terminals</span>
+                    <i class="bi bi-list s-icon" style="color: #1877f2;"></i>
+                    <span class="s-label">Branch List</span>
                     <i class="bi bi-chevron-down ms-auto small opacity-50" id="branchesDropIcon"></i>
                 </a>
                 <div id="branchesDrop" class="sidebar-dropdown">
-                    {% if session.get('role') == 'owner' %}
-                    <form action="{{ url_for('branches.set_branch') }}" method="POST">
-                        <input type="hidden" name="branch_id" value="">
-                        <button type="submit" class="sidebar-sublink {% if not session.get('branch_id') %}active{% endif %}">
-                            <i class="bi bi-globe me-2"></i> Global Fleet
-                        </button>
-                    </form>
-                    {% endif %}
-                    
                     {% for b in available_branches %}
                     <form action="{{ url_for('branches.set_branch') }}" method="POST">
                         <input type="hidden" name="branch_id" value="{{ b._id }}">
-                        <button type="submit" class="sidebar-sublink {% if session.get('branch_id') == b._id|string %}active{% endif %}">
+                        <button type="submit"
+                            class="sidebar-sublink {% if session.get('branch_id') == b._id|string %}active{% endif %}">
                             <i class="bi bi-building me-2"></i> {{ b.name }}
                         </button>
                     </form>
@@ -557,7 +181,8 @@
             {% endif %}
 
             {% if not is_admin and cashier_perms.get('pos') %}
-            <a href="{{ url_for('pos.pos_view') }}" class="sidebar-link {% if request.endpoint == 'pos.pos_view' %}active{% endif %}">
+            <a href="{{ url_for('pos.pos_view') }}"
+                class="sidebar-link {% if request.endpoint == 'pos.pos_view' %}active{% endif %}">
                 <i class="bi bi-pc-display-horizontal s-icon" style="color:#2ecc71;"></i>
                 <span class="s-label">Point of Sale</span>
             </a>
@@ -565,15 +190,17 @@
 
             <span class="sidebar-section-label">Inventory</span>
             {% if is_admin or cashier_perms.get('items_master') %}
-            <a href="{{ url_for('inventory.items') }}" id="nav-items" class="sidebar-link {% if request.endpoint == 'inventory.items' %}active{% endif %}">
-                <i class="bi bi-list-ul s-icon" style="color:#f0a500;"></i>
+            <a href="{{ url_for('inventory.items') }}" id="nav-items"
+                class="sidebar-link {% if request.endpoint == 'inventory.items' %}active{% endif %}">
+                <i class="bi bi-box-seam-fill s-icon" style="color:#f0a500;"></i>
                 <span class="s-label">Items</span>
                 <span class="s-badge bg-success d-none" id="badge-items">0</span>
             </a>
             {% endif %}
 
             {% if is_admin or cashier_perms.get('sales_ledger') %}
-            <a href="{{ url_for('sales.sales_list') }}" id="nav-sales" class="sidebar-link {% if request.endpoint == 'sales.sales_list' %}active{% endif %}">
+            <a href="{{ url_for('sales.sales_list') }}" id="nav-sales"
+                class="sidebar-link {% if request.endpoint == 'sales.sales_list' %}active{% endif %}">
                 <i class="bi bi-cart-check s-icon" style="color:#e74c3c;"></i>
                 <span class="s-label">Sold Items</span>
                 <span class="s-badge bg-success d-none" id="badge-sales">0</span>
@@ -581,7 +208,8 @@
             {% endif %}
 
             {% if is_admin or cashier_perms.get('restock') %}
-            <a href="{{ url_for('inventory.restock') }}" id="nav-restock" class="sidebar-link {% if request.endpoint == 'inventory.restock' %}active{% endif %}">
+            <a href="{{ url_for('inventory.restock') }}" id="nav-restock"
+                class="sidebar-link {% if request.endpoint == 'inventory.restock' %}active{% endif %}">
                 <i class="bi bi-arrow-left-right s-icon" style="color:#3498db;"></i>
                 <span class="s-label">Restock</span>
                 <span class="s-badge d-none" id="badge-restocks">0</span>
@@ -589,7 +217,8 @@
             {% endif %}
 
             {% if is_admin or cashier_perms.get('sales_summary') %}
-            <a href="{{ url_for('sales.sales_summary') }}" class="sidebar-link {% if request.endpoint == 'sales.sales_summary' %}active{% endif %}">
+            <a href="{{ url_for('sales.sales_summary') }}"
+                class="sidebar-link {% if request.endpoint == 'sales.sales_summary' %}active{% endif %}">
                 <i class="bi bi-graph-up-arrow s-icon" style="color:#2abba7;"></i>
                 <span class="s-label">Sales Summary</span>
                 <span class="s-badge text-white d-none" id="badge-sales-summary" style="background:#2abba7;">0</span>
@@ -598,7 +227,8 @@
 
             <span class="sidebar-section-label">Notices</span>
             {% if is_admin or cashier_perms.get('bulletin_board') %}
-            <a href="{{ url_for('bulletin.bulletin') }}" class="sidebar-link {% if request.endpoint == 'bulletin.bulletin' %}active{% endif %}">
+            <a href="{{ url_for('bulletin.bulletin') }}"
+                class="sidebar-link {% if request.endpoint == 'bulletin.bulletin' %}active{% endif %}">
                 <i class="bi bi-clipboard-data s-icon" style="color:#e74c3c;"></i>
                 <span class="s-label">Bulletin Board</span>
                 <span class="s-badge text-white d-none" id="badge-bulletin" style="background:#e74c3c;">0</span>
@@ -607,7 +237,8 @@
 
 
             {% if is_admin or cashier_perms.get('legend') %}
-            <a href="{{ url_for('inventory.legend') }}" class="sidebar-link {% if request.endpoint == 'inventory.legend' %}active{% endif %}">
+            <a href="{{ url_for('inventory.legend') }}"
+                class="sidebar-link {% if request.endpoint == 'inventory.legend' %}active{% endif %}">
                 <i class="bi bi-exclamation-triangle-fill s-icon" style="color:#e74c3c;"></i>
                 <span class="s-label">Low stock alert</span>
                 <span class="s-badge text-white d-none" id="badge-legend" style="background:#e74c3c;">0</span>
@@ -616,12 +247,14 @@
 
             {% if is_admin %}
             <span class="sidebar-section-label">Administration</span>
-            <a href="/profile?tab=settings" class="sidebar-link {% if request.path == '/profile' and request.args.get('tab') == 'settings' %}active{% endif %}">
+            <a href="/profile?tab=settings"
+                class="sidebar-link {% if request.path == '/profile' and request.args.get('tab') == 'settings' %}active{% endif %}">
                 <i class="bi bi-gear-fill s-icon" style="color:#1877f2;"></i>
                 <span class="s-label">Business Settings</span>
                 <span class="s-badge text-white d-none" id="badge-settings" style="background:#1877f2;">0</span>
             </a>
-            <a href="{{ url_for('branches.branch_list') }}" class="sidebar-link {% if request.endpoint == 'branches.branch_list' %}active{% endif %}">
+            <a href="{{ url_for('branches.branch_list') }}"
+                class="sidebar-link {% if request.endpoint == 'branches.branch_list' %}active{% endif %}">
                 <i class="bi bi-diagram-3-fill s-icon" style="color:#8e44ad;"></i>
                 <span class="s-label">Manage Branches</span>
             </a>
@@ -635,14 +268,14 @@
 
     <main id="main-content">
         {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm" role="alert">
-                        {{ message|safe }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    </div>
-                {% endfor %}
-            {% endif %}
+        {% if messages %}
+        {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm" role="alert">
+            {{ message|safe }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+        {% endif %}
         {% endwith %}
 
         {% block content %}{% endblock %}
@@ -656,6 +289,7 @@
         .hover-bg:hover {
             background-color: rgba(0, 0, 0, 0.05) !important;
         }
+
         .hover-bg-nav:hover {
             background-color: rgba(255, 255, 255, 0.1) !important;
         }
@@ -663,8 +297,12 @@
     <script>
         const socket = io({
             reconnection: true,
-            reconnectionAttempts: 10,
-            timeout: 10000
+            reconnectionDelay: 1000,
+            reconnectionDelayMax: 5000,
+            reconnectionAttempts: 20,
+            timeout: 45000, // Increased to 45s for slower connections
+            transports: ['polling', 'websocket'], // Try polling first for stability
+            autoConnect: true
         });
 
         socket.on('connect', () => {
@@ -676,7 +314,7 @@
         });
 
         socket.on('theme_update', (data) => {
-            if(data.theme !== 'facebook') console.log("[Theme Oversight] Enforcing Facebook theme...");
+            if (data.theme !== 'facebook') console.log("[Theme Oversight] Enforcing Facebook theme...");
         });
 
         socket.on('dashboard_update', () => {
@@ -691,7 +329,7 @@
 
         const shownToastsKey = 'xpider_shown_toasts';
         function getShownToasts() {
-            try { return JSON.parse(sessionStorage.getItem(shownToastsKey) || '[]'); } catch(e) { return []; }
+            try { return JSON.parse(sessionStorage.getItem(shownToastsKey) || '[]'); } catch (e) { return []; }
         }
         function markToastAsShown(id) {
             if (!id) return;
@@ -728,7 +366,7 @@
         function showSystemToast(data) {
             const config = getNotificationConfig(data.type);
             const email = data.user ? data.user.split('@')[0] : 'System';
-            
+
             // Priority Styling
             let iconType = 'info';
             if (data.priority === 'CRITICAL' || data.priority === 'WARNING') iconType = 'warning';
@@ -750,7 +388,7 @@
                     toast.addEventListener('mouseenter', Swal.stopTimer);
                     toast.addEventListener('mouseleave', Swal.resumeTimer);
                     if (notifSound && typeof notifSound.play === 'function') {
-                        notifSound.play().catch(() => {});
+                        notifSound.play().catch(() => { });
                     }
                 }
             });
@@ -778,7 +416,7 @@
                 });
         }
 
-        document.addEventListener('click', function(e) {
+        document.addEventListener('click', function (e) {
             const searchContainer = document.querySelector('.fb-search-container');
             const searchResults = document.getElementById('globalSearchResults');
             if (searchContainer && searchResults && !searchContainer.contains(e.target)) searchResults.style.display = 'none';
@@ -854,7 +492,7 @@
                     const list = document.getElementById('notification-list');
                     if (list) {
                         let html = '';
-                        
+
                         // 1. Legend Alerts
                         if (data.sidebar && data.sidebar.legend > 0) {
                             html += `<li class="p-3 border-bottom hover-bg">
@@ -873,39 +511,39 @@
                                 </a></li>`;
                         }
 
-                    if (data.notifications && data.notifications.length > 0) {
-                        const shown = getShownToasts();
-                        const now = new Date();
-                        
-                        data.notifications.forEach((n, idx) => {
-                            const cfg = getNotificationConfig(n.type);
-                            
-                            // ZERO-LOSS TOAST LOGIC:
-                            // If notification is less than 30s old and hasn't been toasted yet, toast it now.
-                            const created = new Date(n.created_at);
-                            const ageMs = now - created;
-                            if (ageMs < 30000 && !shown.includes(n.id)) {
-                                markToastAsShown(n.id);
-                                // Delay slightly for multiple toasts to avoid overlap
-                                setTimeout(() => showSystemToast(n), idx * 500);
-                            }
+                        if (data.notifications && data.notifications.length > 0) {
+                            const shown = getShownToasts();
+                            const now = new Date();
 
-                            html += `<li class="p-3 border-bottom hover-bg position-relative">
+                            data.notifications.forEach((n, idx) => {
+                                const cfg = getNotificationConfig(n.type);
+
+                                // ZERO-LOSS TOAST LOGIC:
+                                // If notification is less than 30s old and hasn't been toasted yet, toast it now.
+                                const created = new Date(n.created_at);
+                                const ageMs = now - created;
+                                if (ageMs < 30000 && !shown.includes(n.id)) {
+                                    markToastAsShown(n.id);
+                                    // Delay slightly for multiple toasts to avoid overlap
+                                    setTimeout(() => showSystemToast(n), idx * 500);
+                                }
+
+                                html += `<li class="p-3 border-bottom hover-bg position-relative">
                                 <div class="position-absolute top-0 end-0 p-2" style="z-index: 5;"><button class="btn btn-sm text-muted" onclick="event.preventDefault(); event.stopPropagation(); markOneRead('notif', '${n.id}')"><i class="bi bi-x"></i></button></div>
                                 <a href="javascript:void(0)" onclick="markOneRead('notif', '${n.id}', '${cfg.url}')" class="text-decoration-none d-flex gap-3">
                                     <div class="bg-light text-dark rounded-circle d-flex align-items-center justify-content-center border" style="width:40px; height:40px; border-color:${cfg.color} !important;"><i class="bi ${cfg.icon}" style="color:${cfg.color}"></i></div>
                                     <div><div class="fw-bold text-dark small">${(cfg.title || 'System Alert')}</div><div class="x-small text-muted">${(n.message || 'No details available.')}</div></div>
                                 </a></li>`;
-                        });
-                    }
+                            });
+                        }
 
                         if (!html) html = '<li class="p-4 text-center text-muted"><i class="bi bi-bell fs-1 opacity-25 d-block mb-2"></i><span class="small">No new notifications.</span></li>';
                         list.innerHTML = html;
                     }
 
-                    if (lastTotalUnread !== null && currentTotal > lastTotalUnread) notifSound.play().catch(() => {});
+                    if (lastTotalUnread !== null && currentTotal > lastTotalUnread) notifSound.play().catch(() => { });
                     lastTotalUnread = currentTotal;
-                }).catch(() => {});
+                }).catch(() => { });
         }
 
         function markAllNotifsRead() {
@@ -913,7 +551,7 @@
                 .then(() => {
                     fetchNotifications();
                     Swal.fire({ title: 'Done!', text: 'All notifications marked as read', icon: 'success', timer: 1500, showConfirmButton: false });
-                }).catch(() => {});
+                }).catch(() => { });
         }
 
         fetchNotifications();
@@ -921,7 +559,7 @@
     </script>
 
     <script>
-        (function() {
+        (function () {
             let dbFailures = 0;
             async function checkDbHealth() {
                 try {
@@ -929,18 +567,18 @@
                     const data = await res.json();
                     if (data.db === 'connected') dbFailures = 0;
                     else { dbFailures++; if (dbFailures >= 2) window.location.href = '/offline'; }
-                } catch (e) {}
+                } catch (e) { }
             }
             setInterval(checkDbHealth, 15000);
         })();
-        document.addEventListener('click', function(e) {
+        document.addEventListener('click', function (e) {
             const anchor = e.target.closest('a');
             if (anchor && anchor.getAttribute('href') === '#') e.preventDefault();
         });
-        
+
         // --- Web Push Notifications API ---
         const vapidPublicKey = "{{ vapid_public_key|safe }}";
-        
+
         function urlB64ToUint8Array(base64String) {
             const padding = '='.repeat((4 - base64String.length % 4) % 4);
             const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
@@ -954,16 +592,16 @@
 
         if ('serviceWorker' in navigator && 'PushManager' in window) {
             navigator.serviceWorker.register('/static/service-worker.js')
-            .then(function(swReg) {
-                window.swRegistration = swReg;
-                // Auto-subscribe if installed as PWA and previously granted
-                if (window.matchMedia('(display-mode: standalone)').matches && Notification.permission === 'granted') {
-                    subscribeUser();
-                }
-            })
-            .catch(function(error) {
-                console.error('Service Worker Registration Failed:', error);
-            });
+                .then(function (swReg) {
+                    window.swRegistration = swReg;
+                    // Auto-subscribe if installed as PWA and previously granted
+                    if (window.matchMedia('(display-mode: standalone)').matches && Notification.permission === 'granted') {
+                        subscribeUser();
+                    }
+                })
+                .catch(function (error) {
+                    console.error('Service Worker Registration Failed:', error);
+                });
         }
 
         function subscribeUser() {
@@ -982,7 +620,7 @@
                 return navigator.serviceWorker.getRegistration('/static/service-worker.js');
             };
 
-            getRegistration().then(function(swReg) {
+            getRegistration().then(function (swReg) {
                 if (!swReg) throw new Error('Service Worker not registered.');
                 window.swRegistration = swReg;
                 const applicationServerKey = urlB64ToUint8Array(vapidPublicKey);
@@ -991,33 +629,33 @@
                     applicationServerKey: applicationServerKey
                 });
             })
-            .then(function(subscription) {
-                return fetch('/api/push-subscribe', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(subscription)
-                });
-            }).then(function(response) {
-                if(response.ok) {
-                    Swal.fire({
-                        title: 'Device Registered!',
-                        text: 'You will now receive native alerts on this device.',
-                        icon: 'success',
-                        toast: true,
-                        position: 'top-end',
-                        showConfirmButton: false,
-                        timer: 3000
+                .then(function (subscription) {
+                    return fetch('/api/push-subscribe', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(subscription)
                     });
-                } else {
-                    throw new Error('Server returned ' + response.status);
-                }
-            }).catch(function(err) {
-                const toggle = document.getElementById('pushToggleSwitch');
-                if (toggle) toggle.checked = false;
-                Swal.fire('Subscription Failed', err.toString(), 'error');
-            });
+                }).then(function (response) {
+                    if (response.ok) {
+                        Swal.fire({
+                            title: 'Device Registered!',
+                            text: 'You will now receive native alerts on this device.',
+                            icon: 'success',
+                            toast: true,
+                            position: 'top-end',
+                            showConfirmButton: false,
+                            timer: 3000
+                        });
+                    } else {
+                        throw new Error('Server returned ' + response.status);
+                    }
+                }).catch(function (err) {
+                    const toggle = document.getElementById('pushToggleSwitch');
+                    if (toggle) toggle.checked = false;
+                    Swal.fire('Subscription Failed', err.toString(), 'error');
+                });
         }
-        
+
         function unsubscribeUser() {
             const toggle = document.getElementById('pushToggleSwitch');
 
@@ -1035,47 +673,47 @@
             }
 
             window.swRegistration.pushManager.getSubscription()
-            .then(function(subscription) {
-                if (!subscription) {
-                    Swal.fire({
-                        title: 'Already Disabled',
-                        text: 'This device has no active push subscription.',
-                        icon: 'info',
-                        toast: true,
-                        position: 'top-end',
-                        showConfirmButton: false,
-                        timer: 3000
-                    });
-                    return;
-                }
-
-                // Step 1: Cancel future push deliveries at the browser level
-                return subscription.unsubscribe().then(function(success) {
-                    if (!success) {
-                        throw new Error('Browser unsubscribe returned false.');
+                .then(function (subscription) {
+                    if (!subscription) {
+                        Swal.fire({
+                            title: 'Already Disabled',
+                            text: 'This device has no active push subscription.',
+                            icon: 'info',
+                            toast: true,
+                            position: 'top-end',
+                            showConfirmButton: false,
+                            timer: 3000
+                        });
+                        return;
                     }
 
-                    // Step 2: Remove the endpoint from our server
-                    return fetch('/api/push-unsubscribe', {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({endpoint: subscription.endpoint})
+                    // Step 1: Cancel future push deliveries at the browser level
+                    return subscription.unsubscribe().then(function (success) {
+                        if (!success) {
+                            throw new Error('Browser unsubscribe returned false.');
+                        }
+
+                        // Step 2: Remove the endpoint from our server
+                        return fetch('/api/push-unsubscribe', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ endpoint: subscription.endpoint })
+                        });
+                    }).then(function () {
+                        Swal.fire({
+                            title: 'Push Alerts Paused',
+                            html: 'Device push notifications have been disabled.<br><span class="x-small text-muted">Note: Your browser\'s notification <b>permission</b> stays "Allowed" — this is normal and controlled by the browser, not the app. No messages will be sent to this device.</span>',
+                            icon: 'success',
+                            confirmButtonText: 'OK'
+                        });
                     });
-                }).then(function() {
-                    Swal.fire({
-                        title: 'Push Alerts Paused',
-                        html: 'Device push notifications have been disabled.<br><span class="x-small text-muted">Note: Your browser\'s notification <b>permission</b> stays "Allowed" — this is normal and controlled by the browser, not the app. No messages will be sent to this device.</span>',
-                        icon: 'success',
-                        confirmButtonText: 'OK'
-                    });
+                }).catch(function (error) {
+                    if (toggle) toggle.checked = true; // Revert toggle on failure
+                    Swal.fire('Error', 'Could not disable push alerts: ' + error.message, 'error');
                 });
-            }).catch(function(error) {
-                if (toggle) toggle.checked = true; // Revert toggle on failure
-                Swal.fire('Error', 'Could not disable push alerts: ' + error.message, 'error');
-            });
         }
-        
-        window.requestDeviceNotifications = async function() {
+
+        window.requestDeviceNotifications = async function () {
             const toggle = document.getElementById('pushToggleSwitch');
 
             if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
@@ -1131,7 +769,7 @@
             }
             return false;
         };
-        
+
         // Initialize Toggle Switch State on page load
         document.addEventListener('DOMContentLoaded', () => {
             const toggle = document.getElementById('pushToggleSwitch');
@@ -1140,22 +778,22 @@
             // Initialize toggle via getRegistration to bypass scope control rules
             if ('serviceWorker' in navigator && 'PushManager' in window) {
                 navigator.serviceWorker.getRegistration('/static/service-worker.js')
-                .then(function(swReg) {
-                    if (swReg) {
-                        window.swRegistration = swReg;
-                        return swReg.pushManager.getSubscription();
-                    }
-                    return null;
-                }).then(function(sub) {
-                    // Reflect real subscription state in the toggle
-                    toggle.checked = !!sub;
-                }).catch(function() {
-                    toggle.checked = false;
-                });
+                    .then(function (swReg) {
+                        if (swReg) {
+                            window.swRegistration = swReg;
+                            return swReg.pushManager.getSubscription();
+                        }
+                        return null;
+                    }).then(function (sub) {
+                        // Reflect real subscription state in the toggle
+                        toggle.checked = !!sub;
+                    }).catch(function () {
+                        toggle.checked = false;
+                    });
             }
 
             // Add change event listener
-            toggle.addEventListener('change', function() {
+            toggle.addEventListener('change', function () {
                 if (this.checked) {
                     requestDeviceNotifications();
                 } else {
@@ -1166,14 +804,17 @@
         function toggleSidebarDropdown(id) {
             const drop = document.getElementById(id);
             const icon = document.getElementById(id + 'Icon');
-            const isVisible = drop.style.display === 'block';
             
-            drop.style.display = isVisible ? 'none' : 'block';
-            if (icon) {
-                icon.className = isVisible ? 'bi bi-chevron-down ms-auto small opacity-50' : 'bi bi-chevron-up ms-auto small opacity-50';
+            if (drop.classList.contains('show')) {
+                drop.classList.remove('show');
+                if (icon) icon.classList.replace('bi-chevron-up', 'bi-chevron-down');
+            } else {
+                drop.classList.add('show');
+                if (icon) icon.classList.replace('bi-chevron-down', 'bi-chevron-up');
             }
         }
     </script>
     {% block scripts %}{% endblock %}
 </body>
+
 </html>

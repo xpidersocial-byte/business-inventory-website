@@ -1,3 +1,5 @@
+import requests
+import urllib3
 import eventlet
 eventlet.monkey_patch(all=True)
 
@@ -147,7 +149,7 @@ def load_user_theme():
 @app.context_processor
 def inject_globals():
     config = get_site_config()
-    branch_name = "Global View"
+    branch_name = "Danao"
     available_branches = []
     
     if session.get('branch_id'):
@@ -158,7 +160,7 @@ def inject_globals():
             if b: branch_name = b.get('name', 'Unknown Branch')
         except: pass
 
-    if 'email' in session:
+    if 'email' in session and session.get('role') == 'owner':
         from core.db import get_branches_collection
         available_branches = list(get_branches_collection().find({"active": True}).sort("name", 1))
 

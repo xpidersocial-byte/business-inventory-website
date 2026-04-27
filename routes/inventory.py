@@ -49,7 +49,7 @@ def items():
     for item in raw_items:
         m = calculate_item_metrics(item)
         if not branch_id:
-            m['branch_name'] = branches_map.get(str(item.get('branch_id')), "Global")
+            m['branch_name'] = branches_map.get(str(item.get('branch_id')), "Danao")
         processed.append(m)
     
     # Filter categories and menus by branch

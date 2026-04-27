@@ -4,11 +4,63 @@
 
 {% block extra_css %}
 <style>
-    .sortable { cursor: pointer; position: relative; }
-    .sortable:hover { background: rgba(255,255,255,0.05) !important; }
-    .sort-icon { font-size: 0.7rem; margin-left: 5px; opacity: 0.3; }
-    .sort-active .sort-icon { opacity: 1; color: var(--primary-soft); }
-    .search-container { max-width: 400px; }
+    .log-card {
+        background: var(--card-bg);
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--border-soft);
+        box-shadow: var(--shadow-sm);
+        overflow: hidden;
+    }
+
+    .table thead th {
+        background: var(--content-bg);
+        color: var(--text-muted);
+        font-size: 0.75rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        padding: 1rem;
+        border-bottom: 2px solid var(--border-soft);
+    }
+    
+    .sortable { cursor: pointer; transition: background 0.2s; }
+    .sortable:hover { background: rgba(0,0,0,0.02) !important; }
+    
+    .sort-icon { 
+        font-size: 0.7rem; 
+        margin-left: 0.5rem; 
+        opacity: 0.3;
+        transition: all 0.2s;
+    }
+    
+    .sort-active .sort-icon { 
+        opacity: 1; 
+        color: var(--primary-blue);
+    }
+
+    .badge-activity {
+        font-size: 0.7rem;
+        font-weight: 800;
+        padding: 0.4rem 0.8rem;
+        border-radius: 50px;
+        text-transform: uppercase;
+    }
+
+    .badge-restock {
+        background: rgba(46, 204, 113, 0.1);
+        color: #27ae60;
+        border: 1px solid rgba(46, 204, 113, 0.2);
+    }
+
+    .badge-damage {
+        background: rgba(231, 76, 60, 0.1);
+        color: #c0392b;
+        border: 1px solid rgba(231, 76, 60, 0.2);
+    }
+
+    @media (max-width: 991.98px) {
+        .search-container { max-width: 100% !important; }
+    }
 </style>
 {% endblock %}
 

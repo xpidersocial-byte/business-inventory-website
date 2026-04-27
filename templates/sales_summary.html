@@ -4,60 +4,84 @@
 
 {% block extra_css %}
 <style>
-    :root {
-        --soft-blue: #7c9df2;
-        --soft-teal: #63e6be;
-    }
-    .bg-card { background-color: var(--card-bg) !important; }
-    .text-theme-main { color: var(--text-main); }
-    .text-theme-muted { color: var(--text-theme-muted); }
-    .border-theme-soft { border-color: var(--border-soft) !important; }
-
-    .chart-card { border: 1px solid var(--border-soft); height: 100%; transition: all 0.3s ease; background-color: var(--card-bg) !important; border-radius: 12px; }
-    .chart-card:hover { transform: translateY(-3px); border-color: var(--primary-soft); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-    .chart-box { position: relative; height: 350px; width: 100%; }
-    .summary-icon { font-size: 2rem; opacity: 0.6; }
-    .bg-gradient-primary { background: linear-gradient(135deg, #7c9df2 0%, #4d6ab3 100%); }
-    .bg-gradient-success { background: linear-gradient(135deg, #82c91e 0%, #66a117 100%); }
-    .bg-gradient-info { background: linear-gradient(135deg, #63e6be 0%, #4ab596 100%); color: #000 !important; }
-
-    /* Match Dashboard Toggle Styles */
-    .period-btn { 
-        padding: 6px 16px; 
-        border-radius: 20px; 
-        font-size: 0.85rem; 
-        transition: all 0.3s ease;
-        text-decoration: none;
-        color: var(--text-theme-muted);
-        background: var(--glass-bg);
-    }
-    .period-btn.active { 
-        background-color: var(--primary-soft); 
-        color: white; 
-        box-shadow: 0 4px 12px rgba(13, 110, 253, 0.3);
+    .summary-card {
+        background: var(--card-bg);
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--border-soft);
+        box-shadow: var(--shadow-sm);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        overflow: hidden;
     }
     
-    .export-btn {
-        padding: 8px 16px;
-        border-radius: 8px;
-        font-weight: 600;
-        font-size: 0.85rem;
-        display: flex;
-        align-items: center;
-        gap: 8px;
+    .summary-card:hover {
+        transform: translateY(-5px);
+        box-shadow: var(--shadow-md);
+    }
+
+    .chart-card {
+        background: var(--card-bg);
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--border-soft);
+        box-shadow: var(--shadow-sm);
+        padding: 1.5rem;
+    }
+
+    .stat-badge {
+        font-size: 0.7rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        padding: 0.5rem 1rem;
+        border-radius: 50px;
+    }
+
+    .bg-gradient-premium-primary {
+        background: linear-gradient(135deg, #1877f2 0%, #1565c0 100%);
+        color: white;
+    }
+
+    .bg-gradient-premium-success {
+        background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
+        color: white;
+    }
+
+    .bg-gradient-premium-info {
+        background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+        color: white;
+    }
+
+    .period-nav {
+        background: var(--card-bg);
+        border: 1px solid var(--border-soft);
+        border-radius: 50px;
+        padding: 0.4rem;
+        display: inline-flex;
+        gap: 0.25rem;
+    }
+
+    .period-btn {
+        padding: 0.5rem 1.25rem;
+        border-radius: 50px;
+        font-size: 0.8rem;
+        font-weight: 700;
+        color: var(--text-muted);
+        text-decoration: none;
         transition: all 0.2s;
     }
 
-    /* Preview Table */
-    .preview-table th { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid var(--border-soft); }
-    .preview-table td { font-size: 0.85rem; }
-    
-    .preview-chart-container {
-        height: 180px;
+    .period-btn.active { color: #000 !important;
+        background: var(--primary-blue);
+        color: white;
+    }
+
+    .chart-box {
+        position: relative;
+        height: 350px;
         width: 100%;
-        background: rgba(255,255,255,0.02);
-        border-radius: 8px;
-        padding: 5px;
+    }
+
+    @media (max-width: 991.98px) {
+        .chart-box { height: 280px; }
     }
 </style>
 {% endblock %}
@@ -67,7 +91,7 @@
     <div class="col-md-12 d-flex flex-column flex-lg-row justify-content-between align-items-lg-center mb-4 gap-3">
         <div>
             <h2 class="text-theme-main fw-bold mb-0">Sales Analysis Summary</h2>
-            <p class="text-theme-muted small mb-0">Viewing <span class="text-primary fw-bold">{{ view_type|capitalize }}</span> Performance</p>
+            <p class="text-theme-main small mb-0">Viewing <span class="text-primary fw-bold">{{ view_type|capitalize }}</span> Performance</p>
         </div>
         
         <div class="d-flex flex-wrap gap-3 align-items-center">
@@ -96,10 +120,10 @@
 
     <!-- Financial Quick Summary Row -->
     <div class="col-md-4 mb-4">
-        <div class="card bg-gradient-primary text-white border-0 shadow-sm rounded-4">
+        <div class="card bg-gradient-primary text-dark border-0 shadow-sm rounded-4">
             <div class="card-body d-flex align-items-center justify-content-between py-4">
                 <div>
-                    <h6 class="text-uppercase small mb-1 opacity-75">{{ avg_label }}</h6>
+                    <h6 class="text-uppercase small mb-1 opacity-100">{{ avg_label }}</h6>
                     <h2 class="fw-bold mb-0">₱{{ "{:,.2f}".format(avg_revenue) }}</h2>
                 </div>
                 <i class="bi bi-graph-up-arrow summary-icon"></i>
@@ -107,10 +131,10 @@
         </div>
     </div>
     <div class="col-md-4 mb-4">
-        <div class="card bg-gradient-success text-white border-0 shadow-sm rounded-4">
+        <div class="card bg-gradient-success text-dark border-0 shadow-sm rounded-4">
             <div class="card-body d-flex align-items-center justify-content-between py-4">
                 <div>
-                    <h6 class="text-uppercase small mb-1 opacity-75">{{ total_label }}</h6>
+                    <h6 class="text-uppercase small mb-1 opacity-100">{{ total_label }}</h6>
                     <h2 class="fw-bold mb-0">₱{{ "{:,.2f}".format(total_profit) }}</h2>
                 </div>
                 <i class="bi bi-piggy-bank summary-icon"></i>
@@ -121,7 +145,7 @@
         <div class="card bg-gradient-info text-dark border-0 shadow-sm rounded-4">
             <div class="card-body d-flex align-items-center justify-content-between py-4">
                 <div>
-                    <h6 class="text-uppercase small mb-1 opacity-75">Profit Margin (Avg)</h6>
+                    <h6 class="text-uppercase small mb-1 opacity-100">Profit Margin (Avg)</h6>
                     <h2 class="fw-bold mb-0">{{ avg_profit_margin }}%</h2>
                 </div>
                 <i class="bi bi-percent summary-icon"></i>
@@ -175,7 +199,7 @@
             <div class="card-body p-0">
                 <div class="table-responsive">
                     <table class="table table-hover mb-0 align-middle border-theme-soft">
-                        <thead class="text-info border-bottom border-theme-soft bg-card">
+                        <thead class="text-theme-main border-bottom border-theme-soft bg-card">
                             <tr>
                                 <th class="ps-4">DATE ({% if view_type == 'weekly' %}WEEK START{% elif view_type == 'daily' %}DAY{% else %}MONTH{% endif %})</th>
                                 <th>SALES (REVENUE)</th>
@@ -189,7 +213,7 @@
                                 {% if weekly_revenue[i] != 0 or weekly_profit_values[i] != 0 %}
                                 <tr>
                                     <td class="ps-4 fw-bold text-theme-main">{{ weeks_labels[i] }}</td>
-                                    <td class="text-info fw-bold">₱{{ "{:,.2f}".format(weekly_revenue[i]) }}</td>
+                                    <td class="text-primary fw-bold">₱{{ "{:,.2f}".format(weekly_revenue[i]) }}</td>
                                     <td class="{{ 'text-success' if weekly_profit_values[i] >= 0 else 'text-danger' }} fw-bold">₱{{ "{:,.2f}".format(weekly_profit_values[i]) }}</td>
                                     <td class="text-end pe-4">
                                         <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25 px-3">WEEKLY</span>
@@ -202,7 +226,7 @@
                                 {% if daily_revenue[i] != 0 or daily_profit_values[i] != 0 %}
                                 <tr>
                                     <td class="ps-4 fw-bold text-theme-main">{{ daily_labels[i] }}</td>
-                                    <td class="text-info fw-bold">₱{{ "{:,.2f}".format(daily_revenue[i]) }}</td>
+                                    <td class="text-primary fw-bold">₱{{ "{:,.2f}".format(daily_revenue[i]) }}</td>
                                     <td class="{{ 'text-success' if daily_profit_values[i] >= 0 else 'text-danger' }} fw-bold">₱{{ "{:,.2f}".format(daily_profit_values[i]) }}</td>
                                     <td class="text-end pe-4">
                                         <span class="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25 px-3">DAILY</span>
@@ -215,7 +239,7 @@
                                 {% if revenue_values[i] != 0 or profit_values[i] != 0 %}
                                 <tr>
                                     <td class="ps-4 fw-bold text-theme-main">{{ months_labels[i]|upper }}</td>
-                                    <td class="text-info fw-bold">₱{{ "{:,.2f}".format(revenue_values[i]) }}</td>
+                                    <td class="text-primary fw-bold">₱{{ "{:,.2f}".format(revenue_values[i]) }}</td>
                                     <td class="{{ 'text-success' if profit_values[i] >= 0 else 'text-danger' }} fw-bold">₱{{ "{:,.2f}".format(profit_values[i]) }}</td>
                                     <td class="text-end pe-4">
                                         <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-3">RECORDED</span>
@@ -230,7 +254,7 @@
                                   (view_type == 'yearly' and revenue_values|sum == 0 and profit_values|sum == 0) or 
                                   (view_type == 'monthly' and revenue_values[now.month-1] == 0 and profit_values[now.month-1] == 0) %}
                             <tr>
-                                <td colspan="4" class="text-center text-theme-muted py-5">
+                                <td colspan="4" class="text-center text-theme-main py-5">
                                     <i class="bi bi-info-circle me-2"></i> No sales data recorded for this period.
                                 </td>
                             </tr>
@@ -263,11 +287,11 @@
                 <div class="p-4 bg-light border-bottom border-theme-soft">
                     <div class="row align-items-center">
                         <div class="col-md-3">
-                            <label class="x-small text-uppercase fw-bold text-muted mb-1">Total Revenue</label>
+                            <label class="x-small text-uppercase fw-bold text-theme-main mb-1">Total Revenue</label>
                             <h3 class="text-primary fw-bold mb-0" id="previewTotalRevenue">₱0.00</h3>
                         </div>
                         <div class="col-md-3">
-                            <label class="x-small text-uppercase fw-bold text-muted mb-1">Net Profit</label>
+                            <label class="x-small text-uppercase fw-bold text-theme-main mb-1">Net Profit</label>
                             <h3 class="text-success fw-bold mb-0" id="previewTotalProfit">₱0.00</h3>
                         </div>
                         <div class="col-md-4">
@@ -278,7 +302,7 @@
                         <div class="col-md-2 text-end d-none d-md-block">
                             <div class="rounded-3 border border-theme-soft bg-white p-2 text-center">
                                 <i class="bi bi-shield-check text-success fs-2 d-block"></i>
-                                <span class="x-small fw-bold text-theme-muted text-uppercase">Validated</span>
+                                <span class="x-small fw-bold text-theme-main text-uppercase">Validated</span>
                             </div>
                         </div>
                     </div>
@@ -286,7 +310,7 @@
                 <div class="table-responsive">
                     <table class="table table-hover preview-table mb-0">
                         <thead class="bg-card sticky-top">
-                            <tr class="text-theme-muted">
+                            <tr class="text-theme-main">
                                 <th class="ps-4">Date</th>
                                 <th>Item Name</th>
                                 <th>Qty</th>
@@ -309,7 +333,7 @@
                         </div>
                         <div>
                             <div class="x-small fw-bold text-theme-main">{{ email }}</div>
-                            <div class="text-theme-muted" style="font-size: 0.65rem;">Report Issuer</div>
+                            <div class="text-theme-main fw-bold" style="font-size: 0.65rem;">Report Issuer</div>
                         </div>
                     </div>
                 </div>
@@ -332,30 +356,43 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     const isFacebook = document.documentElement.getAttribute('data-theme') === 'facebook';
-    Chart.defaults.color = isFacebook ? '#65676b' : '#e0e0e0';
+    Chart.defaults.color = '#000000';
     Chart.defaults.borderColor = isFacebook ? '#e4e6eb' : '#333';
 
-    let mainLabels, mainRevenue, mainProfit, trendLabels, trendValues;
-    
-    {% if view_type == 'weekly' %}
-        mainLabels = {{ weeks_labels|tojson }};
-        mainRevenue = {{ weekly_revenue|tojson }};
-        mainProfit = {{ weekly_profit_values|tojson }};
-        trendLabels = {{ weeks_labels|tojson }};
-        trendValues = {{ weekly_revenue|tojson }};
-    {% elif view_type == 'daily' %}
-        mainLabels = {{ daily_labels|tojson }};
-        mainRevenue = {{ daily_revenue|tojson }};
-        mainProfit = {{ daily_profit_values|tojson }};
-        trendLabels = {{ daily_labels|tojson }};
-        trendValues = {{ daily_revenue|tojson }};
-    {% else %}
-        mainLabels = {{ months_labels|tojson }};
-        mainRevenue = {{ revenue_values|tojson }};
-        mainProfit = {{ profit_values|tojson }};
-        trendLabels = {{ weeks_labels|tojson }};
-        trendValues = {{ weekly_revenue|tojson }};
-    {% endif %}
+    const reportData = {
+        viewType: "{{ view_type }}",
+        mainLabels: [],
+        mainRevenue: [],
+        mainProfit: [],
+        trendLabels: [],
+        trendValues: []
+    };
+
+    if (reportData.viewType === 'weekly') {
+        reportData.mainLabels = {{ weeks_labels|tojson|safe }};
+        reportData.mainRevenue = {{ weekly_revenue|tojson|safe }};
+        reportData.mainProfit = {{ weekly_profit_values|tojson|safe }};
+        reportData.trendLabels = {{ weeks_labels|tojson|safe }};
+        reportData.trendValues = {{ weekly_revenue|tojson|safe }};
+    } else if (reportData.viewType === 'daily') {
+        reportData.mainLabels = {{ daily_labels|tojson|safe }};
+        reportData.mainRevenue = {{ daily_revenue|tojson|safe }};
+        reportData.mainProfit = {{ daily_profit_values|tojson|safe }};
+        reportData.trendLabels = {{ daily_labels|tojson|safe }};
+        reportData.trendValues = {{ daily_revenue|tojson|safe }};
+    } else {
+        reportData.mainLabels = {{ months_labels|tojson|safe }};
+        reportData.mainRevenue = {{ revenue_values|tojson|safe }};
+        reportData.mainProfit = {{ profit_values|tojson|safe }};
+        reportData.trendLabels = {{ weeks_labels|tojson|safe }};
+        reportData.trendValues = {{ weekly_revenue|tojson|safe }};
+    }
+
+    const mainLabels = reportData.mainLabels;
+    const mainRevenue = reportData.mainRevenue;
+    const mainProfit = reportData.mainProfit;
+    const trendLabels = reportData.trendLabels;
+    const trendValues = reportData.trendValues;
 
     const mainCtx = document.getElementById('mainChart').getContext('2d');
     new Chart(mainCtx, {
@@ -481,7 +518,7 @@
             data.data.forEach(item => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td class="ps-4 text-theme-muted small">${item.date}</td>
+                    <td class="ps-4 text-theme-main small">${item.date}</td>
                     <td class="fw-bold">${item.item_name}</td>
                     <td><span class="badge bg-secondary">${item.qty}</span></td>
                     <td>

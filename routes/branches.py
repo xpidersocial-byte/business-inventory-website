@@ -134,23 +134,32 @@ def delete_branch(id):
         
     return redirect(url_for('branches.branch_list'))
 
-    # Deprecated: The select_branch page has been removed in favor of the Nexus Sidebar Dropdown.
-    return redirect(url_for('dashboard.dashboard'))
-
 @branches_bp.route('/set-branch', methods=['POST'])
 @login_required
 def set_branch():
     branch_id = request.form.get('branch_id')
     role = session.get('role', 'cashier')
     
+    # Security: If user is a cashier, they can only select their own assigned branch
+    if role == 'cashier':
+        users_col = get_users_collection()
+        user = users_col.find_one({"email": session.get('email')})
+        if user and user.get('branch_id'):
+            branch_id = user.get('branch_id') # Force their assigned branch
+        else:
+            flash("You do not have an assigned branch. Please contact your manager.", "danger")
+            return redirect(url_for('auth.logout'))
+
     if branch_id:
         session['branch_id'] = branch_id
-        log_action("SWITCH_BRANCH", f"Switched to terminal: {branch_id}")
-    else:
-        if role == 'owner': # NULL means Global Fleet
-            session['branch_id'] = None
-            log_action("SWITCH_BRANCH", "Switched to Global Fleet Telemetry")
-            
+        log_action("SWITCH_BRANCH", f"Switched to branch ID: {branch_id}")
+        return redirect(url_for('dashboard.dashboard'))
+    
+    # If no branch_id, fallback to global (if owner)
+    if role == 'owner':
+        session.pop('branch_id', None)
+        return redirect(url_for('dashboard.dashboard'))
+
     return redirect(url_for('dashboard.dashboard'))
 
 @branches_bp.route('/branches/request-delete-code', methods=['POST'])
@@ -172,3 +181,57 @@ def request_delete_code():
         return jsonify({"success": True, "message": f"Verification code sent to {recipient}"})
     else:
         return jsonify({"success": False, "message": "Failed to send verification email. Please check SMTP settings."})
+@branches_bp.route('/branches/leaderboard')
+@login_required
+def leaderboard():
+    branches_col = get_branches_collection()
+    branches = list(branches_col.find({"active": True}))
+    
+    # --- Competitive Metrics ---
+    purchase_col = get_purchase_collection()
+    items_col = get_items_collection()
+    users_col = get_users_collection()
+    now = datetime.now()
+    week_ago = now - timedelta(days=7)
+    
+    leaderboard_data = []
+    for branch in branches:
+        b_id = str(branch["_id"])
+        
+        # 1. Revenue Score (Weight: 60%)
+        revenue = 0
+        for sale in purchase_col.find({"branch_id": b_id, "status": "Sold"}):
+            try:
+                ts = sale.get("timestamp") or sale.get("date")
+                dt = ts if isinstance(ts, datetime) else datetime.strptime(ts[:19], "%Y-%m-%d %H:%M:%S")
+                if dt >= week_ago: revenue += float(sale.get("total", 0))
+            except: continue
+        
+        # 2. Activity Score (Weight: 20%)
+        item_count = items_col.count_documents({"branch_id": {"$in": [b_id, ObjectId(b_id)]}})
+        staff_count = users_col.count_documents({"branch_id": b_id})
+        
+        # 3. Final Rank Calculation
+        # Simple formula: (Revenue / 100) + (Items * 2) + (Staff * 5)
+        score = (revenue / 100) + (item_count * 2) + (staff_count * 5)
+        
+        leaderboard_data.append({
+            "name": branch["name"],
+            "id": b_id,
+            "revenue": revenue,
+            "score": round(score, 1),
+            "staff": staff_count,
+            "items": item_count,
+            "location": branch.get('location', 'Danao')
+        })
+    
+    # Sort by score descending
+    leaderboard_data = sorted(leaderboard_data, key=lambda x: x['score'], reverse=True)
+    
+    # Assign ranks
+    for i, entry in enumerate(leaderboard_data):
+        entry['rank'] = i + 1
+        # Random growth indicator for UI effect
+        entry['trend'] = random.choice(['up', 'down', 'steady'])
+
+    return render_template('leaderboard.html', leaderboard=leaderboard_data, site_config=get_site_config())

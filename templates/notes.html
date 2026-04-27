@@ -4,109 +4,90 @@
 
 {% block extra_css %}
 <style>
-    .board-header { margin-bottom: 2rem; }
-
-    /* === Theme-Aware Note Card === */
     .note-card {
         background: var(--card-bg);
         border: 1px solid var(--border-soft);
-        border-radius: 12px;
+        border-radius: var(--radius-lg);
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         height: 100%;
         display: flex;
         flex-direction: column;
-        position: relative;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        overflow: hidden;
+        box-shadow: var(--shadow-sm);
     }
+    
     .note-card:hover {
-        transform: translateY(-3px);
-        border-color: var(--primary-soft);
-        box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+        transform: translateY(-5px);
+        box-shadow: var(--shadow-md);
+        border-color: var(--primary-blue);
     }
-    .note-pinned { border-top: 3px solid #f59f00 !important; box-shadow: 0 8px 24px rgba(245, 159, 0, 0.12); }
 
-    /* Done sidebar */
+    .note-pinned {
+        border-top: 4px solid #f59f00 !important;
+    }
+
+    .tag-badge {
+        font-size: 0.65rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        padding: 0.35rem 0.75rem;
+        border-radius: 50px;
+    }
+
+    .tag-urgent { background: rgba(231, 76, 60, 0.1); color: #c0392b; border: 1px solid rgba(231, 76, 60, 0.2); }
+    .tag-normal { background: rgba(52, 152, 219, 0.1); color: #2980b9; border: 1px solid rgba(52, 152, 219, 0.2); }
+    .tag-pending { background: rgba(243, 156, 18, 0.1); color: #d35400; border: 1px solid rgba(243, 156, 18, 0.2); }
+
     .done-sidebar {
-        background: var(--sidebar-bg, #f0f2f5);
-        border: 1px solid var(--border-soft);
-        height: calc(100vh - 150px);
-        overflow-y: auto;
-        padding: 1.5rem;
-        border-radius: 12px;
-    }
-    .done-sidebar::-webkit-scrollbar { width: 4px; }
-    .done-sidebar::-webkit-scrollbar-thumb { background: var(--border-soft); border-radius: 10px; }
-
-    .done-card {
         background: var(--card-bg);
         border: 1px solid var(--border-soft);
-        opacity: 0.8;
+        border-radius: var(--radius-lg);
+        height: calc(100vh - 120px);
+        overflow-y: auto;
+        padding: 1.5rem;
+        box-shadow: var(--shadow-sm);
+    }
+
+    .done-card {
+        background: var(--content-bg);
+        border: 1px solid var(--border-soft);
+        border-radius: var(--radius-md);
+        padding: 1rem;
         margin-bottom: 1rem;
-        border-radius: 10px;
-        padding: 0.75rem;
+        opacity: 0.8;
+        transition: opacity 0.2s;
     }
-    .done-card .note-text {
-        text-decoration: line-through;
-        color: var(--text-muted);
-        font-size: 0.85rem;
+
+    .done-card:hover {
+        opacity: 1;
     }
+
     .countdown-timer {
-        font-size: 0.65rem;
-        color: #e03131;
-        font-weight: bold;
-        display: flex;
+        font-size: 0.7rem;
+        font-weight: 700;
+        color: #e74c3c;
+        background: rgba(231, 76, 60, 0.05);
+        padding: 0.25rem 0.6rem;
+        border-radius: 50px;
+        display: inline-flex;
         align-items: center;
-        gap: 4px;
-        background: rgba(224, 49, 49, 0.08);
-        padding: 2px 8px;
-        border-radius: 4px;
+        gap: 0.4rem;
     }
 
-    .tag-badge { font-size: 0.6rem; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; font-weight: bold; }
-    .tag-urgent  { background: #ff6b6b; color: white; }
-    .tag-normal  { background: #4c6ef5; color: white; }
-    .tag-pending { background: #f59f00; color: #000; }
-
-    .note-body  { padding: 1.25rem; flex-grow: 1; font-size: 0.95rem; line-height: 1.6; }
-    .note-text  { color: var(--text-main); }
+    .note-body {
+        padding: 1.5rem;
+        flex-grow: 1;
+    }
 
     .note-footer {
-        padding: 0.75rem 1.25rem;
-        background: var(--border-soft);
+        padding: 1rem 1.5rem;
+        background: var(--content-bg);
         border-top: 1px solid var(--border-soft);
         display: flex;
         align-items: center;
         justify-content: space-between;
-        border-radius: 0 0 12px 12px;
     }
-    .note-meta-text { color: var(--text-muted); font-size: 0.7rem; }
-
-    .color-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 8px; }
-    .dot-blue   { background-color: #4c6ef5; }
-    .dot-green  { background-color: #2f9e44; }
-    .dot-yellow { background-color: #f59f00; }
-    .dot-red    { background-color: #e03131; }
-    .dot-purple { background-color: #7950f2; }
-
-    /* === Modal theme fix === */
-    .modal-content {
-        background: var(--card-bg) !important;
-        color: var(--text-main) !important;
-        border-color: var(--border-soft) !important;
-    }
-    .modal-content .form-control,
-    .modal-content .form-select {
-        background: var(--sidebar-bg, #f0f2f5) !important;
-        color: var(--text-main) !important;
-        border-color: var(--border-soft) !important;
-    }
-    .modal-content label { color: var(--text-muted); }
-    .btn-close-adaptive { filter: var(--btn-close-filter, none); }
-    [data-theme="default"] .btn-close-adaptive,
-    [data-theme="oled"] .btn-close-adaptive { filter: invert(1); }
-
-    /* Empty state */
-    .empty-board { color: var(--text-muted); }
 </style>
 {% endblock %}
 

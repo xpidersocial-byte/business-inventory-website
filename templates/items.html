@@ -4,95 +4,118 @@
 
 {% block extra_css %}
 <style>
-    .bg-card { background-color: var(--content-bg) !important; }
-    .text-theme-main { color: var(--text-main); }
-    .text-theme-muted { color: var(--text-theme-muted); }
-    .border-theme-soft { border-color: var(--border-soft) !important; }
-
-    .table th { cursor: pointer; white-space: nowrap; font-size: 0.85rem; padding: 12px 8px !important; transition: background 0.2s; color: var(--text-theme-muted); }
-    .table th:hover { background: var(--glass-bg); }
-    .table th i { font-size: 0.7rem; margin-left: 5px; opacity: 0.5; }
-    .table th.sorted-asc i.bi-sort-up, .table th.sorted-desc i.bi-sort-down { opacity: 1; color: var(--primary-soft); }
-
-    .table td { font-size: 0.9rem; padding: 10px 8px !important; border-bottom: 1px solid var(--border-soft); }
-    
-    [data-theme="facebook"] .card {
-        border-radius: 8px;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-        border: none;
+    .sticky-toolbar { 
+        position: sticky; 
+        top: calc(var(--navbar-height) - 1.5rem); 
+        z-index: 1050; 
+        background: var(--content-bg); 
+        padding: 1.5rem 0;
+        margin: -1.5rem -1.5rem 1rem -1.5rem;
+        padding-left: 1.5rem;
+        padding-right: 1.5rem;
+        border-bottom: 1px solid var(--border-soft);
+        backdrop-filter: blur(8px);
+        background: var(--content-bg);
     }
     
-    .item-row { transition: background-color 0.2s ease, opacity 0.3s ease, transform 0.3s ease; }
-    .item-row:hover { background-color: var(--glass-bg) !important; cursor: pointer; }
-    .item-row.hidden { display: none !important; }
-    
-    /* Category Navigation Styling */
-    .category-nav { 
+    .alert-summary-card { 
         background: var(--card-bg); 
-        border-bottom: 1px solid var(--border-soft); 
-        border-radius: 8px; 
-        padding: 5px;
-    }
-    .nav-tabs .nav-link { 
-        color: var(--text-theme-muted); 
-        border: none; 
-        border-radius: 6px;
-        margin: 0 2px;
-        padding: 0.8rem 1.2rem;
-        transition: all 0.2s ease;
-        font-weight: 600;
-    }
-    .nav-tabs .nav-link:hover { 
-        color: var(--primary-soft); 
-        background: var(--glass-bg);
-    }
-    .nav-tabs .nav-link.active { 
-        color: var(--primary-soft) !important; 
-        background: rgba(24, 119, 242, 0.1) !important; 
-        font-weight: bold;
-    }
-
-    /* Category Select Tiles in Modal */
-    .category-tile {
-        cursor: pointer;
+        border-radius: var(--radius-md); 
+        padding: 1.25rem; 
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+        cursor: pointer; 
+        box-shadow: var(--shadow-sm);
         border: 1px solid var(--border-soft);
-        border-radius: 8px; padding: 10px; text-align: center; transition: all 0.2s; background: var(--card-bg); height: 100%; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; color: var(--text-main); }
-    .category-tile:hover { border-color: var(--primary-soft); color: var(--primary-soft); }
-    .category-tile.selected { background: var(--primary-soft); color: white !important; border-color: var(--primary-soft); box-shadow: 0 0 10px rgba(24, 119, 242, 0.5); transform: scale(1.02); }
+    }
     
-    .alert-summary-card { background: var(--card-bg); border: 1px solid var(--border-soft); border-radius: 8px; padding: 15px; transition: all 0.3s ease; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
-    .alert-summary-card:hover { transform: translateY(-2px); }
-    .alert-summary-card.active { border-color: var(--primary-soft); border-width: 2px; }
-    .alert-count { font-size: 1.5rem; font-weight: 800; }
+    .alert-summary-card:hover { 
+        transform: translateY(-4px); 
+        box-shadow: var(--shadow-md);
+    }
+    
+    .alert-summary-card.active { 
+        border-color: var(--primary-blue); 
+        background: var(--primary-blue-soft);
+    }
+    
+    .category-nav-wrapper {
+        background: var(--card-bg);
+        border-radius: var(--radius-md);
+        padding: 0.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: var(--shadow-sm);
+        overflow: hidden;
+    }
 
-    /* Quick Filter Pills */
-    .filter-pill { cursor: pointer; padding: 6px 16px; border-radius: 50px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; transition: all 0.2s ease; border: 1px solid var(--border-soft); background: var(--card-bg); color: var(--text-theme-muted); }
-    .filter-pill:hover { border-color: var(--primary-soft); color: var(--primary-soft); }
-    .filter-pill.active { background: var(--primary-soft); color: white; border-color: var(--primary-soft); }
+    .nav-tabs .nav-link { 
+        border: none; 
+        border-radius: var(--radius-sm);
+        padding: 0.75rem 1.25rem;
+        color: var(--text-muted);
+        font-weight: 600;
+        transition: all 0.2s;
+    }
+    
+    .nav-tabs .nav-link:hover {
+        background: var(--primary-blue-soft);
+        color: var(--primary-blue);
+    }
+    
+    .nav-tabs .nav-link.active {
+        background: var(--primary-blue) !important;
+        color: white !important;
+    }
 
-    /* Pagination Styles */
-    .pagination-container { display: flex; justify-content: space-between; align-items: center; padding: 1rem; background: var(--card-bg); border-top: 1px solid var(--border-soft); }
-    .page-link { padding: 8px 16px; border-radius: 6px; background: var(--glass-bg); color: var(--text-theme-main); text-decoration: none; font-weight: 600; font-size: 0.85rem; transition: all 0.2s; border: 1px solid var(--border-soft); }
-    .page-link:hover:not(.disabled) { background: rgba(24, 119, 242, 0.1); color: var(--primary-soft); }
-    .page-link.disabled { opacity: 0.5; cursor: not-allowed; }
-
-    /* STICKY HEADER STYLES */
-    .sticky-toolbar { position: sticky; top: calc(var(--navbar-height) - 1.5rem); z-index: 1050; background: var(--content-bg); padding-top: 1.5rem; padding-bottom: 1rem; margin-top: -1.5rem; margin-left: -1.5rem; margin-right: -1.5rem; padding-left: 1.5rem; padding-right: 1.5rem; border-bottom: 1px solid var(--border-soft); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
-    [data-theme="facebook"] .sticky-toolbar { background: #f0f2f5; }
+    .filter-pill { 
+        padding: 0.5rem 1.25rem;
+        border-radius: 50px;
+        font-size: 0.8rem;
+        font-weight: 700;
+        border: 1px solid var(--border-soft);
+        background: white;
+        transition: all 0.2s;
+    }
+    
+    .filter-pill.active {
+        background: var(--primary-blue);
+        color: white;
+        border-color: var(--primary-blue);
+    }
+    
+    .category-tile {
+        padding: 0.75rem 1rem;
+        background: white;
+        border: 2px solid var(--border-soft);
+        border-radius: var(--radius-sm);
+        text-align: center;
+        cursor: pointer;
+        font-weight: 600;
+        color: var(--text-muted);
+        transition: all 0.2s;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .category-tile:hover {
+        border-color: var(--primary-blue);
+        background: var(--primary-blue-soft);
+        color: var(--primary-blue);
+    }
+    
+    .category-tile.selected {
+        background: var(--primary-blue);
+        border-color: var(--primary-blue);
+        color: white;
+    }
 
     @media (max-width: 991.98px) {
-        .sticky-toolbar { 
-            padding: 0.75rem !important; 
-            margin-top: -1rem !important; 
-            margin-left: -1rem !important; 
-            margin-right: -1rem !important;
+        .sticky-toolbar {
             top: var(--navbar-height);
+            margin: -1rem -1rem 1rem -1rem;
+            padding: 1rem;
         }
-        .alert-summary-card { padding: 8px; }
-        .alert-count { font-size: 1rem; }
-        .hide-mobile { display: none !important; }
-        .container-fluid { padding-left: 0.5rem !important; padding-right: 0.5rem !important; }
-        #menuSettingsBar { padding: 0.75rem !important; }
     }
 </style>
 {% endblock %}
@@ -195,11 +218,11 @@
                         <i class="bi bi-sliders text-warning fs-5"></i>
                     </div>
                     <div>
-                        <h6 class="mb-0 text-theme-main fw-bold d-flex align-items-center gap-2">
-                            <h3 id="activeMenuName" class="h1 fw-bold text-primary">All Items</h3>
-                            <div class="text-theme-muted small fw-bold ls-1 text-uppercase">Current Inventory View</div>
-                        </h6>
-                        <small class="text-theme-muted" style="font-size: 0.75rem;">Adjust alert levels for items in this category</small>
+                        <div class="d-flex align-items-center gap-2">
+                             <h3 id="activeMenuName" class="h1 fw-bold text-primary mb-0">All Items</h3>
+                        </div>
+                        <div class="text-theme-muted small fw-bold ls-1 text-uppercase">Current Inventory View</div>
+                        <small class="text-theme-muted d-block" style="font-size: 0.75rem;">Adjust alert levels for items in this category</small>
                     </div>
                 </div>
                 
@@ -523,25 +546,32 @@
     const pageSize = 50;
     let filteredRows = [];
 
+    // Injected from Jinja with safety
+    const rawMenus = {{ menus|tojson|safe }};
+    const globalWarning = {{ site_config.warning_threshold or 10 }};
+    const globalLow = {{ site_config.low_stock_threshold or 5 }};
+
     const menuData = {
-        {% for menu in menus %}
-        {{ menu.name|tojson }}: {
-            "id": "{{ menu._id }}",
-            "warning": {{ menu.warning_threshold or 10 }},
-            "low": {{ menu.low_stock_threshold or 5 }}
-        },
-        {% endfor %}
         "all": {
             "id": "global",
-            "warning": {{ site_config.warning_threshold or 10 }},
-            "low": {{ site_config.low_stock_threshold or 5 }}
+            "warning": globalWarning,
+            "low": globalLow
         },
         "None": {
             "id": "global",
-            "warning": {{ site_config.warning_threshold or 10 }},
-            "low": {{ site_config.low_stock_threshold or 5 }}
+            "warning": globalWarning,
+            "low": globalLow
         }
     };
+
+    // Populate from raw data
+    rawMenus.forEach(menu => {
+        menuData[menu.name] = {
+            "id": menu._id,
+            "warning": menu.warning_threshold || 10,
+            "low": menu.low_stock_threshold || 5
+        };
+    });
 
     function filterMenu(event, menu) {
         if (event) event.preventDefault();

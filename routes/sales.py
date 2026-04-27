@@ -27,7 +27,7 @@ def save_undo_log(action_type, item_id, previous_state=None):
         "action": action_type,
         "item_id": str(item_id),
         "previous_state": previous_state,
-        "timestamp": datetime.now().strftime('%Y-%m-%d %I:%M:%S %p')
+        "timestamp": datetime.now().strftime('%Y-%m-%d %I:%M %p')
     })
     return undo_id
 
@@ -92,7 +92,7 @@ def add_sale():
         item = items_collection.find_one({"_id": ObjectId(item_id)})
         if item:
             if item.get('stock', 0) >= qty:
-                ts = datetime.now().strftime('%Y-%m-%d %I:%M:%S %p')
+                ts = datetime.now().strftime('%Y-%m-%d %I:%M %p')
                 previous_stock = item.get('stock', 0)
                 total_stock = previous_stock - qty
                 unit_price = item.get('retail_price', 0)
@@ -140,7 +140,7 @@ def add_sale():
 
 @sales_bp.route('/sales/refund/<purchase_id>', methods=['POST'])
 @login_required
-@role_required('owner')
+@role_required('cashier')
 def refund_sale(purchase_id):
     purchase_collection = get_purchase_collection()
     items_collection = get_items_collection()
@@ -150,15 +150,30 @@ def refund_sale(purchase_id):
     if purchase and purchase.get('status') != 'Refunded':
         item_name = purchase['item_name']
         qty = purchase['qty']
+        branch_id = purchase.get('branch_id')
 
-        # Update item stock
-        items_collection.update_one({"name": item_name}, {"$inc": {"stock": qty, "sold": -qty, "inventory_out": -qty, "sold": -qty}})
+        # Update item stock (Scoped to branch)
+        items_collection.update_one(
+            {"name": item_name, "branch_id": branch_id}, 
+            {"$inc": {"stock": qty, "sold": -qty, "inventory_out": -qty}, "$set": {"updated_at": datetime.now(timezone.utc)}}
+        )
         
         # Mark purchase as refunded
         purchase_collection.update_one({"_id": ObjectId(purchase_id)}, {"$set": {"status": "Refunded"}})
         
+        # Mark the original OUT log as refunded so it doesn't show in dashboard sales
+        txn_id = purchase.get('transaction_id')
+        if txn_id:
+            inventory_log_collection.update_many({"transaction_id": txn_id}, {"$set": {"refunded": True}})
+        else:
+            # Fallback for manual sales without txn_id
+            inventory_log_collection.update_one(
+                {"item_name": item_name, "type": "OUT", "qty": qty, "branch_id": branch_id, "refunded": {"$ne": True}},
+                {"$set": {"refunded": True}}
+            )
+
         # Log the refund in inventory logs
-        ts = datetime.now().strftime('%Y-%m-%d %I:%M:%S %p')
+        ts = datetime.now().strftime('%Y-%m-%d %I:%M %p')
         inventory_log_collection.insert_one({
             "item_name": item_name,
             "type": "IN",
@@ -166,7 +181,8 @@ def refund_sale(purchase_id):
             "user": session['email'],
             "timestamp": ts,
             "details": f"Refund for purchase {purchase_id}",
-            "branch_id": session.get("branch_id")
+            "branch_id": branch_id,
+            "is_refund": True
         })
 
         log_action("REFUND", f"Refunded {qty} x {item_name}")
@@ -177,6 +193,8 @@ def refund_sale(purchase_id):
             {"purchase_id": purchase_id, "item": item_name, "qty": qty},
             priority="WARNING"
         )
+        
+        socketio.emit('dashboard_update')
         flash(f"Refund processed for {item_name}.", "info")
     else:
         flash("Invalid purchase or already refunded.", "danger")
@@ -230,7 +248,11 @@ def sales_summary():
             if isinstance(raw_ts, datetime):
                 log_date = raw_ts
             else:
-                log_date = datetime.strptime(str(raw_ts), '%Y-%m-%d %I:%M:%S %p')
+                ts_str = str(raw_ts)
+                try:
+                    log_date = datetime.strptime(ts_str, '%Y-%m-%d %I:%M:%S %p')
+                except ValueError:
+                    log_date = datetime.strptime(ts_str, '%Y-%m-%d %I:%M %p')
                 
             item = items_by_name.get(log['item_name'])
             if not item: continue
@@ -344,7 +366,11 @@ def get_report_data():
             if isinstance(raw_ts, datetime):
                 log_date = raw_ts
             else:
-                log_date = datetime.strptime(str(raw_ts), '%Y-%m-%d %I:%M:%S %p')
+                ts_str = str(raw_ts)
+                try:
+                    log_date = datetime.strptime(ts_str, '%Y-%m-%d %I:%M:%S %p')
+                except ValueError:
+                    log_date = datetime.strptime(ts_str, '%Y-%m-%d %I:%M %p')
                 
             is_match = False
             if view_type == 'daily':
@@ -416,7 +442,11 @@ def generate_report():
             if isinstance(raw_ts, datetime):
                 log_date = raw_ts
             else:
-                log_date = datetime.strptime(str(raw_ts), '%Y-%m-%d %I:%M:%S %p')
+                ts_str = str(raw_ts)
+                try:
+                    log_date = datetime.strptime(ts_str, '%Y-%m-%d %I:%M:%S %p')
+                except ValueError:
+                    log_date = datetime.strptime(ts_str, '%Y-%m-%d %I:%M %p')
                 
             is_match = False
             
@@ -523,7 +553,11 @@ def generate_report():
         for log in all_out_logs:
             try:
                 raw_ld = log.get('timestamp')
-                ld = raw_ld if isinstance(raw_ld, datetime) else datetime.strptime(str(raw_ld), '%Y-%m-%d %I:%M:%S %p')
+                ts_str = str(raw_ld)
+                try:
+                    ld = datetime.strptime(ts_str, '%Y-%m-%d %I:%M:%S %p')
+                except ValueError:
+                    ld = datetime.strptime(ts_str, '%Y-%m-%d %I:%M %p')
                 if ld.year == now.year:
                     item = items_by_name2.get(log['item_name'])
                     if item:
@@ -543,7 +577,11 @@ def generate_report():
             for log in all_out_logs:
                 try:
                     raw_ld = log.get('timestamp')
-                    ld = raw_ld if isinstance(raw_ld, datetime) else datetime.strptime(str(raw_ld), '%Y-%m-%d %I:%M:%S %p')
+                    ts_str = str(raw_ld)
+                    try:
+                        ld = datetime.strptime(ts_str, '%Y-%m-%d %I:%M:%S %p')
+                    except ValueError:
+                        ld = datetime.strptime(ts_str, '%Y-%m-%d %I:%M %p')
                     if start <= ld < end:
                         item = items_by_name2.get(log['item_name'])
                         if item:
@@ -562,7 +600,11 @@ def generate_report():
             for log in all_out_logs:
                 try:
                     raw_ld = log.get('timestamp')
-                    ld = raw_ld if isinstance(raw_ld, datetime) else datetime.strptime(str(raw_ld), '%Y-%m-%d %I:%M:%S %p')
+                    ts_str = str(raw_ld)
+                    try:
+                        ld = datetime.strptime(ts_str, '%Y-%m-%d %I:%M:%S %p')
+                    except ValueError:
+                        ld = datetime.strptime(ts_str, '%Y-%m-%d %I:%M %p')
                     if ld.date() == td.date():
                         item = items_by_name2.get(log['item_name'])
                         if item:

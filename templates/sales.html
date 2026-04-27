@@ -4,30 +4,63 @@
 
 {% block extra_css %}
 <style>
-    .bg-card { background-color: var(--card-bg) !important; }
-    .text-theme-main { color: var(--text-main); }
-    .text-theme-muted { color: var(--text-theme-muted); }
-    .border-theme-soft { border-color: var(--border-soft) !important; }
+    .sales-ledger-card {
+        background: var(--card-bg);
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--border-soft);
+        box-shadow: var(--shadow-md);
+        overflow: hidden;
+    }
+    
+    .date-divider { 
+        background: var(--content-bg); 
+        color: var(--text-muted); 
+        font-size: 0.75rem; 
+        text-transform: uppercase; 
+        letter-spacing: 0.1em; 
+        padding: 0.75rem 1.25rem; 
+        border-bottom: 1px solid var(--border-soft); 
+        font-weight: 800; 
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
 
-    /* Compact table */
-    .table th { white-space: nowrap; font-size: 0.75rem; padding: 8px 8px !important; color: var(--text-theme-muted); background-color: var(--card-bg) !important; border-bottom: 1px solid var(--border-soft) !important; letter-spacing: 0.5px; text-transform: uppercase; }
-    .table td { font-size: 0.82rem; padding: 6px 8px !important; border-bottom: 1px solid var(--border-soft) !important; vertical-align: middle; }
+    .status-badge { 
+        display: inline-flex;
+        align-items: center;
+        padding: 0.4rem 0.8rem;
+        border-radius: 50px;
+        font-size: 0.7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    
+    .status-sold { 
+        background: var(--success-green-soft); 
+        color: var(--success-green); 
+        border: 1px solid var(--success-green-soft); 
+    }
+    
+    .status-refunded { 
+        background: var(--danger-red-soft); 
+        color: var(--danger-red); 
+        border: 1px solid var(--danger-red-soft); 
+    }
 
-    .status-badge { font-size: 0.65rem; padding: 3px 8px; border-radius: 50px; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; }
-    .status-sold { background: rgba(16,185,129,0.12); color: #34d399; border: 1px solid rgba(16,185,129,0.2); }
-    .status-refunded { background: rgba(239,68,68,0.12); color: #f87171; border: 1px solid rgba(239,68,68,0.2); }
-
-    .date-divider { background: var(--content-bg); color: var(--text-theme-muted); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; padding: 5px 10px; border-bottom: 1px solid var(--border-soft); font-weight: bold; }
-
-    /* Modal item preview */
-    .item-preview-card { background: var(--content-bg); border: 1px solid var(--border-soft); border-radius: 10px; padding: 10px 14px; transition: all .2s; }
-    .item-preview-card.has-item { border-color: var(--primary-soft); }
+    .sale-row {
+        transition: all 0.2s;
+        cursor: pointer;
+    }
+    
+    .sale-row:hover {
+        background: var(--primary-blue-soft) !important;
+    }
 
     @media (max-width: 767.98px) {
         .hide-mobile { display: none !important; }
-        .table td, .table th { padding: 4px 2px !important; font-size: 0.7rem; }
-        .table-responsive { max-height: 60vh !important; }
-        .status-badge { padding: 2px 4px; font-size: 0.55rem; }
+        .table td, .table th { padding: 0.75rem 0.5rem !important; font-size: 0.8rem; }
     }
 </style>
 {% endblock %}
