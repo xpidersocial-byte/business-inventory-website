@@ -419,11 +419,11 @@
                 generateReceipt(data);
                 new bootstrap.Modal(document.getElementById('receiptModal')).show();
             } else {
-                alert(data.message || "Checkout failed");
+                Swal.fire({ icon: 'error', title: 'Checkout Failed', text: data.message || "Failed to process transaction.", customClass: { popup: 'rounded-4' } });
             }
         } catch (err) {
             console.error('Checkout error:', err);
-            alert("An error occurred during checkout.");
+            Swal.fire({ icon: 'error', title: 'System Error', text: 'An error occurred during checkout. Please try again.', customClass: { popup: 'rounded-4' } });
         } finally {
             btn.disabled = false;
             btn.innerHTML = 'CONFIRM TRANSACTION';

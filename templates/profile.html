@@ -1746,7 +1746,7 @@
                 if (data.success) {
                     p.className = 'text-success fw-bold mb-1 mt-2';
                     p.innerText = '[SUCCESS] Test email sent successfully!';
-                    alert("SMTP Success: " + data.message);
+                    Swal.fire({ icon: 'success', title: 'SMTP Test Passed', text: data.message, customClass: { popup: 'rounded-4' } });
                 } else {
                     p.className = 'text-danger fw-bold mb-1 mt-2';
                     p.innerText = '[FAILED] ' + data.message;
