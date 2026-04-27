@@ -8,8 +8,7 @@ from dotenv import load_dotenv
 
 # Import Extensions & Core
 from extensions import mongo, socketio, scheduler
-from core.db import get_site_config
-from core.utils import MongoJSONProvider, reschedule_periodic_jobs
+from core.utils import MongoJSONProvider, reschedule_periodic_jobs, get_site_config
 
 def create_app():
     # Load environment variables
