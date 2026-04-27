@@ -187,7 +187,8 @@ def delete_category(id):
         log_action("DELETE_CATEGORY", f"Deleted category: {cat['name']}")
         trigger_notification("settings_update", "Category Deleted", f"Category '{cat['name']}' was removed from the system.", priority="WARNING")
         flash("Category deleted.", "info")
-    return redirect(url_for('auth.profile', tab='settings'))
+    section = request.form.get('section', 'cats-menus')
+    return redirect(url_for('auth.profile', tab='settings', section=section))
 
 @admin_bp.route('/settings/user/add', methods=['POST'])
 @login_required
@@ -224,7 +225,8 @@ def delete_user(id):
             log_action("DELETE_USER", f"Deleted user: {user['email']}")
             trigger_notification("user_deleted", "Account Removed", f"The user account for {user['email']} was deleted.", priority="WARNING")
             flash("User deleted.", "info")
-    return redirect(url_for('auth.profile', tab='settings'))
+    section = request.form.get('section', 'user-mgmt')
+    return redirect(url_for('auth.profile', tab='settings', section=section))
 
 @admin_bp.route('/settings/user/edit/<id>', methods=['POST'])
 @login_required
@@ -321,7 +323,8 @@ def delete_menu(id):
         log_action("DELETE_MENU", f"Deleted menu: {menu['name']}")
         trigger_notification("settings_update", "Sales Menu Removed", f"The sales menu '{menu['name']}' was deleted.", priority="WARNING")
         flash("Menu deleted.", "info")
-    return redirect(url_for('auth.profile', tab='settings'))
+    section = request.form.get('section', 'cats-menus')
+    return redirect(url_for('auth.profile', tab='settings', section=section))
 
 @admin_bp.route('/settings/menu/thresholds', methods=['POST'])
 @login_required

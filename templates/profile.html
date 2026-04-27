@@ -508,7 +508,11 @@
                                             <div class="btn-group">
                                                 <button class="btn btn-link text-primary p-0 me-3" onclick="openEditUserModal(this.dataset.id, this.dataset.email, this.dataset.role, this.dataset.branch)" data-id="{{ u._id }}" data-email="{{ u.email }}" data-role="{{ u.role }}" data-branch="{{ u.branch_id or '' }}"><i class="bi bi-pencil-square"></i></button>
                                                 {% if u.email != 'admin@inventory.com' and u.email != session['email'] %}
-                                                <button class="btn btn-link text-danger p-0" onclick="confirmAction(this.dataset.url, 'Delete user?')" data-url="{{ url_for('admin.delete_user', id=u._id) }}"><i class="bi bi-trash"></i></button>
+                                                <button class="btn btn-link text-danger p-0 delete-user-btn" 
+                                                        onclick='deleteUser({{ u.email | tojson }}, "{{ url_for("admin.delete_user", id=u._id) }}")' 
+                                                        title="Delete user">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
                                                 {% endif %}
                                             </div>
                                         </td>
@@ -1303,10 +1307,13 @@
                         </div>
                         <div class="col-md-6">
                             <div class="feed-card shadow-sm">
-                                <div class="d-flex justify-content-between align-items-center mb-3">
-                                    <h6 class="fw-bold mb-0">Menu Anchors</h6><p class="x-small text-muted mb-3">Define the tab layout for the POS screen to quickly access specific item groups.</p>
-                                    <button class="btn btn-primary btn-sm fw-bold" onclick="saveMenuOrder()">Save Order</button>
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <h6 class="fw-bold mb-0">Menu Anchors</h6>
+                                    <button class="btn btn-primary btn-sm fw-bold px-3 rounded-pill" id="save-menu-btn" onclick="saveMenuOrder()">
+                                        <i class="bi bi-save me-1"></i> Save Order
+                                    </button>
                                 </div>
+                                <p class="x-small text-muted mb-3">Define the tab layout for the POS screen to quickly access specific item groups.</p>
                                 <div id="menuOrderList" class="list-group list-group-flush mb-3">
                                     {% for m in admin_data.menus %}
                                     <div class="list-group-item d-flex justify-content-between align-items-center px-0" data-id="{{ m._id }}">
@@ -1574,9 +1581,14 @@
     };
 
     function saveMenuOrder() {
+        const btn = document.getElementById('save-menu-btn');
         const items = document.querySelectorAll('#menuOrderList .list-group-item');
         const order = Array.from(items).map(item => item.getAttribute('data-id'));
         
+        const originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Saving...';
+
         fetch('/settings/menu/reorder', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1584,7 +1596,58 @@
         })
         .then(r => r.json())
         .then(data => {
-            if (data.success) alert("Menu order updated successfully!");
+            if (data.success) {
+                Swal.fire({
+                    title: 'Success!',
+                    text: 'Menu order updated successfully.',
+                    icon: 'success',
+                    timer: 2000,
+                    showConfirmButton: false,
+                    customClass: { popup: 'rounded-4' }
+                });
+            } else {
+                throw new Error("Server failed to update order.");
+            }
+        })
+        .catch(err => {
+            Swal.fire({
+                title: 'Error',
+                text: 'Failed to update menu order. Please try again.',
+                icon: 'error'
+            });
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+        });
+    }
+
+    function deleteUser(email, url) {
+        Swal.fire({
+            title: 'Delete User?',
+            text: `Are you sure you want to permanently delete the account for ${email}?`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Yes, delete it!',
+            customClass: { popup: 'rounded-4', confirmButton: 'rounded-pill px-4', cancelButton: 'rounded-pill px-4' }
+        }).then((result) => {
+            if (result.isConfirmed) {
+                const f = document.createElement('form'); 
+                f.method = 'POST'; 
+                f.action = url; 
+                
+                // Keep the current section
+                const sectionInput = document.createElement('input');
+                sectionInput.type = 'hidden';
+                sectionInput.name = 'section';
+                sectionInput.value = 'user-mgmt';
+                f.appendChild(sectionInput);
+                
+                document.body.appendChild(f); 
+                f.submit();
+            }
         });
     }
 
@@ -1727,10 +1790,32 @@
         window.history.pushState({}, '', url);
     }
 
-    function confirmAction(url, msg) {
-        if(confirm(msg)) {
-            const f = document.createElement('form'); f.method='POST'; f.action=url; document.body.appendChild(f); f.submit();
-        }
+    function confirmAction(url, msg, section = 'cats-menus') {
+        Swal.fire({
+            title: msg,
+            text: "This action cannot be undone.",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Yes, proceed',
+            customClass: { popup: 'rounded-4' }
+        }).then((result) => {
+            if (result.isConfirmed) {
+                const f = document.createElement('form'); 
+                f.method = 'POST'; 
+                f.action = url; 
+                if (section) {
+                    const si = document.createElement('input');
+                    si.type = 'hidden';
+                    si.name = 'section';
+                    si.value = section;
+                    f.appendChild(si);
+                }
+                document.body.appendChild(f); 
+                f.submit();
+            }
+        });
     }
 
     function openEditUserModal(id, email, role, branch) {
