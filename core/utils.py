@@ -313,16 +313,21 @@ def calculate_item_metrics(item):
     retail = item.get('retail_price', 0)
     stock = item.get('stock', 0)
     sold = item.get('sold', 0)
-    inv_in = item.get('inventory_in', stock + sold)
-    inv_out = item.get('inventory_out', sold)
+    lost = item.get('inventory_lost', 0)
+    
+    # Accurate metrics including losses
+    inv_in = item.get('inventory_in', stock + sold + lost)
+    inv_out = item.get('inventory_out', sold) + lost
     menu_name = item.get('menu', None)
 
-    profit = abs(retail - cost)
+    profit_per_unit = retail - cost
     total_revenue = retail * sold
-    total_profit = profit * sold
+    # Profit is revenue minus cost of sold items, MINUS cost of lost items
+    total_profit = (profit_per_unit * sold) - (lost * cost)
 
-    margin = (profit / cost * 100) if cost > 0 else 0
-    inventory_value = cost * (stock + sold)
+    margin = (profit_per_unit / cost * 100) if cost > 0 else 0
+    # Current asset value is what we have in stock
+    inventory_value = cost * stock
 
     site_config = get_site_config()
     global_warning = site_config.get('warning_threshold', 10)
@@ -371,8 +376,9 @@ def calculate_item_metrics(item):
     return {
         **item,
         "sold": sold,
+        "lost": lost,
         "stock": stock,
-        "profit": profit,
+        "profit": profit_per_unit,
         "margin": round(margin, 2),
         "total_profit": total_profit,
         "total_revenue": total_revenue,
@@ -403,8 +409,18 @@ def update_item_stock(item_id, qty_change, action_type="OUT", reason="Sale"):
         if old_stock < qty_change:
             return False, f"Insufficient stock for {item['name']}"
         new_stock = old_stock - qty_change
+        
+        # Determine increment fields based on reason
+        inc_data = {"stock": -qty_change}
+        if reason == "Sale":
+            inc_data["sold"] = qty_change
+            inc_data["inventory_out"] = qty_change
+        else:
+            # For Damages/Loss, increment a specific lost field
+            inc_data["inventory_lost"] = qty_change
+            
         update_query = {
-            "$inc": {"stock": -qty_change, "sold": qty_change, "inventory_out": qty_change},
+            "$inc": inc_data,
             "$set": {"updated_at": datetime.now(timezone.utc)}
         }
     else:

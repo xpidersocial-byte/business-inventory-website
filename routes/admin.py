@@ -67,6 +67,47 @@ def update_owner_permissions():
 def general_setup():
     return redirect(url_for('auth.profile', tab='settings'))
 
+@admin_bp.route('/admin/settings/general/update', methods=['POST'])
+@login_required
+@role_required('owner')
+def update_general_settings():
+    """Handles the 'Save All' form from general_setup.html"""
+    settings_collection = get_settings_collection()
+    upd = {}
+    
+    # Standard field extraction
+    for key in request.form:
+        if key in ['verification_code', 'section']: continue
+        val = request.form.get(key)
+        if val == 'on':
+            upd[key] = True
+        else:
+            upd[key] = val
+
+    # Explicitly handle common switches that might be missing if unchecked
+    switches = [
+        'maintenance_mode', 'smtp_use_tls', 'smtp_use_ssl',
+        'email_notif_stock_in', 'email_notif_stock_out', 'email_notif_low_stock',
+        'email_notif_sales', 'email_notif_login', 'email_notif_profile',
+        'email_notif_inventory', 'email_notif_bulletin'
+    ]
+    for s in switches:
+        if s not in request.form:
+            upd[s] = False
+
+    upd['updated_at'] = datetime.now(timezone.utc)
+    settings_collection.update_one({"type": "general"}, {"$set": upd}, upsert=True)
+    
+    # Reload background jobs if SMTP or Notif changed
+    try:
+        reschedule_periodic_jobs(current_app.scheduler)
+    except: pass
+
+    log_action("UPDATE_GLOBAL_SETTINGS", "Owner updated system-wide configuration via General Setup.")
+    trigger_notification("settings_update", "System Config Updated", "General system settings have been modified.", priority="CRITICAL")
+    flash("General settings updated successfully!", "success")
+    return redirect(url_for('admin.general_setup'))
+
 @admin_bp.route('/settings/profile/update', methods=['POST'])
 @login_required
 @role_required('owner')
@@ -453,6 +494,7 @@ def send_auth_code():
     recipient = session.get("email")
     success = send_email_notification("Owner Security Authorization Code", f"SECURITY ALERT: Your Authorization Code is: {code}", override_recipient=recipient)
     return jsonify({"success": success, "message": f"Verification code sent to {recipient}" if success else "Failed to send email."})
+
 @admin_bp.route('/settings/database-stats')
 @login_required
 @role_required('owner')
@@ -586,10 +628,6 @@ def test_email():
         emit_log(f"SMTP Error: {error_msg}", type="error")
         return jsonify({"success": False, "message": f"SMTP Error: {error_msg}"})
 
-
-
-
-
 @admin_bp.route('/admin/settings/update', methods=['POST'])
 @login_required
 @role_required('owner')
@@ -608,12 +646,13 @@ def update_settings():
             "email_daily_summary", "email_weekly_summary", 
             "email_monthly_summary", "email_yearly_summary"
         ],
-        "setup-smtp": ["smtp_use_tls", "smtp_use_ssl"],
+        "smtp-config": ["smtp_use_tls", "smtp_use_ssl"],
         "command-center": [
             "cc_show_progress", "cc_show_velocity", "cc_show_growth", "cc_show_dormant",
             "cc_show_txns", "cc_show_alerts", "cc_show_trending", 
             "cc_show_fleet_ranking", "cc_show_elite_cashiers"
-        ]
+        ],
+        "biz-identity": ["maintenance_mode"]
     }
 
     # Handle explicit form fields
@@ -695,11 +734,10 @@ def update_settings():
 
     upd['updated_at'] = datetime.now(timezone.utc)
     settings_collection = get_settings_collection()
-    settings_collection.update_one({"type": "general"}, {"$set": upd})
+    settings_collection.update_one({"type": "general"}, {"$set": upd}, upsert=True)
     
-    if section == 'notifications-config':
+    if section == 'notifications-config' or section == 'smtp-config':
         try:
-            from core.utils import reschedule_periodic_jobs
             reschedule_periodic_jobs(current_app.scheduler)
         except Exception as e:
             current_app.logger.error(f"Scheduler Update Failed: {str(e)}")

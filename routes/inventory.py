@@ -143,7 +143,7 @@ def add_item():
         res = items_collection.insert_one({
             "name": name, "barcode": barcode, "category": category, "menu": menu, 
             "cost_price": cost_price, "retail_price": retail_price, 
-            "stock": stock, "sold": sold, "low_threshold": low_threshold, "active": True, 
+            "stock": stock, "sold": sold, "inventory_lost": 0, "low_threshold": low_threshold, "active": True, 
             "branch_id": session.get('branch_id'),
             "created_at": datetime.now(timezone.utc),
             "updated_at": datetime.now(timezone.utc)
@@ -246,7 +246,7 @@ def reset_item(id):
     items_collection = get_items_collection()
     item = items_collection.find_one({"_id": ObjectId(id)})
     if item:
-        items_collection.update_one({"_id": ObjectId(id)}, {"$set": {"stock": 0, "sold": 0, "inventory_in": 0, "inventory_out": 0, "updated_at": datetime.now(timezone.utc)}})
+        items_collection.update_one({"_id": ObjectId(id)}, {"$set": {"stock": 0, "sold": 0, "inventory_in": 0, "inventory_out": 0, "inventory_lost": 0, "updated_at": datetime.now(timezone.utc)}})
         log_action("RESET_ITEM", f"Reset metrics: {item['name']}")
         trigger_notification(
             "item_reset",
@@ -308,7 +308,8 @@ def undo_action(undo_id):
         flash("Action undone: Stock entry reversed.", "success")
     elif action == "STOCK_OUT":
         qty = log.get('previous_state', {}).get('qty', 0)
-        items_collection.update_one({"_id": ObjectId(item_id)}, {"$inc": {"stock": qty, "inventory_out": -qty}})
+        # Use inventory_lost for stock out reversions as they are DAMAGES
+        items_collection.update_one({"_id": ObjectId(item_id)}, {"$inc": {"stock": qty, "inventory_lost": -qty}})
         flash("Action undone: Stock reduction reversed.", "success")
     elif action == "SALE": return redirect(url_for('sales.sales_list'))
     
