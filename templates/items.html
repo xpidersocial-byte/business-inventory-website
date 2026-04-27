@@ -148,9 +148,6 @@
                         <input type="text" id="searchInput" autocomplete="off" class="form-control text-theme-main border-theme-soft ps-5" placeholder="Search items..." onkeyup="applyFilters()">
                     </div>
                     {% if role == 'owner' or cashier_perms.items_master %}
-                    <button class="btn btn-outline-info btn-sm shadow-sm d-flex align-items-center gap-2 px-3" onclick="exportToCSV()">
-                        <i class="bi bi-download"></i> <span class="fw-bold">Export CSV</span>
-                    </button>
                     <button class="btn btn-primary shadow-sm d-flex align-items-center justify-content-center gap-2 px-3 px-md-4" data-bs-toggle="modal" data-bs-target="#addItemModal">
                         <i class="bi bi-plus-circle"></i> <span class="d-none d-sm-inline">New Item</span><span class="d-inline d-sm-none">New</span>
                     </button>
