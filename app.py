@@ -5,10 +5,13 @@ from flask_socketio import SocketIO
 from flask_compress import Compress
 from datetime import datetime, timezone
 from dotenv import load_dotenv
+from bson.objectid import ObjectId
 
 # Import Extensions & Core
 from extensions import mongo, socketio, scheduler
 from core.utils import MongoJSONProvider, reschedule_periodic_jobs, get_site_config
+from core.db import get_users_collection, get_branches_collection
+from core.middleware import get_cashier_permissions, get_owner_permissions
 
 def create_app():
     # Load environment variables
@@ -106,9 +109,28 @@ def create_app():
 
     @app.context_processor
     def inject_global_data():
+        config = get_site_config()
+        branch_name = "Danao"
+        available_branches = []
+        
+        if session.get('branch_id'):
+            try:
+                b = get_branches_collection().find_one({"_id": ObjectId(session['branch_id'])})
+                if b: branch_name = b.get('name', 'Unknown Branch')
+            except: pass
+
+        if 'email' in session and session.get('role') == 'owner':
+            available_branches = list(get_branches_collection().find({"active": True}).sort("name", 1))
+
         return {
-            "site_config": get_site_config(),
-            "now": datetime.now(timezone.utc)
+            'site_config': config,
+            'current_user': get_users_collection().find_one({"email": session.get('email')}) if 'email' in session else None,
+            'cashier_perms': get_cashier_permissions() if 'email' in session else {},
+            'owner_perms': get_owner_permissions(),
+            'available_branches': available_branches,
+            'current_branch_name': branch_name,
+            'vapid_public_key': os.getenv('VAPID_PUBLIC_KEY', ''),
+            'now': datetime.now(timezone.utc)
         }
 
     # Start Scheduler
