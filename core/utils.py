@@ -16,6 +16,14 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timezone
 
 # Password Security Helpers
+def safe_object_id(oid):
+    if not oid:
+        return None
+    try:
+        return ObjectId(oid)
+    except:
+        return None
+
 def hash_password(password):
     return generate_password_hash(password)
 
@@ -244,7 +252,7 @@ def log_action(action_type, details, send_push=False):
     system_log_collection.insert_one({
         "email": session.get('email', 'System'),
         "role": session.get('role', 'N/A'),
-        "branch_id": session.get('branch_id'),
+        "branch_id": safe_object_id(session.get('branch_id')),
         "action": action_type,
         "details": details,
         "timestamp": timestamp,
@@ -275,7 +283,7 @@ def trigger_notification(notif_type, title, message, data=None, priority='INFO')
         "message": message,
         "priority": priority,
         "author": session.get('email', 'System'),
-        "branch_id": session.get('branch_id'),
+        "branch_id": safe_object_id(session.get('branch_id')),
         "created_at": now,
         "read_by": [],
         "metadata": data or {}

@@ -257,7 +257,7 @@
     <div class="profile-info-container p-0">
         <div class="cover-photo-wrapper" id="coverWrapper">
             {% if user.cover_photo %}
-            <img src="{{ url_for('static', filename=user.cover_photo) }}" class="cover-photo-img" id="coverImg">
+            <img src="{{ url_for('static', filename=user.cover_photo, v=range(1, 99999)|random) }}" class="cover-photo-img" id="coverImg">
             {% endif %}
             <button class="btn btn-light fw-bold position-absolute bottom-0 end-0 m-3 shadow-sm"
                 onclick="document.getElementById('coverInput').click()">
@@ -273,7 +273,7 @@
             <div class="d-flex align-items-end gap-3 flex-wrap">
                 <div class="profile-pic-wrapper shadow-sm" onclick="document.getElementById('photoInput').click()">
                     {% if user.profile_pic %}
-                    <img src="{{ url_for('static', filename=user.profile_pic) }}" class="profile-pic-img"
+                    <img src="{{ url_for('static', filename=user.profile_pic, v=range(1, 99999)|random) }}" class="profile-pic-img"
                         id="profilePicImg">
                     {% else %}
                     <span id="initialText">{{ user.email[0]|upper }}</span>

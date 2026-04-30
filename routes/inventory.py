@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify
 from markupsafe import Markup
-from core.utils import calculate_item_metrics, log_action, get_site_config, send_email_notification, trigger_notification, update_item_stock
+from core.utils import safe_object_id, calculate_item_metrics, log_action, get_site_config, send_email_notification, trigger_notification, update_item_stock
 from core.middleware import login_required, role_required
 from core.db import get_items_collection, get_categories_collection, get_menus_collection, get_inventory_log_collection, get_undo_logs_collection, get_purchase_collection, get_users_collection, get_notifications_collection
 from extensions import socketio
@@ -145,7 +145,7 @@ def add_item():
             "name": name, "barcode": barcode, "category": category, "menu": menu, 
             "cost_price": cost_price, "retail_price": retail_price, 
             "stock": stock, "sold": sold, "inventory_lost": 0, "low_threshold": low_threshold, "active": True, 
-            "branch_id": session.get('branch_id'),
+            "branch_id": safe_object_id(session.get('branch_id')),
             "created_at": datetime.now(timezone.utc),
             "updated_at": datetime.now(timezone.utc)
         })
@@ -167,7 +167,7 @@ def add_item():
                 "item_name": name, "type": "IN", "qty": stock,
                 "user": session.get('email', 'System'), "timestamp": ts,
                 "new_stock": stock, "details": "Initial stock upon item creation",
-                "branch_id": session.get('branch_id')
+                "branch_id": safe_object_id(session.get('branch_id'))
             })
         send_email_notification("New Item Added", f"A new inventory item was added.\n\nItem: {name}\nCategory: {category}\nMenu: {menu}\nCost: ₱{cost_price:.2f} | Retail: ₱{retail_price:.2f}\nAdded by: {session.get('email')}\nTime: {datetime.now().strftime('%Y-%m-%d %I:%M %p')}", notif_type="inventory")
         socketio.emit('dashboard_update')
@@ -378,7 +378,7 @@ def stock_in():
                flash(f"Error: {msg}", "danger")
                return redirect(url_for('inventory.restock'))
 
-            inventory_log_collection.insert_one({"item_name": item['name'], "type": "IN", "qty": qty, "user": session['email'], "timestamp": ts, "new_stock": new_stock, "branch_id": session.get('branch_id')})
+            inventory_log_collection.insert_one({"item_name": item['name'], "type": "IN", "qty": qty, "user": session['email'], "timestamp": ts, "new_stock": new_stock, "branch_id": safe_object_id(session.get('branch_id'))})
             undo_id = save_undo_log("STOCK_IN", item_id, {"qty": qty, "item_name": item['name']})
             log_action("STOCK_IN", f"In: {qty} x {item['name']}")
             
@@ -414,7 +414,7 @@ def stock_out():
                 flash(f"Error: {msg}", "danger")
                 return redirect(url_for('inventory.restock'))
 
-            inventory_log_collection.insert_one({"item_name": item['name'], "type": "DAMAGE", "qty": qty, "user": session['email'], "timestamp": ts, "new_stock": new_stock, "details": reason, "branch_id": session.get('branch_id')})
+            inventory_log_collection.insert_one({"item_name": item['name'], "type": "DAMAGE", "qty": qty, "user": session['email'], "timestamp": ts, "new_stock": new_stock, "details": reason, "branch_id": safe_object_id(session.get('branch_id'))})
             undo_id = save_undo_log("STOCK_OUT", item_id, {"qty": qty, "item_name": item['name']})
             log_action("STOCK_OUT", f"Out: {qty} x {item['name']} ({reason})")
             

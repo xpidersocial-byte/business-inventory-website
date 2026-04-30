@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify, Response, current_app
-from core.utils import get_site_config, log_action, send_email_notification, MongoJSONProvider, trigger_notification, reschedule_periodic_jobs
+from core.utils import safe_object_id, get_site_config, log_action, send_email_notification, MongoJSONProvider, trigger_notification, reschedule_periodic_jobs
 from core.middleware import login_required, role_required, get_cashier_permissions, get_owner_permissions
 from core.db import get_users_collection, get_settings_collection, get_items_collection, get_categories_collection, get_menus_collection, get_purchase_collection, get_sales_collection, get_inventory_log_collection, get_system_log_collection, get_notes_collection
 from bson.objectid import ObjectId
@@ -206,12 +206,12 @@ def add_category():
         query = {"name": name}
         # If not global, scope the name check to this branch
         if role != 'owner' or branch_id:
-            query["branch_id"] = branch_id
+            query["branch_id"] = {"$in": [branch_id, safe_object_id(branch_id)] if branch_id else [None]}
 
         if not get_categories_collection().find_one(query):
             get_categories_collection().insert_one({
                 "name": name,
-                "branch_id": branch_id
+                "branch_id": safe_object_id(branch_id) if branch_id else None
             })
             log_action("ADD_CATEGORY", f"Added category: {name}")
             trigger_notification("settings_update", "New Category Added", f"Category '{name}' was added to the system.", priority="INFO")
@@ -241,12 +241,12 @@ def add_user():
     branch_id = request.form.get('branch_id')
     if email and password:
         if not get_users_collection().find_one({"email": email}):
-            from core.utils import hash_password
+            from core.utils import safe_object_id, hash_password
             get_users_collection().insert_one({
                 "email": email, 
                 "password": hash_password(password), 
                 "role": role,
-                "branch_id": branch_id
+                "branch_id": safe_object_id(branch_id) if branch_id else None
             })
             log_action("ADD_USER", f"Created user: {email} ({role})")
             trigger_notification("user_added", "Account Created", f"A new {role} account for {email} was created.", {"email": email}, priority="SUCCESS")
@@ -297,10 +297,10 @@ def edit_user(id):
     update_data = {}
     if email: update_data['email'] = email
     if password: 
-        from core.utils import hash_password
+        from core.utils import safe_object_id, hash_password
         update_data['password'] = hash_password(password)
     if role: update_data['role'] = role
-    if branch_id: update_data['branch_id'] = branch_id
+    if branch_id: update_data['branch_id'] = safe_object_id(branch_id) if branch_id else None
 
     if update_data:
         get_users_collection().update_one({"_id": ObjectId(id)}, {"$set": update_data})
@@ -320,20 +320,20 @@ def add_menu():
     if name:
         query = {"name": name}
         if role != 'owner' or branch_id:
-            query["branch_id"] = branch_id
+            query["branch_id"] = {"$in": [branch_id, safe_object_id(branch_id)] if branch_id else [None]}
 
         if not get_menus_collection().find_one(query):
             # Set order to end of list within this branch
             order_query = {}
             if role != 'owner' or branch_id:
-                order_query["branch_id"] = branch_id
+                order_query["branch_id"] = {"$in": [branch_id, safe_object_id(branch_id)] if branch_id else [None]}
                 
             last_menu = get_menus_collection().find_one(order_query, sort=[("order", -1)])
             order = (last_menu.get('order', 0) + 1) if last_menu else 1
             get_menus_collection().insert_one({
                 "name": name, 
                 "order": order,
-                "branch_id": branch_id
+                "branch_id": safe_object_id(branch_id) if branch_id else None
             })
             log_action("ADD_MENU", f"Added menu: {name}")
             trigger_notification("settings_update", "New Menu Created", f"A new sales menu '{name}' was added.", priority="INFO")
@@ -566,7 +566,7 @@ def test_email():
     import smtplib
     from email.mime.text import MIMEText
     from extensions import socketio
-    from core.utils import get_site_config
+    from core.utils import safe_object_id, get_site_config
     
     data = request.json or {}
     recipient = data.get('recipient')
@@ -705,7 +705,7 @@ def update_settings():
         # Dynamically reschedule APScheduler jobs with the new times
         try:
             from app import scheduler
-            from core.utils import generate_sales_summary
+            from core.utils import safe_object_id, generate_sales_summary
 
             daily_24 = to_24h(prefs['daily_hour'], prefs['daily_ampm'])
             weekly_24 = to_24h(prefs['weekly_hour'], prefs['weekly_ampm'])

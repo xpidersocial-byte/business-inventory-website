@@ -4,7 +4,7 @@ import pandas as pd
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, send_file, jsonify
 from core.db import get_items_collection, get_inventory_log_collection, get_purchase_collection
 from core.middleware import login_required, role_required
-from core.utils import calculate_item_metrics, get_site_config, log_action, trigger_notification
+from core.utils import safe_object_id, calculate_item_metrics, get_site_config, log_action, trigger_notification
 from bson.objectid import ObjectId
 from datetime import datetime, timedelta, timezone
 from fpdf import FPDF
@@ -88,7 +88,7 @@ def add_sale():
                     "total": total,
                     "status": "Sold",
                     "user": session.get("email"),
-                    "branch_id": session.get("branch_id")
+                    "branch_id": safe_object_id(session.get("branch_id"))
                 }
                 res = purchase_collection.insert_one(purchase_doc)
                 purchase_id = res.inserted_id
@@ -103,7 +103,7 @@ def add_sale():
                     "new_stock": total_stock,
                     "retail_at_sale": unit_price, # Store historical prices in logs
                     "cost_at_sale": cost_price,
-                    "branch_id": session.get("branch_id")
+                    "branch_id": safe_object_id(session.get("branch_id"))
                 })
 
                 log_action("SALE", f"Sold {qty} x {item['name']}")

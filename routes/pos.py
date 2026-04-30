@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, session, jsonify
 from core.db import get_items_collection, get_purchase_collection, get_inventory_log_collection, get_menus_collection, get_notifications_collection
 from core.middleware import login_required
-from core.utils import log_action, send_email_notification, get_site_config, trigger_notification, update_item_stock
+from core.utils import safe_object_id, log_action, send_email_notification, get_site_config, trigger_notification, update_item_stock
 from extensions import socketio
 from bson.objectid import ObjectId
 from datetime import datetime, timezone
@@ -101,7 +101,7 @@ def pos_checkout():
             "total": total,
             "status": "Sold",
             "user": session.get('email'),
-            "branch_id": session.get('branch_id')
+            "branch_id": safe_object_id(session.get('branch_id'))
         })
         
         logs_to_insert.append({
@@ -112,7 +112,7 @@ def pos_checkout():
             "user": session.get('email'),
             "timestamp": ts,
             "new_stock": total_stock,
-            "branch_id": session.get('branch_id')
+            "branch_id": safe_object_id(session.get('branch_id'))
         })
         
         # Deduct stock using centralized helper (handles notifications automatically)
